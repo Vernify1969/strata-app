@@ -165,7 +165,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   border: 1px solid var(--line); background: var(--surface);
   display: inline-flex; align-items: center; gap: 6px;
 }
-.main { padding: 28px 20px 148px; max-width: 1120px; }
+.main { padding: 28px 20px 148px; max-width: none; width: 100%; }
 .stack { display: flex; flex-direction: column; gap: 20px; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .between { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
@@ -206,12 +206,30 @@ button.notice {
   background: var(--surface); padding: 0 14px; font-weight: 500;
 }
 .chip[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
-.trade-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.trade-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: stretch; }
 .tile {
-  min-height: 118px; border-radius: 14px; border: 1px solid var(--line);
+  height: 148px; min-height: 148px; border-radius: 14px; border: 1px solid var(--line);
   background: var(--surface); text-align: left; padding: 16px;
   display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 12px;
   font-weight: 600; box-shadow: var(--shadow);
+}
+.tile-name { display: block; width: 100%; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
+.more-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch; }
+.more-row .chip { width: 100%; height: 100%; white-space: normal; text-align: center; line-height: 1.25; justify-content: center; padding: 8px 12px; }
+.more-row .chip:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.home-layout { display: block; }
+.diary-card { display: flex; flex-direction: column; gap: 12px; }
+.diary h2 { font-size: 1.25rem; line-height: 1.25; }
+.diary .between { align-items: center; }
+.diary-list { display: flex; flex-direction: column; gap: 14px; max-height: 420px; overflow: auto; padding-right: 4px; }
+.diary-day { margin: 0 0 8px; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.diary-item { border-top: 1px solid var(--line); padding-top: 10px; }
+.diary-item p { margin: 4px 0 0; }
+.diary-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0; }
+@media (min-width: 1280px) {
+  .home-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+  .diary { position: sticky; top: 88px; }
+  .diary-list { max-height: min(440px, calc(100vh - 560px)); }
 }
 .tile .bubble, .pin .bubble {
   width: 36px; height: 36px; border-radius: 10px;
@@ -276,10 +294,10 @@ textarea { min-height: 120px; resize: vertical; }
 .header-actions { display: flex; align-items: center; gap: 8px; flex: none; }
 .header-actions .icon-btn,
 .header-emergency {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0;
   flex: none; box-sizing: border-box;
-  height: 40px; min-height: 40px; padding: 0 12px;
-  border-radius: 8px; font-weight: 600; font-size: 15px;
+  width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 0;
+  border-radius: 8px; font-weight: 600;
 }
 .header-emergency {
   border: 0;
@@ -287,11 +305,12 @@ textarea { min-height: 120px; resize: vertical; }
   box-shadow: 0 4px 10px rgba(190, 18, 60, 0.22);
 }
 .header-actions .ico { width: 18px; height: 18px; }
+.header-emergency .em-label,
+.header-actions .theme-label {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); border: 0;
+}
 @media (max-width: 480px) {
-  .header-actions .icon-btn,
-  .header-emergency { width: 40px; min-width: 40px; padding: 0; }
-  .header-emergency .em-label,
-  .theme-label,
   .topbar .brand span:last-child {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0 0 0 0); border: 0;
@@ -334,7 +353,15 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   .quote-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (min-width: 900px) {
-  .shell { display: grid; grid-template-columns: 248px 1fr; }
+  body { background: #E4ECF6; }
+  .shell {
+    display: grid; grid-template-columns: 248px minmax(0, 1fr);
+    width: min(1440px, 100%);
+    margin-inline: auto;
+    min-height: 100vh;
+    background: var(--bg);
+    box-shadow: 0 0 0 1px var(--line), 0 24px 60px rgba(15, 23, 42, 0.06);
+  }
   .rail {
     display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh;
     padding: 22px 14px; border-right: 1px solid var(--line); background: var(--surface);
@@ -348,10 +375,12 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   .rail button.tab[aria-current="page"] { background: var(--accent-bg); }
   .rail button.tab .badge { position: static; margin-left: auto; }
   .tabbar { display: none; }
-  .main { padding: 32px 40px 56px; }
+  .main { padding: 32px 32px 56px; max-width: none; width: auto; }
   .section-label { display: block; }
   .toast { bottom: 24px; }
-  .trade-grid { grid-template-columns: 1fr 1fr 1fr; }
+  .trade-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .more-row { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .more-row .chip:last-child:nth-child(odd) { grid-column: auto; }
   .topbar { padding-left: 28px; padding-right: 28px; }
   .topbar .brand { display: none; }
 }
@@ -1324,7 +1353,7 @@ const PHOTOS = {
     const emergencyBtn = state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
     return '<div class="shell" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
       '<aside class="rail">' + brandMark() + tabsHtml("rail") + "</aside>" +
-      '<div><header class="topbar">' + bar + (detail ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + emergencyBtn + themeBtn + "</div></header><p class=\"samplebar\">Sample data. The people, buildings and jobs are fictional.</p>" +
+      '<div><header class="topbar">' + bar + (detail ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + themeBtn + emergencyBtn + "</div></header><p class=\"samplebar\">Sample data. The people, buildings and jobs are fictional.</p>" +
       '<main class="main" id="main"><div class="stage"><div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>' + screenHtml() + "</div></main></div></div>" +
       '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>";
   }
@@ -1413,7 +1442,7 @@ const PHOTOS = {
     });
   }
   function managerHome() {
-    const tiles = TRADES.map(t => '<button class="tile" type="button" data-act="new-request" data-trade="' + t.id + '" style="--hue:' + tileHue(t.id) + '"><span class="bubble">' + icon(t.id) + "</span><span>" + esc(t.name) + "</span></button>").join("");
+    const tiles = TRADES.map(t => '<button class="tile" type="button" data-act="new-request" data-trade="' + t.id + '" style="--hue:' + tileHue(t.id) + '"><span class="bubble">' + icon(t.id) + '</span><span class="tile-name">' + esc(t.name) + "</span></button>").join("");
     const more = MORE.map(t => '<button class="chip" type="button" data-act="new-request" data-trade="' + t.id + '">' + esc(t.name) + "</button>").join("");
     const owned = ownJobs();
     const needs = needsManagerCount();
@@ -1427,11 +1456,77 @@ const PHOTOS = {
       '<button class="stat" type="button" data-act="tab" data-screen="calendar">' + ring(owned.length ? upcoming.length / owned.length : 0, "teal") + '<span><p class="stat-k">Upcoming</p><p class="stat-v">' + upcoming.length + '</p><p class="small">Booked on your buildings</p></span></button>' +
       '<div class="stat">' + ring(heldRatio, "gold") + '<span><p class="stat-k">Money held</p><p class="stat-v">' + moneyShort(held) + '</p><p class="small">Held until the work is finished</p></span></div>' +
       "</div>";
-    return '<div class="stack"><section class="hero' + heroPhoto + '><p class="eyebrow">For managers</p><h1>What do you need?</h1><p>Describe the job. A licensed contractor can make an offer.</p><button class="btn btn-primary" type="button" data-act="new-request">New request</button></section>' +
+    const primary = '<div class="home-primary stack"><section class="hero' + heroPhoto + '><p class="eyebrow">For managers</p><h1>What do you need?</h1><p>Describe the job. A licensed contractor can make an offer.</p><button class="btn btn-primary" type="button" data-act="new-request">New request</button></section>' +
       stats +
       '<div class="dash">' + noticeProfile() + "</div>" +
       '<div class="trade-grid">' + tiles + "</div>" +
-      '<h2>More services</h2><div class="row">' + more + "</div></div>";
+      '<h2>More services</h2><div class="more-row">' + more + "</div></div>";
+    return '<div class="home-layout">' + primary + diaryPanel() + "</div>";
+  }
+  function loadNotes() {
+    try {
+      const raw = localStorage.getItem("strata-notes");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (e) { return null; }
+  }
+  function saveNotes() {
+    try { localStorage.setItem("strata-notes", JSON.stringify(state.notes)); } catch (e) { /* storage unavailable */ }
+  }
+  function seedNotes() {
+    state.noteDraft = state.noteDraft || "";
+    state.noteDay = state.noteDay || "all";
+    const saved = loadNotes();
+    if (saved) { state.notes = saved; return; }
+    const today = todayISO();
+    const yesterday = addDays(today, -1);
+    const older = addDays(today, -2);
+    const now = Date.now();
+    const start = parseISO(today).getTime();
+    function onThisDay(minsAgo, fallbackMins) {
+      const at = now - minsAgo * 60000;
+      return at >= start ? at : start + fallbackMins * 60000;
+    }
+    function atClock(iso, hh, mm) {
+      const d = parseISO(iso);
+      d.setHours(hh, mm, 0, 0);
+      return d.getTime();
+    }
+    state.notes = [
+      { id: "n1", date: today, at: onThisDay(25, 8), author: "Mina Costa", text: "Handover: the leak in unit 12 is with the plumber. Sam Okonkwo is due back tomorrow morning. Please confirm he arrives.", sample: true },
+      { id: "n2", date: today, at: onThisDay(70, 2), author: "Jordan Hale", text: "Committee note: the stairwell painting waits until the committee meets on Tuesday.", sample: true },
+      { id: "n3", date: yesterday, at: atClock(yesterday, 16, 40), author: "Alex Nguyen", text: "Contractor arrival: Sam Okonkwo finished the lobby door closer. The plant-room key at Harbour View was returned to the concierge.", sample: true },
+      { id: "n4", date: older, at: atClock(older, 11, 15), author: "Mina Costa", text: "Follow-up: Balwyn Gardens has two quotes for the garden tap. Please compare them before anyone approves.", sample: true }
+    ];
+    saveNotes();
+  }
+  function diaryDateLabel(iso) {
+    if (iso === todayISO()) return "Today";
+    if (iso === addDays(todayISO(), -1)) return "Yesterday";
+    return fmtDateLong(iso);
+  }
+  function diaryPanel() {
+    const notes = state.notes || [];
+    const dates = [];
+    notes.forEach(n => { if (dates.indexOf(n.date) === -1) dates.push(n.date); });
+    dates.sort((a, b) => b.localeCompare(a));
+    const filter = state.noteDay || "all";
+    const shownDates = filter === "all" ? dates : dates.filter(d => d === filter);
+    const options = '<option value="all"' + (filter === "all" ? " selected" : "") + ">Every day</option>" +
+      dates.map(d => '<option value="' + d + '"' + (filter === d ? " selected" : "") + ">" + esc(diaryDateLabel(d)) + "</option>").join("");
+    const groups = shownDates.map(d => {
+      const items = notes.filter(n => n.date === d).slice().sort((a, b) => b.at - a.at);
+      return '<section><h3 class="diary-day">' + esc(diaryDateLabel(d)) + "</h3>" + items.map(n =>
+        '<article class="diary-item"><p class="small diary-meta"><strong>' + esc(n.author) + "</strong><span>" + esc(fmtStamp(n.at)) + "</span>" + (n.sample ? '<span class="pill pill-muted">Sample</span>' : "") + "</p><p>" + esc(n.text) + "</p></article>"
+      ).join("") + "</section>";
+    }).join("") || '<p class="muted">Nothing for this day.</p>';
+    return '<aside class="diary" aria-labelledby="diary-title"><div class="card diary-card"><div class="between"><h2 id="diary-title">Notices and comments</h2><span class="pill pill-muted">Sample</span></div>' +
+      '<p class="small muted">Handover notes for managers who share this profile. Sample entries are fictional.</p>' +
+      '<label class="field" for="diary-day">Choose a day<select id="diary-day" data-field="note.day">' + options + "</select></label>" +
+      '<div class="diary-list">' + groups + "</div>" +
+      '<label class="field" for="diary-text">Add a notice<textarea id="diary-text" data-field="note.draft" placeholder="What should the next manager know?">' + esc(state.noteDraft || "") + "</textarea></label>" +
+      '<button class="btn btn-primary" type="button" data-act="add-note">Add notice</button></div></aside>';
   }
 
   function managerProfile() {
@@ -2001,7 +2096,7 @@ const PHOTOS = {
     const opens = openJobs();
     const c = me();
     const popular = TRADES.map(t => ({ t: t, n: opens.filter(j => j.tradeId === t.id).length })).sort((a, b) => b.n - a.n || POPULAR_IDS.indexOf(a.t.id) - POPULAR_IDS.indexOf(b.t.id));
-    const tiles = popular.map(x => '<button class="tile" type="button" data-act="find-trade" data-trade="' + x.t.id + '" style="--hue:' + tileHue(x.t.id) + '"><span class="bubble">' + icon(x.t.id) + '</span><span>' + esc(x.t.name) + '</span><span class="count">' + x.n + "</span><span class=\"small\">open " + (x.n === 1 ? "job" : "jobs") + "</span></button>").join("");
+    const tiles = popular.map(x => '<button class="tile" type="button" data-act="find-trade" data-trade="' + x.t.id + '" style="--hue:' + tileHue(x.t.id) + '"><span class="bubble">' + icon(x.t.id) + '</span><span class="tile-name">' + esc(x.t.name) + '</span><span class="count">' + x.n + "</span><span class=\"small\">open " + (x.n === 1 ? "job" : "jobs") + "</span></button>").join("");
     const list = sortFound(opens).slice(0, 6).map(contractorCard).join("");
     const emergencies = opens.some(isEmergency);
     return '<div class="stack"><section class="hero"><p class="eyebrow">For contractors</p><h1>Find work</h1><p class="hero-stat"><strong>' + opens.length + "</strong> open " + (opens.length === 1 ? "job" : "jobs") + "</p></section>" +
@@ -2461,6 +2556,8 @@ const PHOTOS = {
 
   function applyField(field, value) {
     if (field === "find.q") { state.find.q = value; return false; }
+    if (field === "note.draft") { state.noteDraft = value; return false; }
+    if (field === "note.day") { state.noteDay = value; return true; }
     if (field.indexOf("manager.") === 0) {
       const key = field.split(".")[1];
       state.manager[key] = key === "consent" ? !!value : value;
@@ -2717,6 +2814,24 @@ const PHOTOS = {
       return;
     }
     if (act === "send-emergency") return sendEmergency();
+    if (act === "add-note") {
+      const text = String(state.noteDraft || "").trim();
+      if (!text) { toast("Write a short note first."); return; }
+      state.notes.unshift({
+        id: uid("n"),
+        date: todayISO(),
+        at: Date.now(),
+        author: (state.manager.name || "").trim() || "Manager",
+        text: text,
+        sample: false
+      });
+      state.noteDraft = "";
+      state.noteDay = todayISO();
+      saveNotes();
+      toast("Notice added.");
+      render();
+      return;
+    }
     if (act === "alert-support") return mutateJob(t.dataset.id, job => {
       job.contractorAlert = true;
       job.alertSeen = false;
@@ -2985,6 +3100,7 @@ const PHOTOS = {
 
   loadTheme();
   seed();
+  seedNotes();
   applyTheme();
   render();
 
