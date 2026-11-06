@@ -165,7 +165,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   border: 1px solid var(--line); background: var(--surface);
   display: inline-flex; align-items: center; gap: 6px;
 }
-.main { padding: 28px 20px 148px; max-width: 1120px; }
+.main { padding: 28px 20px 148px; max-width: none; width: 100%; }
 .stack { display: flex; flex-direction: column; gap: 20px; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .between { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
@@ -206,13 +206,17 @@ button.notice {
   background: var(--surface); padding: 0 14px; font-weight: 500;
 }
 .chip[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
-.trade-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.trade-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: stretch; }
 .tile {
-  min-height: 118px; border-radius: 14px; border: 1px solid var(--line);
+  height: 148px; min-height: 148px; border-radius: 14px; border: 1px solid var(--line);
   background: var(--surface); text-align: left; padding: 16px;
   display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 12px;
   font-weight: 600; box-shadow: var(--shadow);
 }
+.tile-name { display: block; width: 100%; white-space: normal; overflow-wrap: anywhere; line-height: 1.25; }
+.more-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch; }
+.more-row .chip { width: 100%; height: 100%; white-space: normal; text-align: center; line-height: 1.25; justify-content: center; padding: 8px 12px; }
+.more-row .chip:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .tile .bubble, .pin .bubble {
   width: 36px; height: 36px; border-radius: 10px;
   display: grid; place-items: center;
@@ -276,10 +280,10 @@ textarea { min-height: 120px; resize: vertical; }
 .header-actions { display: flex; align-items: center; gap: 8px; flex: none; }
 .header-actions .icon-btn,
 .header-emergency {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0;
   flex: none; box-sizing: border-box;
-  height: 40px; min-height: 40px; padding: 0 12px;
-  border-radius: 8px; font-weight: 600; font-size: 15px;
+  width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 0;
+  border-radius: 8px; font-weight: 600;
 }
 .header-emergency {
   border: 0;
@@ -287,11 +291,12 @@ textarea { min-height: 120px; resize: vertical; }
   box-shadow: 0 4px 10px rgba(190, 18, 60, 0.22);
 }
 .header-actions .ico { width: 18px; height: 18px; }
+.header-emergency .em-label,
+.header-actions .theme-label {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); border: 0;
+}
 @media (max-width: 480px) {
-  .header-actions .icon-btn,
-  .header-emergency { width: 40px; min-width: 40px; padding: 0; }
-  .header-emergency .em-label,
-  .theme-label,
   .topbar .brand span:last-child {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0 0 0 0); border: 0;
@@ -334,7 +339,15 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   .quote-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (min-width: 900px) {
-  .shell { display: grid; grid-template-columns: 248px 1fr; }
+  body { background: #E4ECF6; }
+  .shell {
+    display: grid; grid-template-columns: 248px minmax(0, 1fr);
+    width: min(1440px, 100%);
+    margin-inline: auto;
+    min-height: 100vh;
+    background: var(--bg);
+    box-shadow: 0 0 0 1px var(--line), 0 24px 60px rgba(15, 23, 42, 0.06);
+  }
   .rail {
     display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh;
     padding: 22px 14px; border-right: 1px solid var(--line); background: var(--surface);
@@ -348,10 +361,12 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   .rail button.tab[aria-current="page"] { background: var(--accent-bg); }
   .rail button.tab .badge { position: static; margin-left: auto; }
   .tabbar { display: none; }
-  .main { padding: 32px 40px 56px; }
+  .main { padding: 32px 32px 56px; max-width: none; width: auto; }
   .section-label { display: block; }
   .toast { bottom: 24px; }
-  .trade-grid { grid-template-columns: 1fr 1fr 1fr; }
+  .trade-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .more-row { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .more-row .chip:last-child:nth-child(odd) { grid-column: auto; }
   .topbar { padding-left: 28px; padding-right: 28px; }
   .topbar .brand { display: none; }
 }
@@ -1324,7 +1339,7 @@ const PHOTOS = {
     const emergencyBtn = state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
     return '<div class="shell" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
       '<aside class="rail">' + brandMark() + tabsHtml("rail") + "</aside>" +
-      '<div><header class="topbar">' + bar + (detail ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + emergencyBtn + themeBtn + "</div></header><p class=\"samplebar\">Sample data. The people, buildings and jobs are fictional.</p>" +
+      '<div><header class="topbar">' + bar + (detail ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + themeBtn + emergencyBtn + "</div></header><p class=\"samplebar\">Sample data. The people, buildings and jobs are fictional.</p>" +
       '<main class="main" id="main"><div class="stage"><div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>' + screenHtml() + "</div></main></div></div>" +
       '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>";
   }
@@ -1413,7 +1428,7 @@ const PHOTOS = {
     });
   }
   function managerHome() {
-    const tiles = TRADES.map(t => '<button class="tile" type="button" data-act="new-request" data-trade="' + t.id + '" style="--hue:' + tileHue(t.id) + '"><span class="bubble">' + icon(t.id) + "</span><span>" + esc(t.name) + "</span></button>").join("");
+    const tiles = TRADES.map(t => '<button class="tile" type="button" data-act="new-request" data-trade="' + t.id + '" style="--hue:' + tileHue(t.id) + '"><span class="bubble">' + icon(t.id) + '</span><span class="tile-name">' + esc(t.name) + "</span></button>").join("");
     const more = MORE.map(t => '<button class="chip" type="button" data-act="new-request" data-trade="' + t.id + '">' + esc(t.name) + "</button>").join("");
     const owned = ownJobs();
     const needs = needsManagerCount();
@@ -1431,7 +1446,7 @@ const PHOTOS = {
       stats +
       '<div class="dash">' + noticeProfile() + "</div>" +
       '<div class="trade-grid">' + tiles + "</div>" +
-      '<h2>More services</h2><div class="row">' + more + "</div></div>";
+      '<h2>More services</h2><div class="more-row">' + more + "</div></div>";
   }
 
   function managerProfile() {
@@ -2001,7 +2016,7 @@ const PHOTOS = {
     const opens = openJobs();
     const c = me();
     const popular = TRADES.map(t => ({ t: t, n: opens.filter(j => j.tradeId === t.id).length })).sort((a, b) => b.n - a.n || POPULAR_IDS.indexOf(a.t.id) - POPULAR_IDS.indexOf(b.t.id));
-    const tiles = popular.map(x => '<button class="tile" type="button" data-act="find-trade" data-trade="' + x.t.id + '" style="--hue:' + tileHue(x.t.id) + '"><span class="bubble">' + icon(x.t.id) + '</span><span>' + esc(x.t.name) + '</span><span class="count">' + x.n + "</span><span class=\"small\">open " + (x.n === 1 ? "job" : "jobs") + "</span></button>").join("");
+    const tiles = popular.map(x => '<button class="tile" type="button" data-act="find-trade" data-trade="' + x.t.id + '" style="--hue:' + tileHue(x.t.id) + '"><span class="bubble">' + icon(x.t.id) + '</span><span class="tile-name">' + esc(x.t.name) + '</span><span class="count">' + x.n + "</span><span class=\"small\">open " + (x.n === 1 ? "job" : "jobs") + "</span></button>").join("");
     const list = sortFound(opens).slice(0, 6).map(contractorCard).join("");
     const emergencies = opens.some(isEmergency);
     return '<div class="stack"><section class="hero"><p class="eyebrow">For contractors</p><h1>Find work</h1><p class="hero-stat"><strong>' + opens.length + "</strong> open " + (opens.length === 1 ? "job" : "jobs") + "</p></section>" +
