@@ -340,7 +340,121 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   .topbar { padding-left: 28px; padding-right: 28px; }
   .topbar .brand { display: none; }
 }
-@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+.hero {
+  position: relative; overflow: hidden; border-radius: 22px; padding: 28px 24px 24px; color: #fff;
+  background:
+    radial-gradient(90% 80% at 100% 0%, rgba(147, 197, 253, 0.45), transparent 46%),
+    radial-gradient(70% 80% at 0% 100%, rgba(37, 99, 235, 0.35), transparent 50%),
+    linear-gradient(128deg, #06122E 0%, #0E2A66 52%, #1D4ED8 100%);
+  box-shadow: 0 18px 40px rgba(14, 42, 102, 0.28);
+}
+.hero::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(rgba(255,255,255,.22) 1px, transparent 1px);
+  background-size: 16px 16px;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,.7), transparent 78%);
+  animation: drift 22s linear infinite;
+}
+.hero > * { position: relative; }
+.hero h1, .hero p, .hero .lead { color: #fff; }
+.hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.eyebrow { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #DBEAFE; }
+.hero .btn-primary {
+  margin-top: 18px; width: auto; min-width: 180px;
+  background: #fff; color: #0E2A66;
+  box-shadow: 0 10px 24px rgba(0,0,0,.18);
+}
+.hero-stat { margin: 12px 0 0; font-size: 1.05rem; color: #E0EAFF; }
+.hero-stat strong { font-family: Newsreader, Georgia, serif; font-size: 2.6rem; font-weight: 500; line-height: 1; letter-spacing: -0.03em; color: #fff; margin-right: 6px; vertical-align: -6px; }
+.dash { display: grid; gap: 12px; }
+@media (min-width: 800px) { .dash { grid-template-columns: 1fr 1fr; } }
+.notice.dash-card {
+  flex-direction: row; align-items: center; gap: 14px;
+  background: var(--surface); border: 1px solid var(--line);
+  box-shadow: 0 10px 28px rgba(29, 78, 216, 0.08);
+}
+.dash-badge {
+  width: 46px; height: 46px; border-radius: 50%; flex: none;
+  display: grid; place-items: center;
+  background: linear-gradient(160deg, #EFF6FF, #DBEAFE); color: #1D4ED8;
+  box-shadow: inset 0 0 0 1px #BFDBFE;
+}
+.dash-card strong, .dash-card .small { display: block; }
+@media (max-width: 700px) {
+  .hero { padding: 22px 20px 18px; }
+  .hero h1 { font-size: 2.05rem; }
+  .hero .btn-primary { margin-top: 14px; }
+}
+.tile {
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 30px rgba(29, 78, 216, 0.08);
+}
+.tile .bubble {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: linear-gradient(165deg, hsl(var(--hue) 85% 97%), hsl(var(--hue) 70% 88%));
+  color: hsl(var(--hue) 55% 30%);
+  box-shadow: inset 0 0 0 1px hsl(var(--hue) 45% 78%), 0 6px 14px hsl(var(--hue) 50% 40% / 0.18);
+}
+.tile:hover { transform: translateY(-3px); box-shadow: 0 18px 36px rgba(29, 78, 216, 0.16); }
+.tile:active { transform: translateY(0) scale(0.985); }
+.btn, .chip, .card, .notice, .tile { transition: transform .18s ease, box-shadow .18s ease, background .18s ease, filter .18s ease; }
+.btn-primary {
+  background: linear-gradient(180deg, #3B82F6 0%, #1D4ED8 100%);
+  box-shadow: 0 8px 18px rgba(29, 78, 216, 0.28);
+}
+.btn-primary:hover { filter: brightness(1.05); }
+.btn:active { transform: scale(0.985); }
+.topbar {
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+.mark { background: linear-gradient(160deg, #60A5FA, #1D4ED8); box-shadow: 0 6px 14px rgba(29, 78, 216, 0.35); }
+.quote {
+  background: linear-gradient(180deg, #F5F9FF 0%, var(--surface) 38%);
+  border-color: #D5E4FF;
+  box-shadow: 0 12px 32px rgba(29, 78, 216, 0.1);
+}
+.price { color: #1E3A8A; }
+.cal-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+  padding: 14px; box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+.day { background: var(--bg); }
+.day:hover { background: var(--accent-bg); }
+.day.today { box-shadow: inset 0 0 0 1.5px var(--brand); font-weight: 700; }
+.skyline svg { display: block; width: 100%; height: 108px; }
+.building-card { padding: 0; overflow: hidden; }
+.building-body { padding: 18px 20px 20px; }
+.empty {
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px;
+  padding: 28px 16px; border: 1px dashed #C7D7FE; border-radius: 16px;
+  background: linear-gradient(180deg, #fff, #F4F8FF); color: var(--muted);
+}
+.empty .bubble {
+  width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center;
+  background: linear-gradient(165deg, #EFF6FF, #DBEAFE); color: #1D4ED8;
+}
+.job-card { position: relative; overflow: hidden; }
+.job-card::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: linear-gradient(180deg, #1E3A8A, #60A5FA);
+}
+@keyframes drift { from { background-position: 0 0; } to { background-position: 32px 16px; } }
+:root[data-theme="dark"] .btn-primary { background: linear-gradient(180deg, #DBEAFE, #93C5FD); color: #0B1020; }
+:root[data-theme="dark"] .hero .btn-primary { background: #fff; color: #0E2A66; }
+:root[data-theme="dark"] .tile .bubble {
+  background: linear-gradient(165deg, hsl(var(--hue) 32% 26%), hsl(var(--hue) 28% 16%));
+  color: hsl(var(--hue) 70% 88%);
+  box-shadow: inset 0 0 0 1px hsl(var(--hue) 30% 34%);
+}
+:root[data-theme="dark"] .empty { background: #121826; border-color: #334155; }
+:root[data-theme="dark"] .dash-badge, :root[data-theme="dark"] .empty .bubble { background: #172033; color: #93C5FD; box-shadow: none; }
+:root[data-theme="dark"] .quote { background: linear-gradient(180deg, #172033, var(--surface) 46%); border-color: #243044; }
+:root[data-theme="dark"] .price { color: #DBEAFE; }
+:root[data-theme="dark"] .cal-card { box-shadow: none; }
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+}
 </style>
 
 </head>
@@ -1139,22 +1253,46 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
     return fn();
   }
 
+  function tileHue(id) {
+    const blues = [214, 222, 206, 230, 198, 218, 236, 190];
+    const i = POPULAR_IDS.indexOf(id);
+    return blues[i === -1 ? 0 : i];
+  }
+  function emptyState(message) {
+    return '<div class="empty"><span class="bubble">' + icon("clipboard") + "</span><p>" + message + "</p></div>";
+  }
+  function skyline(id) {
+    const n = String(id).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
+    const gid = "sky" + String(id).replace(/[^a-z0-9]/gi, "");
+    const towers = [0, 1, 2, 3, 4].map(i => {
+      const h = 26 + ((n + i * 19) % 40);
+      const x = 16 + i * 60;
+      const y = 84 - h;
+      let windows = "";
+      for (let r = 0; r < Math.floor(h / 12); r++) {
+        windows += '<rect x="' + (x + 8) + '" y="' + (y + 8 + r * 12) + '" width="7" height="5" rx="1" fill="rgba(255,255,255,.8)"/>';
+        windows += '<rect x="' + (x + 22) + '" y="' + (y + 8 + r * 12) + '" width="7" height="5" rx="1" fill="rgba(255,255,255,.55)"/>';
+      }
+      return '<rect x="' + x + '" y="' + y + '" width="42" height="' + h + '" rx="3" fill="rgba(255,255,255,.18)"/>' + windows;
+    }).join("");
+    return '<div class="skyline" aria-hidden="true"><svg viewBox="0 0 320 84" preserveAspectRatio="xMidYMax slice"><defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#071633"/><stop offset="58%" stop-color="#163A86"/><stop offset="100%" stop-color="#3B82F6"/></linearGradient></defs><rect width="320" height="84" fill="url(#' + gid + ')"/><circle cx="262" cy="20" r="14" fill="rgba(255,255,255,.2)"/>' + towers + "</svg></div>";
+  }
   function noticeProfile() {
     const missing = profileMissing();
     if (!missing.length) return "";
-    return '<button class="notice notice-warn" type="button" data-act="tab" data-screen="profile" style="text-align:left"><strong>Set up your profile to create jobs</strong><span class="small">Still to do: ' + esc(missing.join(", ")) + ".</span></button>";
+    return '<button class="notice notice-warn dash-card" type="button" data-act="tab" data-screen="profile"><span class="dash-badge">' + icon("user") + '</span><span><strong>Set up your profile to create jobs</strong><span class="small">Still to do: ' + esc(missing.join(", ")) + ".</span></span></button>";
   }
   function noticeNeeds(count, screen) {
     if (!count) return "";
     const word = count === 1 ? "job needs" : "jobs need";
-    return '<button class="notice notice-warn" type="button" data-act="tab" data-screen="' + screen + '" style="text-align:left"><strong>' + count + " " + word + " you</strong><span class=\"small\">Tap to open them.</span></button>";
+    return '<button class="notice notice-warn dash-card" type="button" data-act="tab" data-screen="' + screen + '"><span class="dash-badge">' + icon("clipboard") + "</span><span><strong>" + count + " " + word + ' you</strong><span class="small">Tap to open them.</span></span></button>';
   }
 
   function managerHome() {
-    const tiles = TRADES.map(t => '<button class="tile" type="button" data-act="new-request" data-trade="' + t.id + '" style="--hue:' + t.hue + '"><span class="bubble">' + icon(t.id) + "</span><span>" + esc(t.name) + "</span></button>").join("");
+    const tiles = TRADES.map(t => '<button class="tile" type="button" data-act="new-request" data-trade="' + t.id + '" style="--hue:' + tileHue(t.id) + '"><span class="bubble">' + icon(t.id) + "</span><span>" + esc(t.name) + "</span></button>").join("");
     const more = MORE.map(t => '<button class="chip" type="button" data-act="new-request" data-trade="' + t.id + '">' + esc(t.name) + "</button>").join("");
-    return '<div class="stack"><h1>What do you need?</h1>' + noticeProfile() + noticeNeeds(needsManagerCount(), "jobs") +
-      '<button class="btn btn-primary" type="button" data-act="new-request">New request</button>' +
+    return '<div class="stack"><section class="hero"><p class="eyebrow">For managers</p><h1>What do you need?</h1><p>Describe the job. Licensed contractors nearby can make an offer.</p><button class="btn btn-primary" type="button" data-act="new-request">New request</button></section>' +
+      '<div class="dash">' + noticeProfile() + noticeNeeds(needsManagerCount(), "jobs") + "</div>" +
       '<div class="trade-grid">' + tiles + "</div>" +
       '<h2>More services</h2><div class="row">' + more + "</div></div>";
   }
@@ -1209,7 +1347,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
     const cards = state.buildings.map(b => {
       const km = kmFromCbd(b.lat, b.lng);
       const outside = !inRadius(b.lat, b.lng);
-      return '<article class="card stack"><div class="between"><h2>' + esc(b.name) + "</h2>" + (b.sample ? '<span class="pill pill-muted">Sample</span>' : "") + "</div>" +
+      return '<article class="card building-card">' + skyline(b.id) + '<div class="stack building-body"><div class="between"><h2>' + esc(b.name) + "</h2>" + (b.sample ? '<span class="pill pill-muted">Sample</span>' : "") + "</div>" +
         "<p>" + esc(b.streetNumber + " " + b.street + ", " + b.suburb + " VIC") + "</p>" +
         '<p class="small">OC or plan ' + esc(b.oc) + " · " + kmText(km) + " from the CBD</p>" +
         (outside ? '<p class="notice notice-bad">We do not cover this area yet. It is ' + kmText(km) + " from Flinders Street Station.</p>" : "") +
@@ -1219,7 +1357,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
         '<label class="check"><input type="checkbox" data-field="building.' + b.id + '.weekends"' + (b.weekends ? " checked" : "") + "> <span>Contractors can work weekends</span></label>" +
         areaField("Saved access details", "building." + b.id + ".access", b.access) +
         field("How close a contractor must be for evidence (metres)", "number", "building." + b.id + ".captureM", b.captureM) +
-        "</article>";
+        "</div></article>";
     }).join("");
     const wait = state.waiting.map(b => '<article class="card stack"><h2>' + esc(b.name) + '</h2><p class="small">Waiting list · ' + esc(b.suburb) + " · " + kmText(kmFromCbd(b.lat, b.lng)) + " from Flinders Street Station</p><p>We do not cover this area yet. The details are saved.</p></article>").join("");
     return '<div class="stack"><div class="between"><h1>Buildings</h1></div>' +
@@ -1278,7 +1416,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   function jobCardManager(job) {
     const p = placeOf(job);
     const quotes = quotesFor(job.id).length;
-    return '<article class="card stack"><div class="row">' +
+    return '<article class="card job-card stack"><div class="row">' +
       (isEmergency(job) ? '<span class="pill pill-emergency">Emergency</span>' : "") +
       (job.sample ? '<span class="pill pill-muted">Sample</span>' : "") +
       '<span class="pill pill-warn">' + esc(statusLabel(job)) + "</span>" +
@@ -1299,7 +1437,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
     groups.forEach(g => {
       const items = state.jobs.filter(j => managerBucket(j) === g[0]);
       body += "<h2>" + g[1] + "</h2>";
-      body += items.length ? items.map(jobCardManager).join("") : '<p class="muted">Nothing in this group.</p>';
+      body += items.length ? items.map(jobCardManager).join("") : emptyState("Nothing in this group.");
     });
     return body + "</div>";
   }
@@ -1344,10 +1482,12 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
       if (dots.requested) label += ", date waiting for a quote";
       if (pressed) label += ", selected";
       const dotHtml = '<span class="dots">' + (dots.booked ? '<span class="dot filled"></span>' : "") + (dots.requested ? '<span class="dot outlined"></span>' : "") + "</span>";
-      html += '<button type="button" class="day' + (asked ? " asked" : "") + '" data-act="' + opts.pick + '" data-date="' + iso + '" aria-pressed="' + (pressed ? "true" : "false") + '" aria-disabled="' + (dis ? "true" : "false") + '" aria-label="' + esc(label) + '" data-reason="' + esc(dis) + '">' + d + dotHtml + "</button>";
+      const today = iso === todayISO();
+      if (today) label += ", today";
+      html += '<button type="button" class="day' + (asked ? " asked" : "") + (today ? " today" : "") + '" data-act="' + opts.pick + '" data-date="' + iso + '" aria-pressed="' + (pressed ? "true" : "false") + '" aria-disabled="' + (dis ? "true" : "false") + '" aria-label="' + esc(label) + '" data-reason="' + esc(dis) + '">' + d + dotHtml + "</button>";
     }
     html += "</div>";
-    return html;
+    return '<div class="cal-card">' + html + "</div>";
   }
 
   function calendarScreen() {
@@ -1368,7 +1508,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
         let when = whenText(job);
         if (q) when = rangeText(q.date, q.time, q.duration, p.open, p.close);
         return '<button class="btn btn-secondary" type="button" data-act="open-job" data-id="' + job.id + '">' + esc(job.title) + " · " + esc(when) + "</button>";
-      }).join("") || '<p class="muted">Nothing on this day.</p>';
+      }).join("") || emptyState("Nothing on this day.");
       let book = "";
       if (role === "manager") {
         const closed = dayClosedForAll(selected);
@@ -1724,10 +1864,10 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
     const opens = openJobs();
     const c = me();
     const popular = TRADES.map(t => ({ t: t, n: opens.filter(j => j.tradeId === t.id).length })).sort((a, b) => b.n - a.n || POPULAR_IDS.indexOf(a.t.id) - POPULAR_IDS.indexOf(b.t.id));
-    const tiles = popular.map(x => '<button class="tile" type="button" data-act="find-trade" data-trade="' + x.t.id + '" style="--hue:' + x.t.hue + '"><span class="bubble">' + icon(x.t.id) + '</span><span>' + esc(x.t.name) + '</span><span class="count">' + x.n + "</span><span class=\"small\">open " + (x.n === 1 ? "job" : "jobs") + "</span></button>").join("");
+    const tiles = popular.map(x => '<button class="tile" type="button" data-act="find-trade" data-trade="' + x.t.id + '" style="--hue:' + tileHue(x.t.id) + '"><span class="bubble">' + icon(x.t.id) + '</span><span>' + esc(x.t.name) + '</span><span class="count">' + x.n + "</span><span class=\"small\">open " + (x.n === 1 ? "job" : "jobs") + "</span></button>").join("");
     const list = sortFound(opens).slice(0, 6).map(contractorCard).join("");
     const emergencies = opens.some(isEmergency);
-    return '<div class="stack"><h1>Find work</h1><p class="lead">' + opens.length + " open " + (opens.length === 1 ? "job" : "jobs") + "</p>" +
+    return '<div class="stack"><section class="hero"><p class="eyebrow">For contractors</p><h1>Find work</h1><p class="hero-stat"><strong>' + opens.length + "</strong> open " + (opens.length === 1 ? "job" : "jobs") + "</p></section>" +
       (!c.guideDone ? '<button class="notice notice-warn" type="button" data-act="open-guide" style="text-align:left"><strong>Read the safety guide before you start work.</strong></button>' : "") +
       noticeNeeds(needsContractorCount(), "active") +
       (emergencies ? '<button class="notice notice-bad" type="button" data-act="tab" data-screen="find" style="text-align:left"><strong>An emergency job is open.</strong><span class="small">Contractors have been alerted. <span class="demo">Demo</span></span></button>' : "") +
@@ -1787,7 +1927,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
     const tradeName = f.trade === "all" ? "All trades" : tradeById(f.trade).name;
     const summary = "Within " + f.distance + " km · " + tradeName;
     const list = sortFound(foundJobs());
-    const body = f.view === "map" ? mapHtml(list) : list.map(contractorCard).join("") || '<p class="muted">No jobs match.</p>';
+    const body = f.view === "map" ? mapHtml(list) : list.map(contractorCard).join("") || emptyState("No jobs match.");
     const filters = f.filtersOpen ? '<div class="card stack"><span class="field">Distance</span><div class="row">' + [3, 5, 8, 12].map(n => '<button class="chip" type="button" data-act="distance" data-v="' + n + '" aria-pressed="' + (f.distance === n ? "true" : "false") + '">' + n + " km</button>").join("") + "</div>" +
       '<span class="field">Trade</span><div class="row"><button class="chip" type="button" data-act="find-trade" data-trade="all" aria-pressed="' + (f.trade === "all" ? "true" : "false") + '">All</button>' + ALL_TRADES.map(t => '<button class="chip" type="button" data-act="find-trade" data-trade="' + t.id + '" aria-pressed="' + (f.trade === t.id ? "true" : "false") + '">' + esc(t.name) + "</button>").join("") + "</div></div>" : "";
     return '<div class="stack"><h1>Find jobs</h1><div class="row" role="group" aria-label="List or map"><button class="chip" type="button" data-act="find-view" data-v="list" aria-pressed="' + (f.view === "list" ? "true" : "false") + '">List</button><button class="chip" type="button" data-act="find-view" data-v="map" aria-pressed="' + (f.view === "map" ? "true" : "false") + '">Map</button></div>' +
@@ -2067,7 +2207,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
       else if (job.awardedQuoteId && job.awardedQuoteId !== q.id) status = "Not chosen";
       return '<article class="card stack"><h2>' + esc(job.title) + "</h2><p>" + esc(streetPublic(job)) + "</p><p>" + money(q.price) + " · " + esc(status) + '</p><button class="btn btn-secondary" type="button" data-act="open-job" data-id="' + job.id + '">View details</button></article>';
     }).join("");
-    return '<div class="stack"><h1>My offers</h1>' + (cards || '<p class="muted">You have not sent an offer yet.</p>') + "</div>";
+    return '<div class="stack"><h1>My offers</h1>' + (cards || emptyState("You have not sent an offer yet.")) + "</div>";
   }
   function activeJobs() {
     const groups = [["needs", "Needs you"], ["waiting", "Waiting for the manager"], ["done", "Done"]];
@@ -2076,7 +2216,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
     groups.forEach(g => {
       const items = state.jobs.filter(j => contractorBucket(j) === g[0]);
       html += "<h2>" + g[1] + "</h2>";
-      html += items.length ? items.map(j => '<article class="card stack"><h3>' + esc(j.title) + "</h3><p>" + esc(statusLabel(j)) + '</p><button class="btn btn-secondary" type="button" data-act="open-job" data-id="' + j.id + '">Open</button></article>').join("") : '<p class="muted">Nothing in this group.</p>';
+      html += items.length ? items.map(j => '<article class="card job-card stack"><h3>' + esc(j.title) + "</h3><p>" + esc(statusLabel(j)) + '</p><button class="btn btn-secondary" type="button" data-act="open-job" data-id="' + j.id + '">Open</button></article>').join("") : emptyState("Nothing in this group.");
     });
     return html + "</div>";
   }
