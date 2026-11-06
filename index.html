@@ -272,18 +272,25 @@ textarea { min-height: 120px; resize: vertical; }
 .pin.emergency { box-shadow: 0 0 0 3px var(--emergency); }
 .pin.booked { border-radius: 6px; box-shadow: 0 0 0 3px var(--accent); }
 .pin .mini { width: 16px; height: 16px; }
+.header-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.header-actions .icon-btn,
 .header-emergency {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  flex: none; min-height: 40px; min-width: 40px; padding: 0 12px;
-  border: 0; border-radius: 10px;
-  background: var(--emergency); color: var(--emergency-ink);
-  font-weight: 700; letter-spacing: 0.01em;
-  box-shadow: 0 6px 14px rgba(190, 18, 60, 0.28);
+  flex: none; box-sizing: border-box;
+  height: 40px; min-height: 40px; padding: 0 12px;
+  border-radius: 8px; font-weight: 600; font-size: 15px;
 }
-.header-emergency .ico { width: 16px; height: 16px; }
+.header-emergency {
+  border: 0;
+  background: var(--emergency); color: var(--emergency-ink);
+  box-shadow: 0 4px 10px rgba(190, 18, 60, 0.22);
+}
+.header-actions .ico { width: 18px; height: 18px; }
 @media (max-width: 480px) {
-  .header-emergency { width: 40px; padding: 0; }
+  .header-actions .icon-btn,
+  .header-emergency { width: 40px; min-width: 40px; padding: 0; }
   .header-emergency .em-label,
+  .theme-label,
   .topbar .brand span:last-child {
     position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
     overflow: hidden; clip: rect(0 0 0 0); border: 0;
@@ -321,10 +328,6 @@ textarea { min-height: 120px; resize: vertical; }
 ul.clean { margin: 8px 0 0; padding-left: 18px; }
 hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-@media (max-width: 430px) {
-  .theme-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); border: 0; }
-  .icon-btn { width: 40px; min-width: 40px; flex: none; padding: 0; justify-content: center; }
-}
 @media (min-width: 720px) {
   .time-grid { grid-template-columns: repeat(6, 1fr); }
   .quote-grid { grid-template-columns: 1fr 1fr; }
@@ -1320,7 +1323,7 @@ const PHOTOS = {
     const emergencyBtn = state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
     return '<div class="shell" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
       '<aside class="rail">' + brandMark() + tabsHtml("rail") + "</aside>" +
-      '<div><header class="topbar">' + emergencyBtn + bar + (detail ? '<div class="spacer"></div>' : "") + themeBtn + '</header><p class="samplebar">Sample data. The people, buildings and jobs are fictional.</p>' +
+      '<div><header class="topbar">' + bar + (detail ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + emergencyBtn + themeBtn + "</div></header><p class=\"samplebar\">Sample data. The people, buildings and jobs are fictional.</p>" +
       '<main class="main" id="main"><div class="stage"><div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>' + screenHtml() + "</div></main></div></div>" +
       '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>";
   }
