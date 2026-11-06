@@ -272,14 +272,24 @@ textarea { min-height: 120px; resize: vertical; }
 .pin.emergency { box-shadow: 0 0 0 3px var(--emergency); }
 .pin.booked { border-radius: 6px; box-shadow: 0 0 0 3px var(--accent); }
 .pin .mini { width: 16px; height: 16px; }
-.fab {
-  position: fixed; right: 16px; bottom: 84px; z-index: 35;
-  min-height: 44px; border-radius: 10px; border: 0; padding: 0 14px;
-  background: var(--emergency); color: var(--emergency-ink); font-weight: 600;
-  display: inline-flex; align-items: center; gap: 6px;
-  box-shadow: 0 8px 20px rgba(190, 18, 60, 0.28);
+.header-emergency {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  flex: none; min-height: 40px; min-width: 40px; padding: 0 12px;
+  border: 0; border-radius: 10px;
+  background: var(--emergency); color: var(--emergency-ink);
+  font-weight: 700; letter-spacing: 0.01em;
+  box-shadow: 0 6px 14px rgba(190, 18, 60, 0.28);
 }
-.fab .ico { width: 16px; height: 16px; }
+.header-emergency .ico { width: 16px; height: 16px; }
+@media (max-width: 480px) {
+  .header-emergency { width: 40px; padding: 0; }
+  .header-emergency .em-label,
+  .topbar .brand span:last-child {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); border: 0;
+  }
+  .roles button { padding: 0 8px; font-size: 13px; }
+}
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
   display: flex; background: color-mix(in srgb, var(--surface) 94%, transparent);
@@ -336,7 +346,6 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   .tabbar { display: none; }
   .main { padding: 32px 40px 56px; }
   .section-label { display: block; }
-  .fab { bottom: 24px; }
   .toast { bottom: 24px; }
   .trade-grid { grid-template-columns: 1fr 1fr 1fr; }
   .topbar { padding-left: 28px; padding-right: 28px; }
@@ -1308,13 +1317,12 @@ const PHOTOS = {
       bar = brandMark() + '<div class="section-label">' + esc(section || "Strata App") + '</div><div class="spacer"></div><div class="roles" role="group" aria-label="Choose who you are"><button type="button" data-act="role" data-role="manager" aria-pressed="' + (state.role === "manager" ? "true" : "false") + '">Manager</button><button type="button" data-act="role" data-role="contractor" aria-pressed="' + (state.role === "contractor" ? "true" : "false") + '">Contractor</button></div>';
     }
     const themeBtn = '<button class="icon-btn" type="button" data-act="theme" aria-label="Theme ' + themeLabel + '. Activate to change.">' + themeIcon + '<span class="theme-label">' + themeLabel + "</span></button>";
-    const showFab = state.screen !== "emergency";
+    const emergencyBtn = state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
     return '<div class="shell" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
       '<aside class="rail">' + brandMark() + tabsHtml("rail") + "</aside>" +
-      '<div><header class="topbar">' + bar + (detail ? '<div class="spacer"></div>' : "") + themeBtn + '</header><p class="samplebar">Sample data. The people, buildings and jobs are fictional.</p>' +
+      '<div><header class="topbar">' + emergencyBtn + bar + (detail ? '<div class="spacer"></div>' : "") + themeBtn + '</header><p class="samplebar">Sample data. The people, buildings and jobs are fictional.</p>' +
       '<main class="main" id="main"><div class="stage"><div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>' + screenHtml() + "</div></main></div></div>" +
-      '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>" +
-      (showFab ? '<button class="fab" type="button" data-act="emergency">' + icon("alert") + "<span>Emergency</span></button>" : "");
+      '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>";
   }
 
   function screenHtml() {
