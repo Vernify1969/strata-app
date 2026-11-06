@@ -1,0 +1,2635 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Strata App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #EEF2EF;
+  --surface: #FFFFFF;
+  --ink: #15201C;
+  --muted: #5B6863;
+  --line: #D9E1DD;
+  --brand: #0E5A4B;
+  --brand-ink: #FFFFFF;
+  --gold: #FFC93C;
+  --gold-ink: #15201C;
+  --ok: #0E6B45;
+  --ok-bg: #E3F6EC;
+  --warn: #7A4E00;
+  --warn-bg: #FFF3D4;
+  --bad: #8E1D32;
+  --bad-bg: #FDECEE;
+  --emergency: #8E1D32;
+  --emergency-ink: #FFFFFF;
+  --shadow: 0 10px 28px rgba(21, 32, 28, 0.06);
+  --map: #E4EEE9;
+  --river: #8FB7D6;
+  --grid: #C5D5CE;
+}
+:root[data-theme="dark"] {
+  --bg: #0B120F;
+  --surface: #141F1A;
+  --ink: #EAF2EE;
+  --muted: #9DAEA6;
+  --line: #25342D;
+  --brand: #5FD3B6;
+  --brand-ink: #0B120F;
+  --gold: #FFC93C;
+  --gold-ink: #15201C;
+  --ok: #8EE0B5;
+  --ok-bg: #123528;
+  --warn: #FFD56A;
+  --warn-bg: #3A2E10;
+  --bad: #FFB3BA;
+  --bad-bg: #3A1820;
+  --emergency: #FF8B7A;
+  --emergency-ink: #1A0E0C;
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  --map: #10201A;
+  --river: #3D6F8C;
+  --grid: #243830;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: Figtree, "Segoe UI", sans-serif;
+  font-size: 16.5px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--bg);
+}
+h1, h2, h3, .brand, .top-title {
+  font-family: "Bricolage Grotesque", "Segoe UI", sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+h1 { font-size: 2rem; line-height: 1.12; }
+h2 { font-size: 1.28rem; line-height: 1.2; }
+h3 { font-size: 1.05rem; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.shell { min-height: 100vh; }
+.topbar {
+  position: sticky; top: 0; z-index: 25;
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.brand { font-size: 1.15rem; white-space: nowrap; }
+.top-title { font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.spacer { flex: 1; }
+.samplebar {
+  background: var(--gold); color: var(--gold-ink); font-size: 13px; font-weight: 700;
+  padding: 6px 12px; text-align: center;
+}
+.sample-pill, .demo, .pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; font-weight: 700; white-space: nowrap;
+}
+.sample-pill { background: var(--gold); color: var(--gold-ink); font-size: 11px; min-height: 26px; padding: 0 8px; }
+.demo { background: var(--gold); color: var(--gold-ink); font-size: 11px; min-height: 22px; padding: 0 6px; border-radius: 7px; }
+.pill { font-size: 12px; min-height: 26px; padding: 0 8px; gap: 4px; }
+.pill-new { background: var(--ok-bg); color: var(--ok); }
+.pill-emergency, .pill-bad { background: var(--bad-bg); color: var(--bad); }
+.pill-verified { background: var(--gold); color: var(--gold-ink); }
+.pill-ok { background: var(--ok-bg); color: var(--ok); }
+.pill-warn { background: var(--warn-bg); color: var(--warn); }
+.pill-muted { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+.pill-trade { background: hsl(var(--hue) 55% 92%); color: hsl(var(--hue) 40% 22%); }
+:root[data-theme="dark"] .pill-trade { background: hsl(var(--hue) 28% 22%); color: hsl(var(--hue) 70% 82%); }
+.roles { display: flex; flex-shrink: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.roles button, .icon-btn, .back-btn {
+  min-height: 40px; border: 0; background: var(--surface); color: var(--ink); padding: 0 10px; white-space: nowrap;
+}
+.roles button { flex-shrink: 0; }
+.roles button[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); }
+.icon-btn, .back-btn { border: 1px solid var(--line); border-radius: 14px; display: inline-flex; align-items: center; gap: 6px; }
+.main { padding: 16px 16px 128px; max-width: 1080px; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.between { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.muted { color: var(--muted); }
+.small { font-size: 0.92rem; }
+.lead { margin: 4px 0 0; color: var(--muted); }
+.card, .notice, .summary-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px;
+  box-shadow: var(--shadow);
+}
+.notice { box-shadow: none; }
+button.notice {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  width: 100%; text-align: left; cursor: pointer;
+}
+.ico { width: 22px; height: 22px; display: block; }
+.pin .ico { width: 18px; height: 18px; }
+.notice-warn { background: var(--warn-bg); }
+.notice-bad { background: var(--bad-bg); border-color: transparent; }
+.notice-ok { background: var(--ok-bg); border-color: transparent; }
+.summary-card { border: 2px solid var(--brand); box-shadow: none; }
+.btn {
+  min-height: 50px; border-radius: 14px; border: 1px solid transparent;
+  padding: 10px 14px; font-weight: 700; width: 100%;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center;
+}
+.btn-primary { background: var(--brand); color: var(--brand-ink); }
+.btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--line); }
+.btn-ghost { background: transparent; color: var(--brand); }
+.btn-emergency { background: var(--emergency); color: var(--emergency-ink); }
+.btn[disabled], .btn[aria-disabled="true"] { opacity: 0.55; }
+.btn.auto { width: auto; }
+.chip {
+  min-height: 40px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); padding: 0 14px; font-weight: 650;
+}
+.chip[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+.trade-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tile {
+  min-height: 104px; border-radius: 18px; border: 1px solid var(--line);
+  background: var(--surface); text-align: left; padding: 12px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px; font-weight: 700;
+}
+.tile .bubble, .pin .bubble {
+  width: 42px; height: 42px; border-radius: 14px;
+  display: grid; place-items: center;
+  background: hsl(var(--hue) 45% 40%); color: white;
+}
+:root[data-theme="dark"] .tile .bubble { background: hsl(var(--hue) 35% 32%); color: hsl(var(--hue) 80% 88%); }
+.count { font-weight: 800; font-size: 1.15rem; }
+label.field { display: flex; flex-direction: column; gap: 6px; font-weight: 650; }
+input[type="text"], input[type="email"], input[type="tel"], input[type="number"], input[type="time"], textarea, select {
+  width: 100%; min-height: 48px; border-radius: 12px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); padding: 10px 12px; font-weight: 500;
+}
+textarea { min-height: 110px; resize: vertical; }
+.check { display: flex; gap: 10px; align-items: flex-start; font-weight: 600; min-height: 40px; }
+.check input { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--brand); }
+.progress { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.progress > span { display: block; height: 100%; background: var(--brand); }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.cal .dow { text-align: center; font-size: 12px; color: var(--muted); font-weight: 700; padding: 4px 0; }
+.day {
+  min-height: 44px; border-radius: 12px; border: 1px solid transparent; background: var(--surface);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-weight: 700;
+}
+.day.asked { box-shadow: inset 0 0 0 2px var(--gold); }
+.day[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); }
+.day[aria-disabled="true"] { opacity: 0.38; }
+.dots { display: flex; gap: 3px; height: 6px; }
+.dot { width: 6px; height: 6px; border-radius: 99px; }
+.dot.filled { background: var(--brand); }
+.day[aria-pressed="true"] .dot.filled { background: var(--brand-ink); }
+.dot.outlined { background: transparent; box-shadow: inset 0 0 0 1.5px var(--brand); }
+.time-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.quote-grid { display: grid; gap: 12px; }
+.thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+.thumb {
+  width: 124px; min-height: 92px; border-radius: 12px; padding: 8px;
+  background: hsl(var(--hue, 168) 32% 36%); color: white;
+  display: flex; flex-direction: column; justify-content: flex-end; font-size: 12px; font-weight: 650;
+}
+.tl { border-left: 2px solid var(--line); margin: 4px 0 0 8px; padding-left: 14px; }
+.tl .ev { position: relative; margin: 0 0 12px; }
+.tl .ev::before {
+  content: ""; position: absolute; left: -19px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--brand);
+}
+.map-stage { position: relative; background: var(--map); border-radius: 18px; overflow: hidden; border: 1px solid var(--line); }
+.map-stage svg { width: 100%; height: auto; display: block; }
+.pin {
+  position: absolute; width: 40px; height: 40px; margin: 0; padding: 0;
+  border-radius: 50%; border: 2px solid white; transform: translate(-50%, -50%);
+  display: grid; place-items: center; color: white;
+  background: hsl(var(--hue) 45% 38%);
+}
+.pin.emergency { box-shadow: 0 0 0 3px var(--bad); }
+.pin.booked { border-radius: 6px; box-shadow: 0 0 0 3px var(--gold); }
+.pin .mini { width: 18px; height: 18px; }
+.fab {
+  position: fixed; right: 12px; bottom: 78px; z-index: 35;
+  min-height: 44px; border-radius: 999px; border: 0; padding: 0 14px;
+  background: var(--emergency); color: var(--emergency-ink); font-weight: 800;
+  box-shadow: var(--shadow);
+}
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  display: flex; background: var(--surface); border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tabbar button, .rail button.tab {
+  position: relative; flex: 1; min-height: 58px; border: 0; background: transparent; color: var(--muted);
+  font-size: 10px; font-weight: 700; white-space: nowrap; letter-spacing: -0.02em;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 4px 0;
+}
+.tabbar button[aria-current="page"], .rail button.tab[aria-current="page"] { color: var(--brand); }
+.badge {
+  position: absolute; top: 4px; right: 6px; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 99px; background: var(--bad); color: white; font-size: 10px;
+  display: grid; place-items: center;
+}
+:root[data-theme="dark"] .badge { color: #1A0E0C; }
+.badge.dot { min-width: 10px; width: 10px; height: 10px; padding: 0; right: 10px; }
+.rail { display: none; }
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%); bottom: 86px; z-index: 60;
+  background: var(--ink); color: var(--bg); padding: 12px 14px; border-radius: 14px;
+  max-width: min(440px, calc(100% - 24px)); font-weight: 650; box-shadow: var(--shadow);
+}
+.owner-link { background: none; border: 0; color: var(--muted); text-decoration: underline; min-height: 40px; padding: 8px 0; }
+ul.clean { margin: 6px 0 0; padding-left: 18px; }
+hr.sep { border: 0; border-top: 1px solid var(--line); margin: 8px 0; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (min-width: 720px) {
+  .time-grid { grid-template-columns: repeat(6, 1fr); }
+  .quote-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (min-width: 900px) {
+  .shell { display: grid; grid-template-columns: 232px 1fr; }
+  .rail {
+    display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100vh;
+    padding: 16px 12px; border-right: 1px solid var(--line); background: var(--surface);
+  }
+  .rail button.tab { flex-direction: row; justify-content: flex-start; gap: 8px; font-size: 15px; min-height: 48px; border-radius: 12px; padding: 0 10px; white-space: nowrap; }
+  .rail button.tab .badge { position: static; margin-left: auto; }
+  .tabbar { display: none; }
+  .main { padding: 20px 28px 48px; }
+  .fab { bottom: 20px; }
+  .toast { bottom: 24px; }
+  .trade-grid { grid-template-columns: 1fr 1fr 1fr; }
+  .topbar { padding-left: 20px; padding-right: 20px; }
+  .topbar .brand { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<a class="sr" href="#main">Skip to content</a>
+<div id="app"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script>
+(function () {
+  "use strict";
+
+  const CBD = { lat: -37.8183, lng: 144.9671, name: "Flinders Street Station" };
+  const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const DOW = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const DOW_SHORT = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+  const TRADES = [
+    { id: "plumbing", name: "Plumbing", hue: 200, req: "Licensed plumber", words: ["tap","leak","drain","pipe","toilet","cistern"] },
+    { id: "electrical", name: "Electrical", hue: 46, req: "Licensed electrician", words: ["light","switch","power","spark","powerpoint"] },
+    { id: "handyman", name: "Handyman", hue: 24, req: "No trade licence needed, but ABN and insurance checked", words: ["hinge","shelf","fixture"] },
+    { id: "hard-rubbish", name: "Hard rubbish", hue: 78, req: "Waste carrier registration where needed, ABN and insurance checked", words: ["junk","sofa","rubbish","furniture"] },
+    { id: "cleaning", name: "Cleaning", hue: 168, req: "No trade licence needed, but ABN and insurance checked", words: ["clean","carpet","vacuum"] },
+    { id: "aircon", name: "Air conditioning", hue: 190, req: "Refrigeration and air conditioning licence", words: ["aircon","cooling","split"] },
+    { id: "painting", name: "Painting", hue: 262, req: "Registered painter", words: ["paint","walls"] },
+    { id: "doors", name: "Doors, gates and locks", hue: 330, req: "Licensed carpenter or locksmith", words: ["lock","door","gate","key"] }
+  ];
+  const MORE = [
+    { id: "pest", name: "Pest control", hue: 140, req: "Licensed pest controller", words: ["pest","ant","cockroach","rat"] },
+    { id: "fire", name: "Fire safety", hue: 8, req: "Licensed fire technician", words: ["extinguisher","alarm","exit"] },
+    { id: "garden", name: "Gardening and landscaping", hue: 120, req: "No trade licence needed, but ABN and insurance checked", words: ["garden","lawn","hedge","tree"] },
+    { id: "roof", name: "Roofing and gutters", hue: 16, req: "Licensed roof plumber where required, ABN and insurance checked", words: ["roof","gutter","tile"] },
+    { id: "other", name: "Other service", hue: 214, req: "Described in words. The right licence is checked for that trade.", words: [] }
+  ];
+  const ALL_TRADES = TRADES.concat(MORE);
+  const POPULAR_IDS = TRADES.map(t => t.id);
+
+  const SUBURBS = [
+    { name: "Melbourne", lat: -37.8136, lng: 144.9631 },
+    { name: "Southbank", lat: -37.8230, lng: 144.9640 },
+    { name: "Carlton", lat: -37.8001, lng: 144.9670 },
+    { name: "Fitzroy", lat: -37.7986, lng: 144.9787 },
+    { name: "Collingwood", lat: -37.8020, lng: 144.9880 },
+    { name: "Richmond", lat: -37.8182, lng: 145.0018 },
+    { name: "South Yarra", lat: -37.8380, lng: 144.9930 },
+    { name: "Prahran", lat: -37.8510, lng: 144.9900 },
+    { name: "St Kilda", lat: -37.8678, lng: 144.9800 },
+    { name: "Port Melbourne", lat: -37.8395, lng: 144.9420 },
+    { name: "Hawthorn", lat: -37.8222, lng: 145.0350 },
+    { name: "Kew", lat: -37.8070, lng: 145.0300 },
+    { name: "Camberwell", lat: -37.8420, lng: 145.0690 },
+    { name: "Balwyn", lat: -37.8094, lng: 145.0810 },
+    { name: "Brighton", lat: -37.9090, lng: 144.9960 },
+    { name: "Elwood", lat: -37.8820, lng: 144.9860 },
+    { name: "Brunswick", lat: -37.7660, lng: 144.9600 },
+    { name: "Footscray", lat: -37.8010, lng: 144.9000 },
+    { name: "Box Hill", lat: -37.8192, lng: 145.1218 },
+    { name: "Doncaster", lat: -37.7880, lng: 145.1254 }
+  ];
+
+  const SAFETY_Q = [
+    "Is anyone in immediate danger?",
+    "Is there a risk of electric shock, gas smell, flooding or fire?",
+    "Could the work area contain asbestos?",
+    "Does the work need power, water or gas to be turned off first?",
+    "Is the work at height, in a roof space, a plant room or a confined space?",
+    "Will residents or children be near the work area?",
+    "Are there pets or other animals on site?"
+  ];
+  const SAFETY_YES = [
+    "Someone may be in immediate danger.",
+    "There is a risk of electric shock, gas, flooding or fire.",
+    "The work area could contain asbestos.",
+    "The work needs power, water or gas turned off first.",
+    "The work is at height, in a roof space, a plant room or a confined space.",
+    "Residents or children may be near the work area.",
+    "There are pets or other animals on site."
+  ];
+  const ONSITE_Q = [
+    "The work area is safe to enter.",
+    "I have the right protective gear and tools.",
+    "I have read the safe work method statement, or none is needed.",
+    "Power, water or gas is turned off, or the job does not need it.",
+    "I have not found a new hazard (damage, asbestos, people at risk)."
+  ];
+  const DURATIONS = [
+    { id: "1h", label: "1 hour", minutes: 60 },
+    { id: "2h", label: "2 hours", minutes: 120 },
+    { id: "half", label: "Half a day", minutes: 240 },
+    { id: "full", label: "Full day", minutes: null },
+    { id: "2d", label: "2 days", minutes: null }
+  ];
+  const MATERIALS = [
+    { id: "contractor", label: "Contractor supplies the materials" },
+    { id: "building", label: "The building supplies the materials" },
+    { id: "onsite", label: "Materials are already on site" }
+  ];
+  const NOTICES = [
+    { id: "none", label: "No notice needed" },
+    { id: "will", label: "I will notify residents" },
+    { id: "done", label: "Residents already notified" }
+  ];
+  const LIFTS = [
+    { id: "none", label: "No lift or dock" },
+    { id: "lift", label: "Lift available" },
+    { id: "dock", label: "Loading dock" }
+  ];
+  const EMERGENCY_KINDS = [
+    { id: "flood", label: "Burst pipe or flooding", trade: "plumbing" },
+    { id: "power", label: "No power or sparking", trade: "electrical" },
+    { id: "fire", label: "Fire alarm or exit light fault", trade: "fire" },
+    { id: "lock", label: "Locked out or door will not close", trade: "doors" },
+    { id: "drain", label: "Overflowing drain or no hot water", trade: "plumbing" },
+    { id: "other", label: "Something else", trade: "" }
+  ];
+
+  const state = {
+    role: "manager",
+    screen: "home",
+    title: "",
+    ctx: {},
+    history: [],
+    step: 1,
+    themeChoice: "auto",
+    toast: "",
+    manager: {
+      role: "",
+      name: "Alex Nguyen",
+      company: "Harbour View Owners Corporation",
+      abn: "10000000001",
+      email: "alex.nguyen@harbourview.example",
+      payment: "",
+      consent: false,
+      phone: "0418 220 184"
+    },
+    buildings: [],
+    waiting: [],
+    contractors: [],
+    jobs: [],
+    quotes: [],
+    meId: "c-sam",
+    owner: { radiusKm: 12, feePercent: 15, gstOnFee: false },
+    draft: null,
+    newBuilding: null,
+    offer: null,
+    find: { q: "", distance: 12, trade: "all", sort: "newest", view: "list", filtersOpen: false, showBooked: false, previewId: "" },
+    cal: { year: 0, month: 0, selected: "" },
+    offerCal: { year: 0, month: 0 },
+    emergency: null,
+    farDemo: false,
+    insExpiredDemo: false,
+    seq: 1
+  };
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+  function uid(p) { state.seq += 1; return p + state.seq; }
+  function tradeById(id) { return ALL_TRADES.find(t => t.id === id) || ALL_TRADES[ALL_TRADES.length - 1]; }
+  function suburbByName(name) { return SUBURBS.find(s => s.name === name); }
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function fmtISO(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function todayISO() { return fmtISO(new Date()); }
+  function parseISO(iso) { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); }
+  function addDays(iso, n) { const d = parseISO(iso); d.setDate(d.getDate() + n); return fmtISO(d); }
+  function dow(iso) { return parseISO(iso).getDay(); }
+  function isWeekend(iso) { const d = dow(iso); return d === 0 || d === 6; }
+  function fmtDateLong(iso) { const d = parseISO(iso); return DOW[d.getDay()] + " " + d.getDate() + " " + MONTHS[d.getMonth()] + " " + d.getFullYear(); }
+  function fmtDateShort(iso) { const d = parseISO(iso); const mon = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][d.getMonth()]; return d.getDate() + " " + mon + " " + d.getFullYear(); }
+  function toMins(hhmm) { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; }
+  function fromMins(mins) { const h = Math.floor(mins / 60); const m = mins % 60; return pad(h) + ":" + pad(m); }
+  function addMinutes(hhmm, mins) { return fromMins(toMins(hhmm) + mins); }
+  function fmtTime(hhmm) {
+    if (!hhmm) return "";
+    let [h, m] = hhmm.split(":").map(Number);
+    const ap = h >= 12 ? "pm" : "am";
+    h = h % 12; if (h === 0) h = 12;
+    return h + ":" + pad(m) + " " + ap;
+  }
+  function fmtClock(ts) { const d = new Date(ts); return fmtTime(pad(d.getHours()) + ":" + pad(d.getMinutes())); }
+  function fmtStamp(ts) { const d = new Date(ts); return fmtDateShort(fmtISO(d)) + ", " + fmtClock(ts); }
+  function ago(ts) {
+    const min = Math.round((Date.now() - ts) / 60000);
+    if (min < 1) return "Just now";
+    if (min < 60) return min === 1 ? "1 minute ago" : min + " minutes ago";
+    const hr = Math.round(min / 60);
+    if (hr < 24) return hr === 1 ? "1 hour ago" : hr + " hours ago";
+    const day = Math.round(hr / 24);
+    return day === 1 ? "1 day ago" : day + " days ago";
+  }
+  function money(n) {
+    const v = Math.round(Number(n) * 100) / 100;
+    return v.toLocaleString("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function moneyShort(n) {
+    const v = Math.round(Number(n) * 100) / 100;
+    const whole = Math.abs(v - Math.round(v)) < 0.001;
+    return v.toLocaleString("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 });
+  }
+  function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371, p = Math.PI / 180;
+    const dLat = (lat2 - lat1) * p, dLon = (lon2 - lon1) * p;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * p) * Math.cos(lat2 * p) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(Math.min(1, a)));
+  }
+  function kmFromCbd(lat, lng) { return haversine(lat, lng, CBD.lat, CBD.lng); }
+  function inRadius(lat, lng) { return kmFromCbd(lat, lng) <= state.owner.radiusKm + 0.001; }
+  function kmText(km) { return (Math.round(km * 10) / 10).toFixed(1) + " km"; }
+  function upcomingWeekdays(count, offset) {
+    const out = []; let i = offset || 0;
+    while (out.length < count) {
+      const iso = addDays(todayISO(), i);
+      if (!isWeekend(iso)) out.push(iso);
+      i += 1;
+    }
+    return out;
+  }
+  function hoursLabel(open, close) { return fmtTime(open).replace(":00", "") + " to " + fmtTime(close).replace(":00", ""); }
+  function prettyHours(open, close) {
+    const a = fmtTime(open), b = fmtTime(close);
+    const short = t => t.endsWith(":00 am") || t.endsWith(":00 pm") ? t.replace(":00", "") : t;
+    return short(a) + " to " + short(b);
+  }
+  function daysLabel(weekends) { return weekends ? "Every day" : "Mon to Fri"; }
+
+  function effectiveFeePct() {
+    const p = Number(state.owner.feePercent) || 0;
+    const e = state.owner.gstOnFee ? p * 1.1 : p;
+    return Math.round(e * 10) / 10;
+  }
+  function feeFor(price) { return Math.round(price * effectiveFeePct()) / 100; }
+  function receives(price) { return Math.round((price - feeFor(price)) * 100) / 100; }
+  function keepPct() { return Math.round((100 - effectiveFeePct()) * 10) / 10; }
+  function gstPart(price) { return Math.round((price / 11) * 100) / 100; }
+  function feePhrase() {
+    const p = effectiveFeePct();
+    const shown = (Math.round(p * 10) / 10).toString().replace(/\.0$/, "");
+    return shown + "%";
+  }
+
+  function me() { return state.contractors.find(c => c.id === state.meId); }
+  function person(id) { return state.contractors.find(c => c.id === id); }
+  function building(id) { return state.buildings.find(b => b.id === id); }
+  function jobById(id) { return state.jobs.find(j => j.id === id); }
+  function quotesFor(jobId) { return state.quotes.filter(q => q.jobId === jobId).slice().sort((a, b) => a.price - b.price); }
+  function quoteById(id) { return state.quotes.find(q => q.id === id); }
+
+  function placeOf(job) {
+    const b = job.buildingId ? building(job.buildingId) : null;
+    if (b) {
+      return {
+        buildingId: b.id, buildingName: b.name, streetNumber: b.streetNumber, street: b.street,
+        suburb: b.suburb, lat: b.lat, lng: b.lng, oc: b.oc, ocAbn: b.ocAbn,
+        open: b.open, close: b.close, weekends: b.weekends, access: job.access || b.access,
+        captureM: b.captureM, limit: b.limit
+      };
+    }
+    return job.place;
+  }
+  function jobKm(job) { const p = placeOf(job); return kmFromCbd(p.lat, p.lng); }
+  function streetPublic(job) { const p = placeOf(job); return p.street + ", " + p.suburb; }
+  function addressFull(job) { const p = placeOf(job); return p.streetNumber + " " + p.street + ", " + p.suburb + " VIC"; }
+
+  function profileMissing() {
+    const m = state.manager;
+    const items = [];
+    if (!m.role) items.push("Choose your role");
+    if (!m.name.trim()) items.push("Add your name");
+    if (!m.company.trim()) items.push("Add the OC or company");
+    if (!/^\d{11}$/.test(m.abn)) items.push("Add an 11 digit ABN");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(m.email)) items.push("Add a billing email");
+    if (!m.payment) items.push("Choose how you pay");
+    if (!m.consent) items.push("Agree to prepay approved quotes");
+    if (!state.buildings.some(b => inRadius(b.lat, b.lng))) items.push("Add a building inside the area");
+    return items;
+  }
+  function profileComplete() { return profileMissing().length === 0; }
+
+  function insuranceDays(c) {
+    const end = parseISO(c.insuranceUntil).getTime();
+    const start = parseISO(todayISO()).getTime();
+    return Math.round((end - start) / 86400000);
+  }
+  function insuranceExpired(c) {
+    if (c.id === state.meId && state.insExpiredDemo) return true;
+    return insuranceDays(c) < 0;
+  }
+  function offersTrade(c, tradeId) { return c.trades.indexOf(tradeId) !== -1; }
+
+  function managerNeeds(job) {
+    if (job.contractorAlert && !job.alertSeen) return true;
+    const n = quotesFor(job.id).length;
+    if (job.stage === "open" && n > 0) return true;
+    if (job.stage === "approved") return true;
+    if (job.stage === "review0" || job.stage === "review1") return true;
+    if (job.stage === "paid" && job.arrival === "arrived" && !job.arrivalConfirmed) return true;
+    if (job.stage === "paid" && job.arrival === "cannot_get_in") return true;
+    return false;
+  }
+  function managerBucket(job) {
+    if (!job.owned) return null;
+    if (job.contractorAlert && !job.alertSeen) return "needs";
+    if (job.stage === "released") return "done";
+    if (managerNeeds(job)) return "needs";
+    if (job.stage === "open") return "awaiting";
+    return "progress";
+  }
+  function needsManagerCount() { return state.jobs.filter(j => managerBucket(j) === "needs").length; }
+  function contractorBucket(job) {
+    if (job.awardedTo !== state.meId) return null;
+    if (job.stage === "released") return "done";
+    if (job.stage === "approved" || job.stage === "review0" || job.stage === "review1") return "waiting";
+    if (job.stage === "paid" || job.stage === "onsite" || job.stage === "fix1" || job.stage === "fix2") return "needs";
+    return null;
+  }
+  function needsContractorCount() { return state.jobs.filter(j => contractorBucket(j) === "needs").length; }
+
+  function openJobs() {
+    return state.jobs.filter(j => j.stage === "open" && inRadius(placeOf(j).lat, placeOf(j).lng));
+  }
+  function isNew(job) { return Date.now() - job.postedAt <= 3 * 3600 * 1000; }
+  function isEmergency(job) { return job.urgency === "emergency"; }
+
+  function log(job, text) { job.timeline.push({ at: Date.now(), text: text }); }
+
+  function windowLabel(job, mode) {
+    const p = placeOf(job);
+    if (mode === "morning") {
+      const end = toMins(p.open) < 12 * 60 ? "12:00" : p.close;
+      return "Morning (" + prettyHours(p.open, toMins(p.close) < 12 * 60 ? p.close : "12:00") + ")";
+    }
+    if (mode === "afternoon") return "Afternoon (" + prettyHours(toMins(p.open) > 12 * 60 ? p.open : "12:00", p.close) + ")";
+    if (mode === "anytime") return "Any time (" + prettyHours(p.open, p.close) + ")";
+    return "";
+  }
+  function whenText(job) {
+    if (!job.date) return "No date yet";
+    if (isEmergency(job) && job.timeMode === "anytime" && !job.exactTime) return fmtDateLong(job.date) + ", any time";
+    if (job.timeMode === "exact" && job.exactTime) return fmtDateLong(job.date) + ", " + fmtTime(job.exactTime);
+    if (job.timeMode === "morning" || job.timeMode === "afternoon" || job.timeMode === "anytime") return fmtDateLong(job.date) + ", " + windowLabel(job, job.timeMode);
+    return fmtDateLong(job.date);
+  }
+  function deadlineText(job) {
+    const map = { today: 0, tomorrow: 1, "3": 3, "7": 7 };
+    if (!(job.deadline in map)) return "Not set";
+    const base = fmtISO(new Date(job.postedAt || Date.now()));
+    return fmtDateLong(addDays(base, map[job.deadline]));
+  }
+  function durationById(id) { return DURATIONS.find(d => d.id === id); }
+  function endOf(start, durationId, open, close) {
+    if (durationId === "full" || durationId === "2d") return close;
+    const d = durationById(durationId);
+    return addMinutes(start, d.minutes);
+  }
+  function rangeText(date, start, durationId, open, close) {
+    const end = endOf(start, durationId, open, close);
+    const extra = durationId === "2d" ? " to " + fmtDateLong(nextWorkingDay(date)) + ", " + fmtTime(end) : " to " + fmtTime(end);
+    return fmtDateLong(date) + ", " + fmtTime(start) + extra;
+  }
+  function nextWorkingDay(iso) {
+    let n = addDays(iso, 1);
+    while (isWeekend(n)) n = addDays(n, 1);
+    return n;
+  }
+  function interval(date, start, durationId, open, close) {
+    const a = parseISO(date).getTime() + toMins(start) * 60000;
+    let b;
+    if (durationId === "2d") {
+      const endDay = nextWorkingDay(date);
+      b = parseISO(endDay).getTime() + toMins(close) * 60000;
+    } else {
+      b = parseISO(date).getTime() + toMins(endOf(start, durationId, open, close)) * 60000;
+    }
+    return [a, b];
+  }
+  function overlaps(a, b) { return a[0] < b[1] && b[0] < a[1]; }
+
+  function bookingIntervals(exceptJobId) {
+    const list = [];
+    state.jobs.forEach(job => {
+      if (job.id === exceptJobId) return;
+      if (["approved", "paid", "onsite", "review0", "fix1", "review1", "fix2"].indexOf(job.stage) === -1) return;
+      const q = quoteById(job.awardedQuoteId);
+      if (!q) return;
+      const p = placeOf(job);
+      list.push({ job: job, quote: q, interval: interval(q.date, q.time, q.duration, p.open, p.close), place: p });
+    });
+    return list;
+  }
+  function clashForQuote(job, quote) {
+    const p = placeOf(job);
+    const mine = interval(quote.date, quote.time, quote.duration, p.open, p.close);
+    const hits = [];
+    bookingIntervals(job.id).forEach(b => {
+      if (!overlaps(mine, b.interval)) return;
+      if (b.place.buildingId && p.buildingId && b.place.buildingId === p.buildingId) hits.push("This time overlaps another booking in this building.");
+      else if (b.quote.contractorId === quote.contractorId) hits.push("This time overlaps another booking for this contractor.");
+    });
+    return hits.filter((v, i, a) => a.indexOf(v) === i);
+  }
+  function clashForOffer(job, date, time, durationId) {
+    if (!date || !time || !durationId) return false;
+    const p = placeOf(job);
+    const mine = interval(date, time, durationId, p.open, p.close);
+    return bookingIntervals(job.id).some(b => b.quote.contractorId === state.meId && overlaps(mine, b.interval));
+  }
+
+  function slotsFor(open, close, durationId, anyTime) {
+    const startM = anyTime ? 0 : toMins(open);
+    const endM = anyTime ? 24 * 60 : toMins(close);
+    if (durationId === "full" || durationId === "2d") return [fromMins(startM)];
+    const dur = durationById(durationId).minutes;
+    const out = [];
+    for (let t = startM; t + dur <= endM; t += 30) out.push(fromMins(t));
+    return out;
+  }
+  function managerSlots(open, close, anyTime) {
+    const startM = anyTime ? 0 : toMins(open);
+    const endM = anyTime ? 24 * 60 : toMins(close);
+    const out = [];
+    for (let t = startM; t < endM; t += 30) out.push(fromMins(t));
+    return out;
+  }
+
+  function yesAnswers(job) {
+    const lines = [];
+    (job.safety || []).forEach((v, i) => { if (v === "yes") lines.push(SAFETY_YES[i]); });
+    return lines;
+  }
+  function statusLabel(job) {
+    if (job.contractorAlert && !job.alertSeen) return "Emergency alert";
+    if (job.stage === "open") return quotesFor(job.id).length ? "Quotes to approve" : "Waiting for quotes";
+    if (job.stage === "approved") return "Pay to start";
+    if (job.stage === "paid") {
+      if (job.arrival === "on_way") return "On the way";
+      if (job.arrival === "late") return "Running late";
+      if (job.arrival === "arrived") return job.arrivalConfirmed ? "Arrived" : "Confirm arrival";
+      if (job.arrival === "cannot_get_in") return "Cannot get in";
+      return "Booked";
+    }
+    if (job.stage === "onsite") return "In progress";
+    if (job.stage === "review0") return "Review the work";
+    if (job.stage === "fix1") return "Fix in progress";
+    if (job.stage === "review1") return "Review the fix";
+    if (job.stage === "fix2") return "Final fix";
+    if (job.stage === "released") return "Done";
+    return job.stage;
+  }
+  function liveStatus(job) {
+    if (job.arrival === "on_way") return "On the way, about " + job.eta + " minutes";
+    if (job.arrival === "late") return "Running late, about " + job.eta + " minutes";
+    if (job.arrival === "arrived") return job.arrivalConfirmed ? "Arrived, and you have confirmed it" : "Arrived, waiting for you to confirm";
+    if (job.arrival === "cannot_get_in") return "Cannot get in";
+    if (job.stage === "onsite") return "Work in progress";
+    if (job.stage === "fix1" || job.stage === "fix2") return "Fix in progress";
+    return "Booked, not on the way yet";
+  }
+
+  function icon(name) {
+    const p = {
+      plumbing: '<path d="M12 3s5 5.2 5 9.2A5 5 0 0 1 7 12.2C7 8.2 12 3 12 3z"/>',
+      electrical: '<path d="M13 2L6 14h6l-1 8 8-12h-6l0-8z"/>',
+      handyman: '<path d="M14 6l4 4-7 7H7v-4l7-7z"/><path d="M13 7l4 4"/>',
+      "hard-rubbish": '<path d="M5 8h14M9 8V6h6v2M7 8l1 12h8l1-12"/>',
+      cleaning: '<path d="M12 3l1.6 4.2L18 9l-4.4 1.8L12 15l-1.6-4.2L6 9l4.4-1.8L12 3zM6 16l.8 2 .2.8L5 20M18 15l.9 2"/>',
+      aircon: '<path d="M12 3v18M5 7l14 10M19 7L5 17M8 4l4 4 4-4M8 20l4-4 4 4"/>',
+      painting: '<path d="M4 15c2-6 4-8 8-8h6v5H11"/><path d="M8 15h4v5H8z"/>',
+      doors: '<circle cx="15" cy="12" r="2"/><path d="M7 4h8a2 2 0 0 1 2 2v14H7z"/>',
+      pest: '<circle cx="8" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><path d="M8 12h8M12 8v8M6 7l2 2M18 7l-2 2M6 17l2-2M18 17l-2-2"/>',
+      fire: '<path d="M12 3s5 4 5 9a5 5 0 0 1-10 0c0-2 1.2-3.5 2-5 0 2 1.2 2.6 2 2.6C11 7 12 3 12 3z"/>',
+      garden: '<path d="M12 21V10M12 10c0-4 3-6 6-6-1 4-3 6-6 6zM12 13c0-3-3-5-6-5 1 3 3 5 6 5z"/>',
+      roof: '<path d="M3 11l9-7 9 7"/><path d="M6 10.5V20h12v-9.5"/>',
+      other: '<circle cx="6" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="18" cy="12" r="1.4"/>',
+      sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/>',
+      moon: '<path d="M16 3a8 8 0 1 0 5 13 7 7 0 0 1-5-13z"/>',
+      back: '<path d="M15 5l-7 7 7 7"/>',
+      pin: '<path d="M12 21s6-5.2 6-10a6 6 0 1 0-12 0c0 4.8 6 10 6 10z"/>'
+    };
+    const d = p[name] || p.other;
+    return '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round">' + d + "</svg>";
+  }
+
+  function seed() {
+    const wd = upcomingWeekdays(8, 0);
+    const nextWd = upcomingWeekdays(6, 1)[0];
+    function photo(hue, hoursAgo) {
+      return { id: uid("ph"), kind: "photo", at: Date.now() - hoursAgo * 3600000, distanceM: null, stage: "request", hue: hue };
+    }
+    state.buildings = [
+      { id: "b1", name: "Harbour View Apartments", streetNumber: "42", street: "Collins Street", suburb: "Melbourne", lat: -37.8136, lng: 144.9631, oc: "OC Plan 41288", ocAbn: "10000000011", limit: 4999, open: "08:00", close: "17:00", weekends: false, access: "See the concierge for the plant-room key. Visitor bay is in the lane. Ask for Alex on arrival.", captureM: 150, sample: true },
+      { id: "b2", name: "Balwyn Gardens", streetNumber: "18", street: "Whitehorse Road", suburb: "Balwyn", lat: -37.8094, lng: 145.0810, oc: "OC Plan 22014", ocAbn: "10000000012", limit: 4999, open: "08:00", close: "17:00", weekends: true, access: "Side gate. The manager holds the code. Use the visitor bay, not the resident parks.", captureM: 150, sample: true },
+      { id: "b3", name: "Brighton House", streetNumber: "7", street: "Bay Street", suburb: "Brighton", lat: -37.9090, lng: 144.9960, oc: "OC Plan 77801", ocAbn: "10000000013", limit: 2500, open: "08:00", close: "17:00", weekends: false, access: "Lockbox by the letterboxes. Park in the rear lane.", captureM: 150, sample: true }
+    ];
+    const yearOut = addDays(todayISO(), 400);
+    const soon = addDays(todayISO(), 20);
+    const expired = addDays(todayISO(), -12);
+    function c(partial) {
+      return Object.assign({
+        years: 8, gst: true, insuranceUntil: yearOut, cover: 20, bankLast4: "4821",
+        consentPublic: true, guideDone: false, sample: true, description: ""
+      }, partial);
+    }
+    state.contractors = [
+      c({ id: "c-sam", name: "Sam Okonkwo", trades: ["plumbing", "handyman"], years: 12, gst: true, abn: "10000000021", licence: "Plumbing licence PL-20418", licenceUntil: yearOut, description: "I repair leaks, taps and small building jobs across inner Melbourne. I turn up when I say I will.", bankLast4: "4821" }),
+      c({ id: "c-priya", name: "Priya Shah", trades: ["electrical"], years: 9, gst: true, abn: "10000000022", licence: "Electrical licence EL-88310", licenceUntil: yearOut, description: "Licensed electrician for apartments, common areas and safety switches." }),
+      c({ id: "c-jordan", name: "Jordan Blake", trades: ["painting", "handyman"], years: 6, gst: false, abn: "10000000023", licence: "Registered painter RP-4412", licenceUntil: yearOut, description: "Painter for stairwells, doors and common walls. I keep the site tidy." }),
+      c({ id: "c-mei", name: "Mei Chen", trades: ["cleaning"], years: 4, gst: true, abn: "10000000024", licence: "ABN and insurance checked. No trade licence required.", licenceUntil: yearOut, description: "Carpet and common-area cleaning for owners corporations." }),
+      c({ id: "c-luca", name: "Luca Rossi", trades: ["aircon"], years: 15, gst: true, abn: "10000000025", licence: "Refrigeration and air conditioning licence RAC-19", licenceUntil: yearOut, description: "Air conditioning service for split systems and common plant." }),
+      c({ id: "c-harper", name: "Harper Nguyen", trades: ["doors", "handyman"], years: 8, gst: false, abn: "10000000026", licence: "Locksmith licence LS-772", licenceUntil: yearOut, description: "Doors, gates and locks for apartment buildings." }),
+      c({ id: "c-owen", name: "Owen Clarke", trades: ["hard-rubbish", "garden"], years: 11, gst: true, abn: "10000000027", licence: "Waste carrier registration WC-300", licenceUntil: yearOut, insuranceUntil: soon, description: "Hard rubbish collections and garden tidy-ups." }),
+      c({ id: "c-riley", name: "Riley Ahmed", trades: ["pest", "fire"], years: 14, gst: true, abn: "10000000028", licence: "Pest controller PC-90 and fire technician FT-12", licenceUntil: yearOut, insuranceUntil: expired, description: "Pest control and fire safety checks." }),
+      c({ id: "c-nina", name: "Nina Brooks", trades: ["plumbing"], years: 7, gst: false, abn: "10000000029", licence: "Plumbing licence PL-11880", licenceUntil: yearOut, cover: 10, description: "Plumber for taps, drains and hot water in older blocks." }),
+      c({ id: "c-theo", name: "Theo Marin", trades: ["plumbing", "aircon"], years: 20, gst: true, abn: "10000000030", licence: "Plumbing licence PL-640 and air conditioning RAC-4", licenceUntil: yearOut, description: "Plumber and air conditioning technician with a long apartment background." })
+    ];
+
+    function ownedJob(partial) {
+      const b = partial.buildingId ? building(partial.buildingId) : null;
+      return Object.assign({
+        owned: true, sample: true, otherTrade: "", photos: [photo(tradeById(partial.tradeId).hue, 2)], video: null,
+        safety: ["no", "no", "no", "yes", "no", "yes", "no"], safetyNote: "",
+        parking: "Limited", parkingNote: "One visitor bay.", siteRules: "Keep noise down before 8 am.",
+        urgency: "standard", timeMode: "morning", exactTime: "", flexible: true, deadline: "3",
+        materials: "contractor", insurance: 20, swms: false, notice: "will", lift: "lift",
+        reference: "", approver: "Alex Nguyen", invoiceTo: b ? b.oc : "", invoiceAbn: b ? b.ocAbn : "",
+        access: b ? b.access : "", phone: state.manager.phone, postedAt: Date.now() - 5 * 3600000,
+        stage: "open", arrival: null, eta: null, arrivalAt: null, arrivalDistance: null, arrivalConfirmed: false,
+        safetyOnSite: [null, null, null, null, null], contractorAlert: false, alertSeen: false,
+        awardedQuoteId: null, awardedTo: null, paidAt: null, payMethod: null,
+        challenges: [], evidence: { before: [], after: [], fix1: [], fix2: [] },
+        timeline: [], releasedAt: null, reviewStartedAt: null, farDemo: false
+      }, partial);
+    }
+    function ext(partial) {
+      const s = suburbByName(partial.suburb);
+      const job = ownedJob(Object.assign({
+        owned: false, buildingId: null, parking: "Yes", parkingNote: "", siteRules: "Sign in at the gate.",
+        access: "Held until a quote is paid.", phone: "0400 000 000", invoiceTo: "Sample OC", invoiceAbn: "10000000099"
+      }, partial));
+      job.place = {
+        buildingId: null, buildingName: partial.hiddenName, streetNumber: partial.num, street: partial.street,
+        suburb: partial.suburb, lat: s.lat, lng: s.lng, oc: "Sample OC", ocAbn: "10000000099",
+        open: "08:00", close: "17:00", weekends: false, access: "Held until a quote is paid.", captureM: 150, limit: 4999
+      };
+      return job;
+    }
+
+    const jobs = [
+      ownedJob({ id: "j-tap", buildingId: "b1", area: "Level 6, unit 612 kitchen", title: "Dripping kitchen tap", tradeId: "plumbing", instructions: "The kitchen mixer drips all day. Please bring a common washer set.", date: wd[2], postedAt: Date.now() - 12 * 60000, reference: "PO-1842", parking: "Limited", parkingNote: "One visitor bay in the lane." }),
+      ownedJob({ id: "j-balwyn", buildingId: "b2", area: "Garden tap by the bin room", title: "Garden tap will not turn off", tradeId: "plumbing", instructions: "The tap near the bins runs on its own. Residents use this path.", date: wd[3], postedAt: Date.now() - 5 * 3600000, safety: ["no", "no", "no", "yes", "no", "no", "no"] }),
+      ownedJob({ id: "j-paint", buildingId: "b3", area: "Stairwell, ground to level 2", title: "Repaint the stairwell walls", tradeId: "painting", instructions: "Scuffs on both flights. Please match the current white.", date: wd[4], postedAt: Date.now() - 8 * 3600000, swms: false, lift: "none" }),
+      ownedJob({ id: "j-door", buildingId: "b1", area: "Lobby entry", title: "Adjust the lobby door closer", tradeId: "handyman", instructions: "The lobby door slams. Please adjust the closer and check the latch.", date: nextWd, timeMode: "exact", exactTime: "09:00", postedAt: Date.now() - 26 * 3600000, stage: "paid", awardedQuoteId: "q-door", awardedTo: "c-sam", paidAt: Date.now() - 2 * 3600000, payMethod: "card", flexible: false })
+    ];
+    const externals = [
+      ext({ id: "j-elec", suburb: "Richmond", street: "Swan Street", num: "80", hiddenName: "Swan Court", area: "Stair, level 1", title: "Stair light stays on", tradeId: "electrical", instructions: "The stair light does not switch off.", date: wd[1], postedAt: Date.now() - 2 * 3600000 }),
+      ext({ id: "j-junk", suburb: "Brunswick", street: "Sydney Road", num: "410", hiddenName: "Sydney House", area: "Car park", title: "Old sofas in the car park", tradeId: "hard-rubbish", instructions: "Two sofas left by the cages. No one has claimed them.", date: wd[2], postedAt: Date.now() - 26 * 3600000 }),
+      ext({ id: "j-clean", suburb: "St Kilda", street: "Fitzroy Street", num: "22", hiddenName: "Fitzroy Residences", area: "Lobby carpet", title: "Clean the lobby carpet", tradeId: "cleaning", instructions: "Coffee stains near the lifts.", date: wd[3], postedAt: Date.now() - 20 * 3600000 }),
+      ext({ id: "j-air", suburb: "Hawthorn", street: "Glenferrie Road", num: "15", hiddenName: "Glenferrie Apartments", area: "Level 2 living area", title: "Unit air conditioner not cooling", tradeId: "aircon", instructions: "The split system runs but the air is warm.", date: wd[1], postedAt: Date.now() - 40 * 60000 }),
+      ext({ id: "j-gate", suburb: "Fitzroy", street: "Brunswick Street", num: "90", hiddenName: "Brunswick Lofts", area: "Car park gate", title: "Car park gate sticks", tradeId: "doors", instructions: "The vehicle gate stops halfway.", date: wd[4], postedAt: Date.now() - 4 * 3600000 }),
+      ext({ id: "j-pest", suburb: "Prahran", street: "Chapel Street", num: "200", hiddenName: "Chapel Mews", area: "Bin room", title: "Ants in the bin room", tradeId: "pest", instructions: "Ants along the bin-room wall.", date: wd[2], postedAt: Date.now() - 50 * 60000 }),
+      ext({ id: "j-fire", suburb: "Southbank", street: "City Road", num: "50", hiddenName: "City Road Towers", area: "Level 4 corridor", title: "Exit light is out", tradeId: "fire", instructions: "One exit light above the stairs is dark.", date: wd[3], postedAt: Date.now() - 10 * 3600000 }),
+      ext({ id: "j-garden", suburb: "Kew", street: "High Street", num: "120", hiddenName: "High Street Gardens", area: "Front hedge", title: "Trim the front hedge", tradeId: "garden", instructions: "The front hedge is over the footpath.", date: wd[5], postedAt: Date.now() - 14 * 3600000 }),
+      ext({ id: "j-roof", suburb: "Port Melbourne", street: "Bay Street", num: "300", hiddenName: "Bay Street Flats", area: "Roof box gutter", title: "Leaking box gutter", tradeId: "roof", instructions: "Water comes in above the top-floor hallway when it rains.", date: wd[4], postedAt: Date.now() - 6 * 3600000, safety: ["no", "no", "no", "no", "yes", "no", "no"], swms: true }),
+      ext({ id: "j-handy", suburb: "Carlton", street: "Lygon Street", num: "66", hiddenName: "Lygon Court", area: "Level 3 bedroom", title: "Rehang a wardrobe door", tradeId: "handyman", instructions: "A wardrobe door has come off the track.", date: wd[2], postedAt: Date.now() - 5 * 3600000 }),
+      ext({ id: "j-other", suburb: "Collingwood", street: "Smith Street", num: "44", hiddenName: "Smith Street OC", area: "Lobby", title: "Hang a new noticeboard", tradeId: "other", otherTrade: "General maintenance", instructions: "Fix a noticeboard to the lobby wall.", date: wd[1], postedAt: Date.now() - 90 * 60000 })
+    ];
+    state.jobs = jobs.concat(externals);
+    state.jobs.forEach(j => {
+      if (!j.timeline.length) j.timeline.push({ at: j.postedAt, text: "Request posted." });
+      if (j.stage === "paid") j.timeline.push({ at: j.paidAt, text: "Payment held. The job is booked." });
+    });
+    state.quotes = [
+      { id: "q-door", jobId: "j-door", contractorId: "c-sam", price: 280, date: nextWd, time: "09:00", duration: "2h", scope: ["Adjust the door closer", "Check the latch"], note: "", at: Date.now() - 20 * 3600000, committeeApproved: false },
+      { id: "q-theo", jobId: "j-balwyn", contractorId: "c-theo", price: 860, date: wd[3], time: "08:00", duration: "2h", scope: ["Replace the tap washer", "Test the tap"], note: "I can bring the washer.", at: Date.now() - 3 * 3600000, committeeApproved: false },
+      { id: "q-nina", jobId: "j-balwyn", contractorId: "c-nina", price: 910, date: wd[3], time: "13:00", duration: "1h", scope: ["Replace the tap washer", "Check the line for drips"], note: "", at: Date.now() - 2 * 3600000, committeeApproved: false },
+      { id: "q-jordan", jobId: "j-paint", contractorId: "c-jordan", price: 3200, date: wd[4], time: "08:00", duration: "full", scope: ["Prepare the walls", "Paint two coats"], note: "White to match.", at: Date.now() - 4 * 3600000, committeeApproved: false }
+    ];
+    const now = new Date();
+    state.cal.year = now.getFullYear();
+    state.cal.month = now.getMonth();
+    state.offerCal.year = now.getFullYear();
+    state.offerCal.month = now.getMonth();
+  }
+
+  function loadTheme() {
+    try {
+      const t = localStorage.getItem("strata-theme");
+      if (t === "light" || t === "dark" || t === "auto") state.themeChoice = t;
+    } catch (e) { /* storage unavailable */ }
+  }
+  function saveTheme() {
+    try { localStorage.setItem("strata-theme", state.themeChoice); } catch (e) { /* storage unavailable */ }
+  }
+  function resolvedTheme() {
+    if (state.themeChoice === "auto") return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    return state.themeChoice;
+  }
+  function applyTheme() { document.documentElement.dataset.theme = resolvedTheme(); }
+
+  let toastTimer = 0;
+  function toast(msg) {
+    const el = document.getElementById("toast");
+    el.hidden = false;
+    el.textContent = msg;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.hidden = true; el.textContent = ""; }, 4200);
+  }
+
+  let lastFocus = null;
+  function render(opts) {
+    opts = opts || {};
+    const y = opts.keepScroll ? window.scrollY : 0;
+    if (opts.keepFocus) {
+      const a = document.activeElement;
+      if (a && a.dataset && a.dataset.field) lastFocus = { field: a.dataset.field, start: a.selectionStart, end: a.selectionEnd };
+    } else lastFocus = null;
+    applyTheme();
+    document.getElementById("app").innerHTML = shell();
+    if (opts.keepScroll) window.scrollTo(0, y);
+    else window.scrollTo(0, 0);
+    if (lastFocus) {
+      const el = document.querySelector('[data-field="' + lastFocus.field + '"]');
+      if (el) {
+        el.focus();
+        if (typeof lastFocus.start === "number" && el.setSelectionRange) {
+          try { el.setSelectionRange(lastFocus.start, lastFocus.end); } catch (e) { /* ignore */ }
+        }
+      }
+    }
+    const offer = document.getElementById("offer-form");
+    if (opts.scrollOffer && offer) offer.scrollIntoView({ block: "start" });
+  }
+
+  function goTab(screen) {
+    state.history = [];
+    state.screen = screen;
+    state.ctx = {};
+    state.title = "";
+    render();
+  }
+  function push(screen, ctx, title) {
+    state.history.push({ screen: state.screen, ctx: Object.assign({}, state.ctx), step: state.step, title: state.title });
+    state.screen = screen;
+    state.ctx = ctx || {};
+    state.title = title || "";
+    render();
+  }
+  function back() {
+    const prev = state.history.pop();
+    if (!prev) { state.screen = "home"; state.ctx = {}; state.title = ""; }
+    else { state.screen = prev.screen; state.ctx = prev.ctx; state.step = prev.step; state.title = prev.title; }
+    render();
+  }
+  function isDetail() {
+    return ["home", "jobs", "find", "offers", "active", "calendar", "buildings", "contractors", "profile"].indexOf(state.screen) === -1;
+  }
+
+  function blankDraft(preset) {
+    preset = preset || {};
+    const b = building(preset.buildingId) || state.buildings[0];
+    return {
+      buildingId: b ? b.id : "",
+      area: "",
+      title: "",
+      tradeId: preset.tradeId || "plumbing",
+      otherTrade: "",
+      instructions: "",
+      photos: [],
+      video: null,
+      safety: [null, null, null, null, null, null, null],
+      safetyNote: "",
+      access: b ? b.access : "",
+      parking: "",
+      parkingNote: "",
+      siteRules: "",
+      urgency: "standard",
+      date: preset.date || "",
+      timeMode: "",
+      exactTime: "",
+      flexible: false,
+      deadline: "",
+      materials: "",
+      insurance: "20",
+      swms: false,
+      notice: "",
+      lift: "",
+      reference: "",
+      approver: state.manager.name,
+      invoiceTo: b ? b.oc : "",
+      invoiceAbn: b ? b.ocAbn : "",
+      blockedAsbestos: false
+    };
+  }
+  function startRequest(preset) {
+    if (!profileComplete()) {
+      toast("Set up your profile to create jobs.");
+      goTab("profile");
+      return;
+    }
+    state.draft = blankDraft(preset);
+    state.step = 1;
+    if (preset && preset.date) {
+      const b = building(state.draft.buildingId);
+      if (b && isWeekend(preset.date) && !b.weekends) {
+        state.draft.date = "";
+        toast("Contractors are not on site that day at " + b.name + ".");
+      }
+    }
+    push("request", {}, "New request");
+  }
+
+  function tabDefs() {
+    if (state.role === "manager") {
+      const n = needsManagerCount();
+      return [
+        ["home", "Home", 0],
+        ["jobs", "Jobs", n],
+        ["calendar", "Calendar", 0],
+        ["buildings", "Buildings", 0],
+        ["contractors", "Contractors", 0],
+        ["profile", "Profile", profileComplete() ? 0 : -1]
+      ];
+    }
+    return [
+      ["home", "Home", 0],
+      ["find", "Find jobs", 0],
+      ["offers", "My offers", 0],
+      ["active", "Active", needsContractorCount()],
+      ["calendar", "Calendar", 0],
+      ["profile", "Profile", 0]
+    ];
+  }
+  function tabsHtml(kind) {
+    return tabDefs().map(t => {
+      const current = state.screen === t[0] || (t[0] === "find" && state.screen === "find");
+      const badge = t[2] > 0 ? '<span class="badge">' + t[2] + "</span>" : (t[2] < 0 ? '<span class="badge dot"></span>' : "");
+      const label = t[2] > 0 ? t[1] + ", " + t[2] + " need you" : (t[2] < 0 ? t[1] + ", setup not finished" : t[1]);
+      return '<button class="tab" type="button" data-act="tab" data-screen="' + t[0] + '" aria-current="' + (state.screen === t[0] ? "page" : "false") + '" aria-label="' + esc(label) + '"><span>' + esc(t[1]) + "</span>" + badge + "</button>";
+    }).join("");
+  }
+
+  function shell() {
+    const detail = isDetail();
+    const themeLabel = state.themeChoice === "auto" ? "Auto" : state.themeChoice === "light" ? "Light" : "Dark";
+    const themeIcon = resolvedTheme() === "dark" ? icon("moon") : icon("sun");
+    let bar;
+    if (detail) {
+      bar = '<button class="back-btn" type="button" data-act="back" aria-label="Back">' + icon("back") + " Back</button><h1 class=\"top-title\">" + esc(state.title || "Back") + '</h1>';
+    } else {
+      bar = '<div class="brand">Strata App</div><div class="spacer"></div><div class="roles" role="group" aria-label="Choose who you are"><button type="button" data-act="role" data-role="manager" aria-pressed="' + (state.role === "manager" ? "true" : "false") + '">Manager</button><button type="button" data-act="role" data-role="contractor" aria-pressed="' + (state.role === "contractor" ? "true" : "false") + '">Contractor</button></div>';
+    }
+    const themeBtn = '<button class="icon-btn" type="button" data-act="theme" aria-label="Theme ' + themeLabel + '. Activate to change.">' + themeIcon + "<span>" + themeLabel + "</span></button>";
+    const showFab = state.screen !== "emergency";
+    return '<div class="shell" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
+      '<aside class="rail"><div class="brand" style="padding:8px 10px 12px">Strata App</div>' + tabsHtml("rail") + "</aside>" +
+      '<div><header class="topbar">' + bar + (detail ? '<div class="spacer"></div>' : "") + themeBtn + '</header><p class="samplebar">Sample data. The people, buildings and jobs are fictional.</p>' +
+      '<main class="main" id="main">' + screenHtml() + "</main></div></div>" +
+      '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>" +
+      (showFab ? '<button class="fab" type="button" data-act="emergency">Emergency</button>' : "");
+  }
+
+  function screenHtml() {
+    const map = {
+      home: () => state.role === "manager" ? managerHome() : contractorHome(),
+      jobs: managerJobs,
+      find: findJobs,
+      offers: myOffers,
+      active: activeJobs,
+      calendar: calendarScreen,
+      buildings: buildingsScreen,
+      contractors: contractorsScreen,
+      profile: () => state.role === "manager" ? managerProfile() : contractorProfile(),
+      request: requestScreen,
+      job: jobScreen,
+      approve: approveScreen,
+      pay: payScreen,
+      evidence: evidenceScreen,
+      person: personScreen,
+      owner: ownerScreen,
+      "building-new": buildingNewScreen,
+      emergency: emergencyScreen,
+      guide: guideScreen
+    };
+    const fn = map[state.screen] || managerHome;
+    return fn();
+  }
+
+  function noticeProfile() {
+    const missing = profileMissing();
+    if (!missing.length) return "";
+    return '<button class="notice notice-warn" type="button" data-act="tab" data-screen="profile" style="text-align:left"><strong>Set up your profile to create jobs</strong><span class="small">Still to do: ' + esc(missing.join(", ")) + ".</span></button>";
+  }
+  function noticeNeeds(count, screen) {
+    if (!count) return "";
+    const word = count === 1 ? "job needs" : "jobs need";
+    return '<button class="notice notice-warn" type="button" data-act="tab" data-screen="' + screen + '" style="text-align:left"><strong>' + count + " " + word + " you</strong><span class=\"small\">Tap to open them.</span></button>";
+  }
+
+  function managerHome() {
+    const tiles = TRADES.map(t => '<button class="tile" type="button" data-act="new-request" data-trade="' + t.id + '" style="--hue:' + t.hue + '"><span class="bubble">' + icon(t.id) + "</span><span>" + esc(t.name) + "</span></button>").join("");
+    const more = MORE.map(t => '<button class="chip" type="button" data-act="new-request" data-trade="' + t.id + '">' + esc(t.name) + "</button>").join("");
+    return '<div class="stack"><h1>What do you need?</h1>' + noticeProfile() + noticeNeeds(needsManagerCount(), "jobs") +
+      '<button class="btn btn-primary" type="button" data-act="new-request">New request</button>' +
+      '<div class="trade-grid">' + tiles + "</div>" +
+      '<h2>More services</h2><div class="row">' + more + "</div></div>";
+  }
+
+  function managerProfile() {
+    const m = state.manager;
+    const missing = profileMissing();
+    const check = missing.length
+      ? '<div class="notice notice-warn"><strong>Still to set up</strong><ul class="clean">' + missing.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul></div>"
+      : '<div class="notice notice-ok"><strong>Your profile is complete</strong><span class="small">You can create jobs.</span></div>';
+    const roleBtn = (id, label) => '<button class="chip" type="button" data-act="set-manager-role" data-value="' + id + '" aria-pressed="' + (m.role === id ? "true" : "false") + '">' + label + "</button>";
+    const payBtn = (id, label) => '<button class="chip" type="button" data-act="set-manager-pay" data-value="' + id + '" aria-pressed="' + (m.payment === id ? "true" : "false") + '">' + label + "</button>";
+    return '<div class="stack"><h1>Profile</h1>' + check +
+      '<div class="card stack"><span class="field">Your role</span><div class="row" role="group" aria-label="Your role">' + roleBtn("building", "Building manager") + roleBtn("oc", "OC manager") + roleBtn("property", "Property manager") + "</div>" +
+      field("Your name", "text", "manager.name", m.name) +
+      field("OC or company", "text", "manager.company", m.company) +
+      field("ABN", "text", "manager.abn", m.abn, "11 digits") +
+      field("Billing email", "email", "manager.email", m.email) +
+      field("Phone for the site", "tel", "manager.phone", m.phone) +
+      '<span class="field">How you pay</span><div class="row" role="group" aria-label="How you pay">' + payBtn("bank", "Bank transfer") + payBtn("card", "Card") + "</div>" +
+      '<label class="check"><input type="checkbox" data-field="manager.consent"' + (m.consent ? " checked" : "") + '> <span>I consent to prepay approved quotes, or pay the invoice, within 48 hours before a job starts. Strata App holds the money until the job is complete.</span></label>' +
+      '<p class="small muted">Chargebacks are charged to the OC or manager under the terms, and the manager pays no Strata App fee.</p></div>' +
+      '<p class="small muted">You have ' + state.buildings.length + (state.buildings.length === 1 ? " building" : " buildings") + " saved.</p>" +
+      '<button class="owner-link" type="button" data-act="owner">Owner settings (demo)</button></div>';
+  }
+
+  function field(label, type, name, value, placeholder) {
+    const id = "f-" + name.replace(/\./g, "-");
+    return '<label class="field" for="' + id + '">' + esc(label) + '<input id="' + id + '" type="' + type + '" data-field="' + name + '" value="' + esc(value) + '"' + (placeholder ? ' placeholder="' + esc(placeholder) + '"' : "") + (type === "text" && name.indexOf("abn") !== -1 ? ' inputmode="numeric" maxlength="11"' : "") + "></label>";
+  }
+  function areaField(label, name, value, max) {
+    const id = "f-" + name.replace(/\./g, "-");
+    return '<label class="field" for="' + id + '">' + esc(label) + '<textarea id="' + id + '" data-field="' + name + '"' + (max ? ' maxlength="' + max + '"' : "") + ">" + esc(value) + "</textarea></label>";
+  }
+
+  function ownerScreen() {
+    const o = state.owner;
+    const example = 1000;
+    const fee = feeFor(example);
+    return '<div class="stack"><div class="notice notice-warn"><strong>Only the owner sees these settings.</strong><span class="small">Managers do not see the fee, the cover radius or the GST switch while they use the app.</span></div>' +
+      '<div class="card stack"><span class="demo">Demo</span>' +
+      field("Launch radius (km)", "number", "owner.radiusKm", o.radiusKm) +
+      '<p class="small muted">Cover is a circle around Flinders Street Station. It is ' + esc(String(o.radiusKm)) + " km now.</p>" +
+      field("Contractor fee percentage", "number", "owner.feePercent", o.feePercent) +
+      '<label class="check"><input type="checkbox" data-field="owner.gstOnFee"' + (o.gstOnFee ? " checked" : "") + "> <span>Add GST on the fee</span></label>" +
+      '<p class="small">The fee stays at ' + esc(String(o.feePercent)) + "% until this is on. When it is on, the fee is that percentage plus 10% of the fee" + (o.gstOnFee ? " (now " + feePhrase() + ")" : " (15% would become 16.5%)") + ".</p>" +
+      '<p class="small">On a ' + moneyShort(example) + " job the fee is " + money(fee) + ", the contractor receives " + money(receives(example)) + ", and the manager pays " + moneyShort(example) + ".</p>" +
+      "<p class=\"small muted\">Strata App holds the money until the job is finished, then releases 100%. There is no retention. Managers pay the approved quote and no service fee.</p></div></div>";
+  }
+
+  function buildingsScreen() {
+    const cards = state.buildings.map(b => {
+      const km = kmFromCbd(b.lat, b.lng);
+      const outside = !inRadius(b.lat, b.lng);
+      return '<article class="card stack"><div class="between"><h2>' + esc(b.name) + "</h2>" + (b.sample ? '<span class="pill pill-muted">Sample</span>' : "") + "</div>" +
+        "<p>" + esc(b.streetNumber + " " + b.street + ", " + b.suburb + " VIC") + "</p>" +
+        '<p class="small">OC or plan ' + esc(b.oc) + " · " + kmText(km) + " from the CBD</p>" +
+        (outside ? '<p class="notice notice-bad">We do not cover this area yet. It is ' + kmText(km) + " from Flinders Street Station.</p>" : "") +
+        field("Approval limit without committee", "number", "building." + b.id + ".limit", b.limit) +
+        '<div class="row">' + field("Opening time", "time", "building." + b.id + ".open", b.open) + field("Closing time", "time", "building." + b.id + ".close", b.close) + "</div>" +
+        '<p class="small">' + esc(daysLabel(b.weekends) + ", " + prettyHours(b.open, b.close)) + "</p>" +
+        '<label class="check"><input type="checkbox" data-field="building.' + b.id + '.weekends"' + (b.weekends ? " checked" : "") + "> <span>Contractors can work weekends</span></label>" +
+        areaField("Saved access details", "building." + b.id + ".access", b.access) +
+        field("How close a contractor must be for evidence (metres)", "number", "building." + b.id + ".captureM", b.captureM) +
+        "</article>";
+    }).join("");
+    const wait = state.waiting.map(b => '<article class="card stack"><h2>' + esc(b.name) + '</h2><p class="small">Waiting list · ' + esc(b.suburb) + " · " + kmText(kmFromCbd(b.lat, b.lng)) + " from Flinders Street Station</p><p>We do not cover this area yet. The details are saved.</p></article>").join("");
+    return '<div class="stack"><div class="between"><h1>Buildings</h1></div>' +
+      '<button class="btn btn-primary" type="button" data-act="add-building">Add a building</button>' +
+      cards + (wait ? "<h2>Waiting list</h2>" + wait : "") + "</div>";
+  }
+
+  function buildingNewScreen() {
+    const n = state.newBuilding;
+    const s = suburbByName(n.suburb);
+    const km = s ? kmFromCbd(s.lat, s.lng) : 0;
+    const outside = s && !inRadius(s.lat, s.lng);
+    const opts = SUBURBS.map(x => '<option value="' + esc(x.name) + '"' + (x.name === n.suburb ? " selected" : "") + ">" + esc(x.name) + "</option>").join("");
+    return '<div class="stack"><div class="card stack">' +
+      field("Building name", "text", "new.name", n.name) +
+      field("Street number", "text", "new.number", n.number) +
+      field("Street", "text", "new.street", n.street) +
+      '<label class="field">Suburb<select data-field="new.suburb">' + opts + "</select></label>" +
+      field("OC or plan number", "text", "new.oc", n.oc) +
+      field("Approval limit without committee", "number", "new.limit", n.limit) +
+      (outside ? '<div class="notice notice-bad" role="alert"><strong>We do not cover this area yet</strong><p>' + esc(n.suburb) + " is " + kmText(km) + ' from Flinders Street Station.</p><button class="btn btn-secondary" type="button" data-act="join-wait">Join the waiting list</button></div>' : "") +
+      (outside ? "" : '<button class="btn btn-primary" type="button" data-act="save-building">Save building</button>') +
+      "</div></div>";
+  }
+
+  function contractorsScreen() {
+    const chips = '<button class="chip" type="button" data-act="people-trade" data-trade="all" aria-pressed="' + (state.peopleTrade === "all" || !state.peopleTrade ? "true" : "false") + '">All</button>' +
+      ALL_TRADES.map(t => '<button class="chip" type="button" data-act="people-trade" data-trade="' + t.id + '" aria-pressed="' + (state.peopleTrade === t.id ? "true" : "false") + '">' + esc(t.name) + "</button>").join("");
+    const list = state.contractors.filter(c => !state.peopleTrade || state.peopleTrade === "all" || offersTrade(c, state.peopleTrade)).sort((a, b) => a.name.localeCompare(b.name));
+    const cards = list.map(c => {
+      const names = c.trades.map(id => tradeById(id).name).join(", ");
+      const show = c.consentPublic;
+      return '<article class="card stack"><div class="between"><h2>' + esc(c.name) + "</h2>" + (insuranceExpired(c) ? "" : '<span class="pill pill-verified">Verified</span>') + "</div>" +
+        '<p><span class="pill pill-trade" style="--hue:' + tradeById(c.trades[0]).hue + '">' + esc(names) + "</span></p>" +
+        (show ? "<p>" + esc(c.years) + " years in the trade</p><p>" + esc(c.description) + "</p>" : '<p class="muted">Profile hidden until the contractor agrees to share it.</p>') +
+        '<button class="btn btn-secondary" type="button" data-act="open-person" data-id="' + c.id + '">View profile</button></article>';
+    }).join("");
+    return '<div class="stack"><h1>Contractors</h1><div class="row" role="group" aria-label="Filter by trade">' + chips + "</div>" + cards + "</div>";
+  }
+
+  function personScreen() {
+    const c = person(state.ctx.id);
+    if (!c) return "<p>That contractor is not available.</p>";
+    const names = c.trades.map(id => tradeById(id).name).join(", ");
+    const ins = insuranceExpired(c) ? "Public liability insurance has expired." : "Public liability insurance valid to " + fmtDateShort(c.insuranceUntil) + ".";
+    return '<div class="stack"><div class="card stack"><div class="between"><h2>' + esc(c.name) + "</h2>" + (insuranceExpired(c) ? '<span class="pill pill-warn">Insurance expired</span>' : '<span class="pill pill-verified">Verified</span>') + "</div>" +
+      "<p>" + esc(names) + "</p><p>" + esc(c.years) + " years in the trade</p>" +
+      (c.consentPublic ? "<p>" + esc(c.description) + "</p>" : "") +
+      '<p><span class="demo">Demo</span> Licence and insurance checks are simulated.</p>' +
+      "<p>Verified licence: " + esc(c.licence) + ", valid to " + fmtDateShort(c.licenceUntil) + ".</p>" +
+      "<p>" + esc(ins) + " Cover shown as $" + c.cover + " million.</p>" +
+      "<p>ABN " + esc(c.abn) + " checked. " + (c.gst ? "GST registered." : "Not registered for GST.") + "</p>" +
+      "<p>Warranties and insurance are agreed between the manager and the contractor.</p></div></div>";
+  }
+
+  function jobCardManager(job) {
+    const p = placeOf(job);
+    const quotes = quotesFor(job.id).length;
+    return '<article class="card stack"><div class="row">' +
+      (isEmergency(job) ? '<span class="pill pill-emergency">Emergency</span>' : "") +
+      (job.sample ? '<span class="pill pill-muted">Sample</span>' : "") +
+      '<span class="pill pill-warn">' + esc(statusLabel(job)) + "</span>" +
+      '<span class="pill pill-trade" style="--hue:' + tradeById(job.tradeId).hue + '">' + esc(tradeById(job.tradeId).name) + "</span></div>" +
+      '<h2>' + esc(job.title) + "</h2><p>" + esc(p.buildingName) + " · " + esc(job.area) + "</p>" +
+      '<p class="small muted">' + esc(ago(job.postedAt)) + " · " + quotes + (quotes === 1 ? " quote" : " quotes") + "</p>" +
+      '<button class="btn btn-secondary" type="button" data-act="open-job" data-id="' + job.id + '">Open</button></article>';
+  }
+
+  function managerJobs() {
+    const groups = [
+      ["needs", "Needs you"],
+      ["awaiting", "Awaiting quotes"],
+      ["progress", "In progress"],
+      ["done", "Done"]
+    ];
+    let body = '<div class="stack"><h1>Jobs</h1>' + noticeNeeds(needsManagerCount(), "jobs");
+    groups.forEach(g => {
+      const items = state.jobs.filter(j => managerBucket(j) === g[0]);
+      body += "<h2>" + g[1] + "</h2>";
+      body += items.length ? items.map(jobCardManager).join("") : '<p class="muted">Nothing in this group.</p>';
+    });
+    return body + "</div>";
+  }
+
+  function calendarDots(role) {
+    const dots = {};
+    state.jobs.forEach(job => {
+      const date = (job.awardedQuoteId && quoteById(job.awardedQuoteId) && quoteById(job.awardedQuoteId).date) || job.date;
+      if (!date) return;
+      if (role === "manager" && !job.owned) return;
+      if (role === "contractor") {
+        const mine = job.awardedTo === state.meId || quotesFor(job.id).some(q => q.contractorId === state.meId);
+        if (!mine) return;
+      }
+      const booked = ["paid", "onsite", "review0", "fix1", "review1", "fix2", "released"].indexOf(job.stage) !== -1;
+      const requested = job.stage === "open" || job.stage === "approved";
+      const prev = dots[date] || { booked: false, requested: false };
+      if (booked) prev.booked = true;
+      if (requested) prev.requested = true;
+      dots[date] = prev;
+    });
+    return dots;
+  }
+
+  function renderMonth(opts) {
+    const year = opts.year, month = opts.month;
+    const firstDow = new Date(year, month, 1).getDay();
+    const lead = (firstDow + 6) % 7;
+    const daysIn = new Date(year, month + 1, 0).getDate();
+    let html = '<div class="between"><button class="icon-btn" type="button" data-act="' + opts.nav + '" data-dir="-1" aria-label="Previous month">Prev</button><strong>' + MONTHS[month] + " " + year + '</strong><button class="icon-btn" type="button" data-act="' + opts.nav + '" data-dir="1" aria-label="Next month">Next</button></div>';
+    html += '<div class="cal">' + DOW_SHORT.map(d => '<div class="dow">' + d + "</div>").join("");
+    for (let i = 0; i < lead; i++) html += "<div></div>";
+    for (let d = 1; d <= daysIn; d++) {
+      const iso = year + "-" + pad(month + 1) + "-" + pad(d);
+      const dis = opts.disable ? opts.disable(iso) : "";
+      const dots = (opts.dots && opts.dots[iso]) || {};
+      const pressed = opts.selected === iso;
+      const asked = opts.asked === iso;
+      let label = fmtDateLong(iso);
+      if (dis) label += ", " + dis;
+      if (dots.booked) label += ", booked job";
+      if (dots.requested) label += ", date waiting for a quote";
+      if (pressed) label += ", selected";
+      const dotHtml = '<span class="dots">' + (dots.booked ? '<span class="dot filled"></span>' : "") + (dots.requested ? '<span class="dot outlined"></span>' : "") + "</span>";
+      html += '<button type="button" class="day' + (asked ? " asked" : "") + '" data-act="' + opts.pick + '" data-date="' + iso + '" aria-pressed="' + (pressed ? "true" : "false") + '" aria-disabled="' + (dis ? "true" : "false") + '" aria-label="' + esc(label) + '" data-reason="' + esc(dis) + '">' + d + dotHtml + "</button>";
+    }
+    html += "</div>";
+    return html;
+  }
+
+  function calendarScreen() {
+    const role = state.role;
+    const dots = calendarDots(role);
+    const selected = state.cal.selected;
+    let panel = "";
+    if (selected) {
+      const items = state.jobs.filter(job => {
+        const date = (quoteById(job.awardedQuoteId) || {}).date || job.date;
+        if (date !== selected) return false;
+        if (role === "manager") return job.owned;
+        return job.awardedTo === state.meId || quotesFor(job.id).some(q => q.contractorId === state.meId);
+      });
+      const rows = items.map(job => {
+        const q = quoteById(job.awardedQuoteId);
+        const p = placeOf(job);
+        let when = whenText(job);
+        if (q) when = rangeText(q.date, q.time, q.duration, p.open, p.close);
+        return '<button class="btn btn-secondary" type="button" data-act="open-job" data-id="' + job.id + '">' + esc(job.title) + " · " + esc(when) + "</button>";
+      }).join("") || '<p class="muted">Nothing on this day.</p>';
+      let book = "";
+      if (role === "manager") {
+        const closed = dayClosedForAll(selected);
+        book = closed
+          ? '<p role="alert">Contractors are not on site this day. Buildings are closed to contractors.</p>'
+          : '<button class="btn btn-primary" type="button" data-act="book-day" data-date="' + selected + '">Book a job for this day</button>';
+      }
+      panel = '<div class="card stack"><h2>' + esc(fmtDateLong(selected)) + "</h2>" + rows + book + "</div>";
+    }
+    return '<div class="stack"><h1>Calendar</h1><p class="small muted">Filled dots are booked jobs. Outlined dots are dates still waiting for a quote.</p>' +
+      renderMonth({ year: state.cal.year, month: state.cal.month, selected: selected, dots: dots, pick: "cal-day", nav: "cal-nav", disable: () => "" }) + panel + "</div>";
+  }
+  function dayClosedForAll(iso) {
+    if (!isWeekend(iso)) return false;
+    const usable = state.buildings.filter(b => inRadius(b.lat, b.lng));
+    return usable.length > 0 && usable.every(b => !b.weekends);
+  }
+
+  function requestScreen() {
+    const d = state.draft;
+    if (!d) return "<p>Start a new request from Home.</p>";
+    const titles = ["Building and place", "The issue", "Safety, access and site", "When and requirements", "Admin and review"];
+    const bar = '<p class="small">Step ' + state.step + " of 5 · " + titles[state.step - 1] + '</p><div class="progress" aria-hidden="true"><span style="width:' + (state.step / 5 * 100) + '%"></span></div>';
+    let body = "";
+    if (state.step === 1) body = step1(d);
+    if (state.step === 2) body = step2(d);
+    if (state.step === 3) body = step3(d);
+    if (state.step === 4) body = step4(d);
+    if (state.step === 5) body = step5(d);
+    const nextLabel = state.step === 5 ? "Post request" : "Continue";
+    return '<div class="stack">' + bar + body +
+      '<div class="row"><button class="btn btn-secondary auto" type="button" data-act="step-back">Back</button><button class="btn btn-primary" type="button" data-act="step-next" style="flex:1">' + nextLabel + "</button></div></div>";
+  }
+  function buildingChoices(d) {
+    return state.buildings.map(b => '<option value="' + b.id + '"' + (b.id === d.buildingId ? " selected" : "") + ">" + esc(b.name) + "</option>").join("");
+  }
+  function step1(d) {
+    const b = building(d.buildingId);
+    let info = "";
+    if (b) {
+      const km = kmFromCbd(b.lat, b.lng);
+      const outside = !inRadius(b.lat, b.lng);
+      info = "<p>" + esc(b.streetNumber + " " + b.street + ", " + b.suburb + " VIC") + "</p><p class=\"small\">OC or plan " + esc(b.oc) + " · Approval limit " + moneyShort(b.limit) + " · " + kmText(km) + " from the CBD</p>";
+      if (outside) info += '<div class="notice notice-bad" role="alert"><strong>We do not cover this area yet</strong><p>This building is ' + kmText(km) + " from Flinders Street Station.</p></div>";
+    }
+    return '<div class="card stack"><label class="field">Building<select data-field="draft.buildingId">' + buildingChoices(d) + "</select></label>" + info +
+      field("Level, unit or area of the issue", "text", "draft.area", d.area, "Level 2, bin room") + "</div>";
+  }
+  function step2(d) {
+    const chips = ALL_TRADES.map(t => '<button class="chip" type="button" data-act="draft-trade" data-trade="' + t.id + '" aria-pressed="' + (d.tradeId === t.id ? "true" : "false") + '">' + esc(t.name) + "</button>").join("");
+    const t = tradeById(d.tradeId);
+    const photos = mediaThumbs(d.photos, t.hue);
+    const video = d.video ? mediaThumbs([d.video], t.hue) : "";
+    return '<div class="card stack">' + field("Job title", "text", "draft.title", d.title) +
+      '<span class="field">Trade or service</span><div class="row">' + chips + "</div>" +
+      (d.tradeId === "other" ? field("Describe the trade", "text", "draft.otherTrade", d.otherTrade) : "") +
+      '<p class="small">Licence: ' + esc(t.req) + "</p>" +
+      areaField("Instructions for the contractor", "draft.instructions", d.instructions, 500) +
+      '<p class="small">' + d.instructions.length + ' of 500</p><p class="small">Do not put access codes here. Everyone who opens this request can read it.</p>' +
+      '<div class="between"><h3>Photos and video</h3><span class="demo">Demo</span></div>' +
+      '<p class="small">Up to 10 photos and one video of up to 60 seconds. The camera is simulated.</p>' +
+      '<div class="thumbs">' + photos + video + "</div>" +
+      '<div class="row"><button class="btn btn-secondary auto" type="button" data-act="draft-photo"' + (d.photos.length >= 10 ? " disabled" : "") + '>Take a photo</button><button class="btn btn-secondary auto" type="button" data-act="draft-video"' + (d.video ? " disabled" : "") + ">Take a video</button></div></div>";
+  }
+  function mediaThumbs(items, hue) {
+    return items.map(item => '<div class="thumb" style="--hue:' + (item.hue || hue || 168) + '"><span>' + (item.kind === "video" ? "Video" : "Photo") + "</span><span>" + esc(fmtStamp(item.at)) + (item.distanceM != null ? " · " + item.distanceM + " m" : "") + (item.seconds ? " · " + item.seconds + " seconds" : "") + "</span></div>").join("");
+  }
+  function yn(name, i, value) {
+    return '<div class="row" role="group" aria-label="' + esc(name) + '"><button class="chip" type="button" data-act="safety" data-i="' + i + '" data-v="yes" aria-pressed="' + (value === "yes" ? "true" : "false") + '">Yes</button><button class="chip" type="button" data-act="safety" data-i="' + i + '" data-v="no" aria-pressed="' + (value === "no" ? "true" : "false") + '">No</button></div>';
+  }
+  function step3(d) {
+    const b = building(d.buildingId);
+    const qs = SAFETY_Q.map((q, i) => '<div class="stack"><p><strong>' + (i + 1) + ". " + esc(q) + "</strong></p>" + yn(q, i, d.safety[i]) + "</div>").join("");
+    let extra = "";
+    if (d.safety[0] === "yes") extra += '<div class="notice notice-bad" role="alert"><strong>Call 000 now</strong><p>This request is set to Emergency.</p><a class="btn btn-emergency" href="tel:000">Call 000</a></div>';
+    if (d.safety[1] === "yes") extra += '<div class="notice notice-warn"><p>This may need to be an emergency.</p><button class="btn btn-secondary" type="button" data-act="make-emergency">Make this an emergency</button></div>';
+    if (d.safety[2] === "yes") extra += '<div class="notice notice-bad" role="alert"><strong>A licensed assessor must clear possible asbestos before any work.</strong><p>You cannot post this request.</p></div>';
+    if (d.safety[4] === "yes") extra += '<p class="small">A safe work method statement has been ticked because the work is at height or in a confined space.</p>';
+    const park = ["Yes", "No", "Limited"].map(p => '<button class="chip" type="button" data-act="parking" data-v="' + p.toLowerCase() + '" aria-pressed="' + (d.parking === p.toLowerCase() ? "true" : "false") + '">' + p + "</button>").join("");
+    return '<div class="card stack">' + qs + extra + areaField("Anything else that could be unsafe (optional)", "draft.safetyNote", d.safetyNote) +
+      '<h3>Private access details</h3><p class="small">Contractors see this only after you pay. It is prefilled from the building.</p>' +
+      areaField("Access details", "draft.access", d.access) +
+      '<span class="field">Contractor parking</span><div class="row" role="group" aria-label="Contractor parking">' + park + "</div>" +
+      (d.parking === "limited" ? field("Parking note", "text", "draft.parkingNote", d.parkingNote) : "") +
+      '<p class="small">Contractor working hours: ' + esc(b ? daysLabel(b.weekends) + ", " + prettyHours(b.open, b.close) : "") + "</p>" +
+      areaField("Noise or other site rules", "draft.siteRules", d.siteRules) +
+      '<span class="field">Lift or loading dock</span><div class="row">' + LIFTS.map(x => '<button class="chip" type="button" data-act="lift" data-v="' + x.id + '" aria-pressed="' + (d.lift === x.id ? "true" : "false") + '">' + esc(x.label) + "</button>").join("") + "</div></div>";
+  }
+  function draftClosed(d, iso) {
+    if (parseISO(iso).getTime() < parseISO(todayISO()).getTime()) return "past day";
+    const b = building(d.buildingId);
+    if (d.urgency !== "emergency" && b && isWeekend(iso) && !b.weekends) return "closed to contractors";
+    return "";
+  }
+  function step4(d) {
+    const b = building(d.buildingId);
+    const anyTime = d.urgency === "emergency";
+    const summary = bookingSummary(d, b);
+    const urg = ["emergency", "urgent", "standard"].map(u => '<button class="chip" type="button" data-act="urgency" data-v="' + u + '" aria-pressed="' + (d.urgency === u ? "true" : "false") + '">' + (u === "emergency" ? "Emergency" : u === "urgent" ? "Urgent" : "Standard") + "</button>").join("");
+    const modes = [
+      ["morning", b ? "Morning (" + prettyHours(b.open, "12:00") + ")" : "Morning"],
+      ["afternoon", b ? "Afternoon (12 pm to " + fmtTime(b.close).replace(":00 ", " ") + ")" : "Afternoon"],
+      ["anytime", b ? "Any time (" + prettyHours(b.open, b.close) + ")" : "Any time"]
+    ];
+    if (anyTime) {
+      modes.length = 0;
+      modes.push(["anytime", "Any time"]);
+    }
+    const modeHtml = modes.map(m => '<button class="chip" type="button" data-act="time-mode" data-v="' + m[0] + '" aria-pressed="' + (d.timeMode === m[0] && !d.exactTime ? "true" : "false") + '">' + esc(m[1]) + "</button>").join("");
+    const grid = (b ? managerSlots(b.open, b.close, anyTime) : []).map(t => '<button class="chip" type="button" data-act="exact-time" data-time="' + t + '" aria-pressed="' + (d.timeMode === "exact" && d.exactTime === t ? "true" : "false") + '">' + esc(fmtTime(t)) + "</button>").join("");
+    const deadlines = [["today", "Today"], ["tomorrow", "Tomorrow"], ["3", "In 3 days"], ["7", "In 7 days"]].map(x => '<button class="chip" type="button" data-act="deadline" data-v="' + x[0] + '" aria-pressed="' + (d.deadline === x[0] ? "true" : "false") + '">' + x[1] + "</button>").join("");
+    return '<div class="stack"><div class="summary-card"><h2>Booking</h2><p>' + summary + "</p></div>" +
+      '<div class="card stack"><span class="field">Urgency</span><div class="row" role="group" aria-label="Urgency">' + urg + "</div>" +
+      "<h3>1. Choose the date</h3>" + renderMonth({ year: state.cal.year, month: state.cal.month, selected: d.date, pick: "draft-date", nav: "cal-nav", disable: iso => draftClosed(d, iso) }) +
+      "<h3>2. Choose the time</h3><div class=\"row\">" + modeHtml + "</div>" +
+      '<h3>Exact start time</h3><div class="time-grid" data-time-grid="request">' + grid + "</div>" +
+      '<label class="check"><input type="checkbox" data-field="draft.flexible"' + (d.flexible ? " checked" : "") + "> <span>Flexible by a few days</span></label>" +
+      '<span class="field">Quote deadline</span><div class="row">' + deadlines + "</div>" +
+      '<span class="field">Who supplies materials</span><div class="row">' + MATERIALS.map(x => '<button class="chip" type="button" data-act="materials" data-v="' + x.id + '" aria-pressed="' + (d.materials === x.id ? "true" : "false") + '">' + esc(x.label) + "</button>").join("") + "</div>" +
+      '<p>Licence required: ' + esc(tradeById(d.tradeId).req) + "</p>" +
+      '<span class="field">Minimum public liability insurance</span><div class="row">' + [10, 20, 30].map(n => '<button class="chip" type="button" data-act="insurance" data-v="' + n + '" aria-pressed="' + (String(d.insurance) === String(n) ? "true" : "false") + '">$' + n + " million</button>").join("") + "</div>" +
+      '<label class="check"><input type="checkbox" data-field="draft.swms"' + (d.swms ? " checked" : "") + (d.safety[4] === "yes" ? " disabled" : "") + "> <span>Safe work method statement required</span></label>" +
+      '<span class="field">Notice to residents</span><div class="row">' + NOTICES.map(x => '<button class="chip" type="button" data-act="notice" data-v="' + x.id + '" aria-pressed="' + (d.notice === x.id ? "true" : "false") + '">' + esc(x.label) + "</button>").join("") + "</div></div></div>";
+  }
+  function bookingSummary(d, b) {
+    if (!d.date && !d.timeMode && !d.exactTime) return "No date or time chosen yet.";
+    const fake = { date: d.date, timeMode: d.exactTime ? "exact" : d.timeMode, exactTime: d.exactTime, urgency: d.urgency, buildingId: d.buildingId };
+    let text = d.date ? whenText(fake) : "Date not chosen";
+    if (!d.timeMode && !d.exactTime) text += ". Time not chosen";
+    if (d.flexible) text += ". Flexible by a few days";
+    return esc(text);
+  }
+  function step5(d) {
+    const b = building(d.buildingId);
+    const see = [
+      "Suburb and street name only (" + (b ? b.street + ", " + b.suburb : "") + ")",
+      "Level or area",
+      "Photos and video",
+      "Your instructions",
+      "Safety answers that were Yes, and your note",
+      "Parking",
+      "Urgency, preferred time, quote deadline, materials, licence, insurance, safe work method, notice to residents, working hours, lift or dock"
+    ];
+    const unlock = ["Full address and building name", "Access details and the site contact", "Your phone number"];
+    return '<div class="stack"><div class="card stack">' +
+      field("Job reference or purchase order", "text", "draft.reference", d.reference) +
+      field("Approving person", "text", "draft.approver", d.approver) +
+      field("Invoice to", "text", "draft.invoiceTo", d.invoiceTo) +
+      field("OC ABN", "text", "draft.invoiceAbn", d.invoiceAbn) +
+      "</div><div class=\"card stack\"><h2>Summary</h2><p><strong>" + esc(d.title || "Untitled") + "</strong></p><p>" + esc(tradeById(d.tradeId).name) + (d.tradeId === "other" && d.otherTrade ? " · " + esc(d.otherTrade) : "") + "</p><p>" + esc(b ? b.name : "") + " · " + esc(d.area) + "</p><p>" + bookingSummary(d, b) + "</p><p>" + esc(d.urgency === "emergency" ? "Emergency" : d.urgency === "urgent" ? "Urgent" : "Standard") + "</p></div>" +
+      '<div class="card"><h2>What contractors see before approval</h2><ul class="clean">' + see.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul></div>" +
+      '<div class="card"><h2>What unlocks after payment</h2><ul class="clean">' + unlock.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul></div></div>";
+  }
+
+  function validateStep(d) {
+    const b = building(d.buildingId);
+    if (state.step === 1) {
+      if (!b) return "Choose a building.";
+      if (!inRadius(b.lat, b.lng)) return "We do not cover this area yet.";
+      if (!d.area.trim()) return "Add the level, unit or area.";
+    }
+    if (state.step === 2) {
+      if (!d.title.trim()) return "Add a job title.";
+      if (d.tradeId === "other" && !d.otherTrade.trim()) return "Describe the other service.";
+    }
+    if (state.step === 3) {
+      if (d.safety.some(v => v !== "yes" && v !== "no")) return "Answer every safety question.";
+      if (d.safety[2] === "yes") return "A licensed assessor must clear possible asbestos before any work.";
+      if (!d.parking) return "Choose parking: Yes, No or Limited.";
+      if (d.parking === "limited" && !d.parkingNote.trim()) return "Add a short parking note.";
+      if (!d.lift) return "Say if there is a lift or a loading dock.";
+    }
+    if (state.step === 4) {
+      if (!d.date) return "Choose a date.";
+      if (draftClosed(d, d.date)) return "That day is not available.";
+      if (!d.timeMode && !d.exactTime) return "Choose a time.";
+      if (!d.deadline) return "Choose a quote deadline.";
+      if (!d.materials) return "Say who supplies materials.";
+      if (!d.notice) return "Choose a notice to residents.";
+    }
+    if (state.step === 5) {
+      if (!d.approver.trim()) return "Add the approving person.";
+      if (!d.invoiceTo.trim()) return "Add who the invoice is to.";
+    }
+    return "";
+  }
+  function postDraft() {
+    const d = state.draft;
+    for (let s = 1; s <= 5; s++) {
+      state.step = s;
+      const err = validateStep(d);
+      if (err) { toast(err); render(); return; }
+    }
+    const b = building(d.buildingId);
+    const job = {
+      id: uid("job"), owned: true, sample: false, buildingId: b.id, area: d.area.trim(), title: d.title.trim(),
+      tradeId: d.tradeId, otherTrade: d.otherTrade.trim(), instructions: d.instructions.trim(),
+      photos: d.photos, video: d.video, safety: d.safety.slice(), safetyNote: d.safetyNote.trim(),
+      parking: d.parking === "yes" ? "Yes" : d.parking === "no" ? "No" : "Limited", parkingNote: d.parkingNote.trim(),
+      siteRules: d.siteRules.trim(), urgency: d.urgency, date: d.date, timeMode: d.exactTime ? "exact" : d.timeMode,
+      exactTime: d.exactTime, flexible: d.flexible, deadline: d.deadline, materials: d.materials,
+      insurance: Number(d.insurance), swms: !!d.swms, notice: d.notice, lift: d.lift,
+      reference: d.reference.trim(), approver: d.approver.trim(), invoiceTo: d.invoiceTo.trim(), invoiceAbn: d.invoiceAbn.trim(),
+      access: d.access.trim(), phone: state.manager.phone, postedAt: Date.now(), stage: "open",
+      arrival: null, eta: null, arrivalAt: null, arrivalDistance: null, arrivalConfirmed: false,
+      safetyOnSite: [null, null, null, null, null], contractorAlert: false, alertSeen: false,
+      awardedQuoteId: null, awardedTo: null, paidAt: null, payMethod: null, challenges: [],
+      evidence: { before: [], after: [], fix1: [], fix2: [] }, timeline: [], releasedAt: null, reviewStartedAt: null, farDemo: false
+    };
+    log(job, "Request posted.");
+    state.jobs.unshift(job);
+    state.draft = null;
+    toast("Request posted.");
+    state.history = [];
+    state.screen = "job";
+    state.ctx = { id: job.id };
+    state.title = job.title;
+    render();
+  }
+
+  function jobScreen() {
+    const job = jobById(state.ctx.id);
+    if (!job) return "<p>That job is not here.</p>";
+    if (state.role === "manager") return managerJob(job);
+    return contractorJob(job);
+  }
+
+  function safetyBlock(job) {
+    const lines = yesAnswers(job);
+    let html = "<h3>Safety</h3>";
+    if (!lines.length && !job.safetyNote) html += '<p class="small muted">No extra safety notes.</p>';
+    else html += "<ul class=\"clean\">" + lines.map(x => "<li>" + esc(x) + "</li>").join("") + (job.safetyNote ? "<li>" + esc(job.safetyNote) + "</li>" : "") + "</ul>";
+    return html;
+  }
+  function timelineHtml(job) {
+    return '<h3>Activity</h3><div class="tl">' + job.timeline.slice().reverse().map(ev => '<div class="ev"><strong>' + esc(fmtStamp(ev.at)) + "</strong><div>" + esc(ev.text) + "</div></div>").join("") + "</div>";
+  }
+
+  function managerJob(job) {
+    const p = placeOf(job);
+    const head = '<div class="card stack"><div class="row">' + (isEmergency(job) ? '<span class="pill pill-emergency">Emergency</span>' : "") + '<span class="pill pill-warn">' + esc(statusLabel(job)) + "</span>" + '<span class="pill pill-trade" style="--hue:' + tradeById(job.tradeId).hue + '">' + esc(tradeById(job.tradeId).name) + "</span></div>" +
+      "<p><strong>" + esc(p.buildingName) + "</strong><br>" + esc(addressFull(job)) + "</p>" +
+      "<p>Area: " + esc(job.area) + "</p>" +
+      (job.reference ? "<p>Reference: " + esc(job.reference) + "</p>" : "") +
+      "<p>Requested time: " + esc(whenText(job)) + (job.flexible ? " · Flexible by a few days" : "") + "</p>" +
+      "<p>Posted " + esc(ago(job.postedAt)) + "</p>" + safetyBlock(job) + "</div>";
+    let stage = "";
+    if (job.contractorAlert && !job.alertSeen) {
+      stage += '<div class="notice notice-bad" role="alert"><strong>The contractor has sent an emergency alert.</strong><p>It is saved in the evidence record.</p><button class="btn btn-emergency" type="button" data-act="seen-alert" data-id="' + job.id + '">I have seen it</button></div>';
+    }
+    if (job.stage === "open" && quotesFor(job.id).length === 0) stage += '<div class="card"><h2>Waiting for quotes</h2><p>Contractors in the area can make an offer.</p></div>';
+    if (job.stage === "open" && quotesFor(job.id).length) stage += compareQuotes(job);
+    if (job.stage === "approved") stage += '<div class="card stack"><h2>Pay to start</h2><p>The quote is approved. The job starts once the money is held.</p><button class="btn btn-primary" type="button" data-act="open-pay" data-id="' + job.id + '">Pay to start</button></div>';
+    if (["paid", "onsite", "fix1", "fix2"].indexOf(job.stage) !== -1) stage += arrivalCard(job) + accessCard(job);
+    if (job.stage === "review0" || job.stage === "review1") stage += reviewPanel(job);
+    if (job.stage === "released") stage += releasedManager(job);
+    return '<div class="stack">' + head + stage +
+      '<button class="btn btn-secondary" type="button" data-act="open-evidence" data-id="' + job.id + '">View evidence record</button>' +
+      '<div class="card">' + timelineHtml(job) + "</div></div>";
+  }
+  function accessCard(job) {
+    return '<div class="card stack"><h2>Access</h2><p>' + esc(job.access || "No access note.") + "</p><p>Site contact: " + esc(state.manager.name) + " · " + esc(job.phone) + "</p><p class=\"small muted\">If the contractor does not attend or add evidence, the money stays held.</p></div>";
+  }
+  function arrivalCard(job) {
+    const q = quoteById(job.awardedQuoteId);
+    const p = placeOf(job);
+    const when = q ? rangeText(q.date, q.time, q.duration, p.open, p.close) : whenText(job);
+    let actions = "";
+    if (job.arrival === "arrived" && !job.arrivalConfirmed) actions = '<button class="btn btn-primary" type="button" data-act="confirm-arrival" data-id="' + job.id + '">Confirm arrival</button>';
+    if (job.arrival === "cannot_get_in") actions = '<div class="notice notice-bad"><strong>The contractor cannot get in.</strong></div><button class="btn btn-primary" type="button" data-act="let-in" data-id="' + job.id + '">I have let them in</button>';
+    return '<div class="card stack"><h2>Arrival</h2><p>Booked for ' + esc(when) + '.</p><p><strong>Live status: ' + esc(liveStatus(job)) + "</strong></p>" + actions + "</div>";
+  }
+  function compareQuotes(job) {
+    const p = placeOf(job);
+    const cards = quotesFor(job.id).map(q => {
+      const c = person(q.contractorId);
+      const over = q.price > p.limit;
+      const clashes = clashForQuote(job, q);
+      const gst = c.gst ? "Includes GST " + money(gstPart(q.price)) : "No GST (contractor not registered)";
+      const canApprove = !over || q.committeeApproved;
+      return '<article class="card stack"><div class="between"><h3>' + esc(c.name) + '</h3><span class="pill pill-verified">Verified</span></div>' +
+        "<p>" + c.years + " years in the trade</p><p><strong>" + money(q.price) + "</strong></p><p>" + gst + "</p>" +
+        "<p>Start: " + esc(fmtDateLong(q.date)) + " at " + esc(fmtTime(q.time)) + "</p>" +
+        "<p>" + esc(durationById(q.duration).label) + ", ends " + esc(fmtTime(endOf(q.time, q.duration, p.open, p.close))) + (q.duration === "2d" ? " the next working day" : "") + "</p>" +
+        "<p>Included:</p><ul class=\"clean\">" + q.scope.map(s => "<li>" + esc(s) + "</li>").join("") + "</ul>" +
+        (q.note ? "<p>" + esc(q.note) + "</p>" : "") +
+        (clashes.length ? '<div class="notice notice-warn">' + clashes.map(x => "<p>" + esc(x) + "</p>").join("") + "</div>" : "") +
+        (over ? '<p class="notice notice-warn"><strong>Needs committee approval</strong><br>' + money(q.price) + " is over the " + moneyShort(p.limit) + " limit.</p>" : "") +
+        (over && !q.committeeApproved ? '<button class="btn btn-secondary" type="button" data-act="committee" data-id="' + q.id + '">Record committee approval <span class="demo">Demo</span></button>' : "") +
+        (q.committeeApproved ? '<p class="small">Committee approval recorded <span class="demo">Demo</span></p>' : "") +
+        '<button class="btn btn-ghost" type="button" data-act="open-person" data-id="' + c.id + '">View profile</button>' +
+        '<button class="btn btn-primary" type="button" data-act="approve" data-id="' + q.id + '"' + (canApprove ? "" : " disabled") + ">Approve " + moneyShort(q.price) + " of " + moneyShort(p.limit) + "</button></article>";
+    }).join("");
+    return '<div class="stack"><h2>Compare quotes</h2><div class="quote-grid">' + cards + "</div></div>";
+  }
+  function approveScreen() {
+    const q = quoteById(state.ctx.quoteId);
+    const job = q && jobById(q.jobId);
+    if (!q || !job) return "<p>That quote is not here.</p>";
+    const c = person(q.contractorId);
+    const p = placeOf(job);
+    const over = q.price > p.limit && !q.committeeApproved;
+    return '<div class="card stack"><h2>' + esc(c.name) + "</h2><p>Total " + money(q.price) + "</p><p>" + (c.gst ? "Includes GST " + money(gstPart(q.price)) : "No GST (contractor not registered)") + "</p>" +
+      "<p>Start " + esc(rangeText(q.date, q.time, q.duration, p.open, p.close)) + "</p>" +
+      "<p>Duration: " + esc(durationById(q.duration).label) + "</p>" +
+      "<p>Approval limit: " + money(q.price) + " of " + moneyShort(p.limit) + (q.price > p.limit ? " · Needs committee approval" : " · Inside the limit") + "</p>" +
+      "<p>Included:</p><ul class=\"clean\">" + q.scope.map(s => "<li>" + esc(s) + "</li>").join("") + "</ul>" +
+      '<p class="summary-card">You pay the approved quote. No hidden fees. Your money is held until the job is done.</p>' +
+      '<label class="check"><input type="checkbox" data-field="approve.consent"' + (state.approveConsent ? " checked" : "") + "> <span>I agree to prepay this quote. Strata App holds the money until the job is complete.</span></label>" +
+      (over ? '<p role="alert">Needs committee approval before you can continue.</p>' : "") +
+      '<button class="btn btn-primary" type="button" data-act="approve-continue" data-id="' + q.id + '"' + ((!state.approveConsent || over) ? " disabled" : "") + ">Approve and continue to payment</button></div>";
+  }
+  function payScreen() {
+    const job = jobById(state.ctx.id);
+    const q = job && quoteById(job.awardedQuoteId);
+    if (!job || !q) return "<p>Nothing to pay.</p>";
+    const method = state.payMethod || "";
+    return '<div class="card stack"><h2>Pay to start</h2><p>Hold ' + money(q.price) + '.</p><span class="demo">Demo</span>' +
+      '<div class="row" role="group" aria-label="Payment method"><button class="chip" type="button" data-act="pay-method" data-v="bank" aria-pressed="' + (method === "bank" ? "true" : "false") + '">Bank transfer</button><button class="chip" type="button" data-act="pay-method" data-v="card" aria-pressed="' + (method === "card" ? "true" : "false") + '">Card</button></div>' +
+      "<p>Chargebacks are charged to the OC or manager under the terms.</p>" +
+      "<p>If this is not paid within 48 hours before the job starts, the time slot is released. Access details unlock only after payment.</p>" +
+      '<button class="btn btn-primary" type="button" data-act="pay-hold" data-id="' + job.id + '"' + (method ? "" : " disabled") + '>Pay and hold <span class="demo">Demo</span></button>' +
+      '<button class="btn btn-ghost" type="button" data-act="release-slot" data-id="' + job.id + '">Release the unpaid slot <span class="demo">Demo</span></button></div>';
+  }
+  function reviewPanel(job) {
+    const leftMs = (job.reviewStartedAt || Date.now()) + 48 * 3600000 - Date.now();
+    const leftH = Math.max(0, leftMs / 3600000);
+    const about = leftH <= 0 ? "the time has ended" : "about " + Math.max(1, Math.round(leftH)) + (Math.round(leftH) === 1 ? " hour" : " hours") + " left";
+    const q = quoteById(job.awardedQuoteId);
+    const checks = (q ? q.scope : []).map((item, i) => '<label class="check"><input type="checkbox" data-field="challenge.' + i + '"' + (state.challengePicks && state.challengePicks[i] ? " checked" : "") + "> <span>" + esc(item) + "</span></label>").join("");
+    const before = job.evidence.before || [];
+    const after = job.evidence.after || [];
+    const fix = job.stage === "review1" ? (job.evidence.fix1 || []) : [];
+    return '<div class="card stack"><h2>' + (job.stage === "review0" ? "Review the work" : "Review the first fix") + "</h2>" +
+      "<p>You have 48 hours (" + about + ") to accept or challenge. No response counts as acceptance.</p>" +
+      "<h3>Before</h3><div class=\"thumbs\">" + (mediaThumbs(before, tradeById(job.tradeId).hue) || '<p class="muted">No before photos.</p>') + "</div>" +
+      "<h3>After</h3><div class=\"thumbs\">" + (mediaThumbs(after, tradeById(job.tradeId).hue) || '<p class="muted">No after photos.</p>') + "</div>" +
+      (job.stage === "review1" ? "<h3>First fix</h3><div class=\"thumbs\">" + (mediaThumbs(fix, 20) || "") + "</div>" : "") +
+      "<h3>Agreed scope</h3>" + checks +
+      areaField("Note for the contractor (optional)", "challenge.note", state.challengeNote || "") +
+      '<button class="btn btn-primary" type="button" data-act="accept" data-id="' + job.id + '">Accept the work</button>' +
+      '<button class="btn btn-secondary" type="button" data-act="challenge" data-id="' + job.id + '">Challenge the selected items</button>' +
+      '<button class="btn btn-ghost" type="button" data-act="skip-48" data-id="' + job.id + '">Skip the 48 hours <span class="demo">Demo</span></button></div>';
+  }
+  function releasedManager(job) {
+    const q = quoteById(job.awardedQuoteId);
+    return '<div class="card stack"><h2>Money released</h2><p>' + money(q ? q.price : 0) + ' has been released.</p><p>If you are still not happy, take it up with the contractor directly. Strata App does not decide disputes.</p>' +
+      '<button class="btn btn-secondary" type="button" data-act="export" data-id="' + job.id + '">Export evidence record <span class="demo">Demo</span></button>' +
+      '<button class="btn btn-primary" type="button" data-act="open-evidence" data-id="' + job.id + '">View evidence record</button></div>';
+  }
+
+  function contractorHome() {
+    const opens = openJobs();
+    const c = me();
+    const popular = TRADES.map(t => ({ t: t, n: opens.filter(j => j.tradeId === t.id).length })).sort((a, b) => b.n - a.n || POPULAR_IDS.indexOf(a.t.id) - POPULAR_IDS.indexOf(b.t.id));
+    const tiles = popular.map(x => '<button class="tile" type="button" data-act="find-trade" data-trade="' + x.t.id + '" style="--hue:' + x.t.hue + '"><span class="bubble">' + icon(x.t.id) + '</span><span>' + esc(x.t.name) + '</span><span class="count">' + x.n + "</span><span class=\"small\">open " + (x.n === 1 ? "job" : "jobs") + "</span></button>").join("");
+    const list = sortFound(opens).slice(0, 6).map(contractorCard).join("");
+    const emergencies = opens.some(isEmergency);
+    return '<div class="stack"><h1>Find work</h1><p class="lead">' + opens.length + " open " + (opens.length === 1 ? "job" : "jobs") + "</p>" +
+      (!c.guideDone ? '<button class="notice notice-warn" type="button" data-act="open-guide" style="text-align:left"><strong>Read the safety guide before you start work.</strong></button>' : "") +
+      noticeNeeds(needsContractorCount(), "active") +
+      (emergencies ? '<button class="notice notice-bad" type="button" data-act="tab" data-screen="find" style="text-align:left"><strong>An emergency job is open.</strong><span class="small">Contractors have been alerted. <span class="demo">Demo</span></span></button>' : "") +
+      '<label class="field" for="home-q">Search jobs<input id="home-q" type="text" data-field="find.q" value="' + esc(state.find.q) + '" placeholder="Try leak, light, old sofa"></label>' +
+      '<button class="btn btn-primary" type="button" data-act="search">Search jobs</button>' +
+      '<button class="btn btn-secondary" type="button" data-act="see-map">See jobs on the map</button>' +
+      "<h2>Popular services</h2><div class=\"trade-grid\">" + tiles + "</div>" +
+      "<h2>Available jobs</h2>" + list +
+      '<div class="row"><button class="btn btn-secondary auto" type="button" data-act="tab" data-screen="find">See all jobs</button><button class="btn btn-ghost auto" type="button" data-act="tab" data-screen="offers">My offers</button></div></div>';
+  }
+
+  function foundJobs() {
+    const q = state.find.q.trim().toLowerCase();
+    return openJobs().filter(job => {
+      if (jobKm(job) > state.find.distance + 0.001) return false;
+      if (state.find.trade !== "all" && job.tradeId !== state.find.trade) return false;
+      if (!q) return true;
+      const trade = tradeById(job.tradeId);
+      const hay = (job.title + " " + placeOf(job).suburb + " " + placeOf(job).street + " " + trade.name + " " + (job.otherTrade || "")).toLowerCase();
+      if (hay.indexOf(q) !== -1) return true;
+      const words = q.split(/\s+/);
+      return words.some(w => ALL_TRADES.some(t => t.words.indexOf(w) !== -1 && t.id === job.tradeId));
+    });
+  }
+  function sortFound(list) {
+    const cmp = state.find.sort === "closest" ? (a, b) => jobKm(a) - jobKm(b) : (a, b) => b.postedAt - a.postedAt;
+    const em = list.filter(isEmergency).sort(cmp);
+    const rest = list.filter(j => !isEmergency(j)).sort(cmp);
+    return em.concat(rest);
+  }
+  function offerState(job) {
+    const c = me();
+    if (!offersTrade(c, job.tradeId)) return "outside";
+    if (state.quotes.some(q => q.jobId === job.id && q.contractorId === c.id)) return "sent";
+    return "offer";
+  }
+  function actionLabel(job) {
+    const s = offerState(job);
+    if (s === "outside") return "Outside your licence";
+    if (s === "sent") return "Offer sent";
+    return "Make an offer";
+  }
+  function contractorCard(job) {
+    const p = placeOf(job);
+    const act = actionLabel(job);
+    return '<article class="card stack"><div class="row">' +
+      (isEmergency(job) ? '<span class="pill pill-emergency">Emergency</span>' : "") +
+      (isNew(job) ? '<span class="pill pill-new">New</span>' : "") +
+      '<span class="pill pill-trade" style="--hue:' + tradeById(job.tradeId).hue + '">' + esc(tradeById(job.tradeId).name) + "</span></div>" +
+      '<button class="btn btn-ghost" type="button" data-act="open-job" data-id="' + job.id + '" style="justify-content:flex-start;padding-left:0"><strong>' + esc(job.title) + "</strong></button>" +
+      "<p>" + esc(p.suburb) + " · " + esc(p.street) + "</p><p>" + esc(job.area) + "</p>" +
+      '<p class="small muted">' + kmText(jobKm(job)) + " from the CBD · " + esc(ago(job.postedAt)) + "</p>" +
+      '<button class="btn ' + (act === "Make an offer" ? "btn-primary" : "btn-secondary") + '" type="button" data-act="card-action" data-id="' + job.id + '"' + (act === "Outside your licence" ? ' aria-disabled="true"' : "") + ">" + esc(act) + "</button></article>";
+  }
+  function findJobs() {
+    const f = state.find;
+    const tradeName = f.trade === "all" ? "All trades" : tradeById(f.trade).name;
+    const summary = "Within " + f.distance + " km · " + tradeName;
+    const list = sortFound(foundJobs());
+    const body = f.view === "map" ? mapHtml(list) : list.map(contractorCard).join("") || '<p class="muted">No jobs match.</p>';
+    const filters = f.filtersOpen ? '<div class="card stack"><span class="field">Distance</span><div class="row">' + [3, 5, 8, 12].map(n => '<button class="chip" type="button" data-act="distance" data-v="' + n + '" aria-pressed="' + (f.distance === n ? "true" : "false") + '">' + n + " km</button>").join("") + "</div>" +
+      '<span class="field">Trade</span><div class="row"><button class="chip" type="button" data-act="find-trade" data-trade="all" aria-pressed="' + (f.trade === "all" ? "true" : "false") + '">All</button>' + ALL_TRADES.map(t => '<button class="chip" type="button" data-act="find-trade" data-trade="' + t.id + '" aria-pressed="' + (f.trade === t.id ? "true" : "false") + '">' + esc(t.name) + "</button>").join("") + "</div></div>" : "";
+    return '<div class="stack"><h1>Find jobs</h1><div class="row" role="group" aria-label="List or map"><button class="chip" type="button" data-act="find-view" data-v="list" aria-pressed="' + (f.view === "list" ? "true" : "false") + '">List</button><button class="chip" type="button" data-act="find-view" data-v="map" aria-pressed="' + (f.view === "map" ? "true" : "false") + '">Map</button></div>' +
+      '<label class="field" for="find-q">Search<input id="find-q" type="text" data-field="find.q" value="' + esc(f.q) + '" placeholder="tap, leak, old sofa"></label>' +
+      '<button class="btn btn-secondary" type="button" data-act="search">Search jobs</button>' +
+      '<button class="btn btn-secondary" type="button" data-act="toggle-filters" aria-expanded="' + (f.filtersOpen ? "true" : "false") + '">Filters · ' + esc(summary) + "</button>" + filters +
+      '<div class="row"><span class="field">Sort</span><button class="chip" type="button" data-act="sort" data-v="closest" aria-pressed="' + (f.sort === "closest" ? "true" : "false") + '">Closest</button><button class="chip" type="button" data-act="sort" data-v="newest" aria-pressed="' + (f.sort === "newest" ? "true" : "false") + '">Newest</button></div>' +
+      body + "</div>";
+  }
+
+  function project(lat, lng) {
+    const dx = (lng - CBD.lng) * 111 * Math.cos(CBD.lat * Math.PI / 180);
+    const dy = (lat - CBD.lat) * 111;
+    const scale = 150 / Math.max(8, state.owner.radiusKm);
+    return { x: 180 + dx * scale, y: 200 - dy * scale };
+  }
+  function layoutPins(pins) {
+    const placed = [];
+    pins.forEach(p => {
+      let x = p.x, y = p.y, tries = 0;
+      while (placed.some(q => Math.hypot(q.x - x, q.y - y) < 28) && tries < 24) {
+        const ang = tries * 1.35;
+        const rad = 18 + tries * 3;
+        x = p.x + Math.cos(ang) * rad;
+        y = p.y + Math.sin(ang) * rad;
+        tries += 1;
+      }
+      placed.push(Object.assign({}, p, { x: x, y: y }));
+    });
+    return placed;
+  }
+  function mapHtml(list) {
+    const pins = list.map(job => {
+      const p = placeOf(job);
+      const pt = project(p.lat, p.lng);
+      return { job: job, x: pt.x, y: pt.y, booked: false };
+    });
+    if (state.find.showBooked) {
+      state.jobs.forEach(job => {
+        if (job.awardedTo !== state.meId) return;
+        if (["paid", "onsite", "fix1", "fix2", "review0", "review1"].indexOf(job.stage) === -1) return;
+        const p = placeOf(job);
+        const pt = project(p.lat, p.lng);
+        pins.push({ job: job, x: pt.x, y: pt.y, booked: true });
+      });
+    }
+    const laid = layoutPins(pins);
+    const rings = [2, 5, 8].map(km => {
+      const r = (150 / Math.max(8, state.owner.radiusKm)) * km;
+      return '<circle cx="180" cy="200" r="' + r + '" fill="none" stroke="var(--brand)" stroke-opacity="0.45"/>' +
+        '<text x="' + (180 + r + 2) + '" y="196" font-size="10" fill="var(--muted)">' + km + " km</text>";
+    }).join("");
+    const coverR = (150 / Math.max(8, state.owner.radiusKm)) * state.owner.radiusKm;
+    const svg = '<svg viewBox="0 0 360 400" role="img" aria-label="Illustrative map of open jobs around the Melbourne CBD">' +
+      '<rect width="360" height="400" fill="var(--map)"/>' +
+      [40, 80, 120, 160, 200, 240, 280, 320].map(v => '<line x1="' + v + '" y1="0" x2="' + v + '" y2="400" stroke="var(--grid)" stroke-width="1"/><line x1="0" y1="' + v + '" x2="360" y2="' + v + '" stroke="var(--grid)" stroke-width="1"/>').join("") +
+      '<path d="M0 250 C 70 230, 120 270, 180 246 S 280 220, 360 250" fill="none" stroke="var(--river)" stroke-width="14" stroke-linecap="round"/>' +
+      rings +
+      '<circle cx="180" cy="200" r="' + coverR + '" fill="none" stroke="var(--brand)" stroke-dasharray="4 4"/>' +
+      '<rect x="174" y="194" width="12" height="12" transform="rotate(45 180 200)" fill="var(--gold)"/>' +
+      '<text x="188" y="188" font-size="11" fill="var(--ink)">CBD</text></svg>';
+    const buttons = laid.map(p => {
+      const t = tradeById(p.job.tradeId);
+      const place = placeOf(p.job);
+      const label = t.name + " job, approximate area near " + place.suburb + (p.booked ? ", your booked job" : "") + (isEmergency(p.job) ? ", emergency" : "");
+      return '<button class="pin' + (isEmergency(p.job) ? " emergency" : "") + (p.booked ? " booked" : "") + '" type="button" style="left:' + (p.x / 360 * 100) + '%;top:' + (p.y / 400 * 100) + '%;--hue:' + t.hue + '" data-act="pin" data-id="' + p.job.id + '" aria-label="' + esc(label) + '"><span class="mini">' + icon(t.id) + "</span></button>";
+    }).join("");
+    let preview = "";
+    if (state.find.previewId) {
+      const job = jobById(state.find.previewId);
+      if (job) preview = contractorCard(job);
+    }
+    return '<div class="stack"><div class="map-stage">' + svg + buttons + '</div><p class="small">This is an illustrative map. The real app uses a live map. Pins show approximate areas only.</p>' +
+      '<button class="chip" type="button" data-act="show-booked" aria-pressed="' + (state.find.showBooked ? "true" : "false") + '">Show my booked jobs</button>' + preview + "</div>";
+  }
+
+  function ensureOffer(job) {
+    if (state.offer && state.offer.jobId === job.id) return;
+    const monthDate = job.date || todayISO();
+    const dt = parseISO(monthDate);
+    state.offerCal = { year: dt.getFullYear(), month: dt.getMonth() };
+    state.offer = { jobId: job.id, price: "", date: "", duration: "", time: "", scope: "", note: "", eta: "" };
+  }
+  function blockReason(job) {
+    const c = me();
+    if (!offersTrade(c, job.tradeId)) return "This job is outside your licence, so you cannot make an offer.";
+    if (insuranceExpired(c)) return "Your public liability insurance has expired, so you cannot make an offer.";
+    if (c.cover < job.insurance) return "Your insurance cover is $" + c.cover + " million. This job asks for $" + job.insurance + " million, so you cannot make an offer.";
+    if (!c.consentPublic) return "Agree on your profile that managers can see your verification, description and years before you make an offer.";
+    return "";
+  }
+  function contractorJob(job) {
+    const p = placeOf(job);
+    const awarded = job.awardedTo === state.meId;
+    const paid = ["paid", "onsite", "review0", "fix1", "review1", "fix2", "released"].indexOf(job.stage) !== -1;
+    let top = '<div class="card stack"><div class="row">' + (isEmergency(job) ? '<span class="pill pill-emergency">Emergency</span>' : "") + (isNew(job) && job.stage === "open" ? '<span class="pill pill-new">New</span>' : "") +
+      '<span class="pill pill-trade" style="--hue:' + tradeById(job.tradeId).hue + '">' + esc(tradeById(job.tradeId).name) + "</span></div>";
+    if (awarded && paid) {
+      top += "<h2>" + esc(p.buildingName) + "</h2><p>" + esc(addressFull(job)) + "</p><p>" + esc(job.area) + "</p><p>" + kmText(jobKm(job)) + " from the CBD</p>";
+    } else {
+      top += "<h2>" + esc(streetPublic(job)) + "</h2><p>" + esc(job.area) + "</p><p>" + kmText(jobKm(job)) + " from the CBD</p>";
+    }
+    top += "<p>Parking: " + esc(job.parking) + (job.parkingNote ? " · " + esc(job.parkingNote) : "") + "</p>";
+    top += '<div class="thumbs">' + mediaThumbs(job.photos || [], tradeById(job.tradeId).hue) + (job.video ? mediaThumbs([job.video], tradeById(job.tradeId).hue) : "") + "</div>";
+    top += "<h3>Instructions</h3><p>" + esc(job.instructions || "None") + "</p>" + safetyBlock(job);
+    top += "<h3>Requirements</h3><ul class=\"clean\">" + requirementLines(job).map(x => "<li>" + esc(x) + "</li>").join("") + "</ul>";
+    if (awarded && paid) {
+      top += "<h3>Access</h3><p>" + esc(job.access) + "</p><p>Site phone: " + esc(job.phone) + "</p>";
+    }
+    top += "</div>";
+    let work = "";
+    if (awarded && job.stage === "approved") work = '<div class="card"><h2>Waiting for payment</h2><p>The manager has approved your offer. You will see the address after they pay.</p></div>';
+    if (awarded && job.stage === "paid") work = gettingThere(job);
+    if (awarded && (job.stage === "onsite" || job.stage === "fix1" || job.stage === "fix2")) work = evidenceCapture(job);
+    if (awarded && (job.stage === "review0" || job.stage === "review1")) work = '<div class="card"><h2>Waiting for the manager</h2><p>They have 48 hours to accept or challenge.</p></div>';
+    if (awarded && job.stage === "released") work = releasedContractor(job);
+    if (job.stage === "open") work = offerBlock(job);
+    return '<div class="stack">' + top + work + '<button class="btn btn-secondary" type="button" data-act="open-evidence" data-id="' + job.id + '">View evidence record</button><div class="card">' + timelineHtml(job) + "</div></div>";
+  }
+  function requirementLines(job) {
+    const p = placeOf(job);
+    const mat = (MATERIALS.find(m => m.id === job.materials) || {}).label || "";
+    const note = (NOTICES.find(n => n.id === job.notice) || {}).label || "";
+    const lift = (LIFTS.find(n => n.id === job.lift) || {}).label || "";
+    return [
+      "Urgency: " + (job.urgency === "emergency" ? "Emergency" : job.urgency === "urgent" ? "Urgent" : "Standard"),
+      "Preferred time: " + whenText(job) + (job.flexible ? " (flexible by a few days)" : ""),
+      "Quote deadline: " + deadlineText(job),
+      "Materials: " + mat,
+      "Licence: " + tradeById(job.tradeId).req,
+      "Minimum insurance: $" + job.insurance + " million",
+      job.swms ? "Safe work method statement required" : "No safe work method statement required",
+      "Notice to residents: " + note,
+      "Working hours: " + daysLabel(p.weekends) + ", " + prettyHours(p.open, p.close),
+      "Lift or dock: " + lift
+    ];
+  }
+  function offerBlock(job) {
+    const sent = state.quotes.find(q => q.jobId === job.id && q.contractorId === state.meId);
+    if (sent) {
+      return '<div class="card stack"><h2>Offer sent</h2><p>' + money(sent.price) + " · " + esc(rangeText(sent.date, sent.time, sent.duration, placeOf(job).open, placeOf(job).close)) + "</p><ul class=\"clean\">" + sent.scope.map(s => "<li>" + esc(s) + "</li>").join("") + "</ul></div>";
+    }
+    const reason = blockReason(job);
+    const outside = reason.indexOf("licence") !== -1;
+    const btn = '<button class="btn btn-primary" type="button" data-act="scroll-offer"' + (reason ? " disabled" : "") + ">" + (outside ? "Outside your licence" : "Make an offer") + "</button>";
+    if (reason) return btn + '<div class="notice notice-warn" role="alert">' + esc(outside ? "Outside your licence. " + reason : reason) + "</div>";
+    ensureOffer(job);
+    const o = state.offer;
+    const c = me();
+    const price = Number(o.price);
+    const gst = price > 0 ? (c.gst ? "Includes GST " + money(gstPart(price)) : "No GST (contractor not registered)") : (c.gst ? "Your price includes GST." : "No GST (contractor not registered)");
+    const preview = price > 0 ? money(receives(price)) + " reaches you after the " + feePhrase() + " platform fee" : "The fee preview appears when you add a price.";
+    const p = placeOf(job);
+    let when = "";
+    if (isEmergency(job)) {
+      const chips = [30, 60, 120, 240].map(m => '<button class="chip" type="button" data-act="eta-arrive" data-v="' + m + '" aria-pressed="' + (String(o.eta) === String(m) ? "true" : "false") + '">' + (m < 60 ? m + " minutes" : (m / 60) + " hour" + (m === 60 ? "" : "s")) + "</button>").join("");
+      const arrival = o.eta ? new Date(Date.now() + Number(o.eta) * 60000) : null;
+      when = '<h3>When can you be there?</h3><div class="row">' + chips + "</div>" + (arrival ? "<p>You would arrive " + esc(fmtDateLong(fmtISO(arrival))) + " at " + esc(fmtClock(arrival.getTime())) + ".</p>" : "");
+    } else {
+      const asked = job.date;
+      const note = o.date && asked && o.date !== asked ? '<p class="small">The manager asked for ' + esc(fmtDateLong(asked)) + ". You chose a different day, and that is fine.</p>" : "";
+      const grid = o.date && o.duration ? slotsFor(p.open, p.close, o.duration, false).map(t => '<button class="chip" type="button" data-act="offer-time" data-time="' + t + '" aria-pressed="' + (o.time === t ? "true" : "false") + '">' + esc(fmtTime(t)) + "</button>").join("") : '<p class="small">Choose how long the job will take to see the start times.</p>';
+      when = "<h3>1. Choose the start date</h3>" + renderMonth({ year: state.offerCal.year, month: state.offerCal.month, selected: o.date, asked: asked, pick: "offer-date", nav: "offer-nav", disable: iso => (parseISO(iso) < parseISO(todayISO()) ? "past day" : (!p.weekends && isWeekend(iso) ? "closed to contractors" : "")) }) + note +
+        '<h3>2. How long</h3><div class="row">' + DURATIONS.map(d => '<button class="chip" type="button" data-act="offer-duration" data-dur="' + d.id + '" aria-pressed="' + (o.duration === d.id ? "true" : "false") + '">' + esc(d.label) + "</button>").join("") + "</div>" +
+        '<h3>3. Pick the start time</h3><div class="time-grid" data-time-grid="offer">' + grid + "</div>";
+    }
+    const summary = offerSummary(job, o);
+    const clash = (!isEmergency(job) && clashForOffer(job, o.date, o.time, o.duration)) ? '<div class="notice notice-warn" role="alert">This time overlaps another booking of yours. You can still send the offer.</div>' : "";
+    const durs = isEmergency(job) ? '<h3>How long</h3><div class="row">' + DURATIONS.map(d => '<button class="chip" type="button" data-act="offer-duration" data-dur="' + d.id + '" aria-pressed="' + (o.duration === d.id ? "true" : "false") + '">' + esc(d.label) + "</button>").join("") + "</div>" : "";
+    return btn + '<form id="offer-form" class="card stack" onsubmit="return false"><h2>Make an offer</h2>' +
+      '<div class="summary-card"><h3>Your start</h3><p>' + summary + "</p></div>" +
+      field("Total price", "number", "offer.price", o.price, "0") +
+      "<p>" + gst + "</p><p>" + preview + "</p>" + when + durs + clash +
+      areaField("What is included (one item per line)", "offer.scope", o.scope) +
+      areaField("Note (optional)", "offer.note", o.note) +
+      "<p>Warranties and insurance are agreed between the manager and the contractor.</p>" +
+      '<button class="btn btn-primary" type="button" data-act="send-offer" data-id="' + job.id + '">Send my offer</button></form>';
+  }
+  function offerSummary(job, o) {
+    if (isEmergency(job)) {
+      if (!o.eta) return "Choose when you can be there.";
+      const arrival = new Date(Date.now() + Number(o.eta) * 60000);
+      return esc(fmtDateLong(fmtISO(arrival)) + ", " + fmtClock(arrival.getTime()));
+    }
+    if (o.date && o.time && o.duration) {
+      const p = placeOf(job);
+      return esc(rangeText(o.date, o.time, o.duration, p.open, p.close));
+    }
+    return "Choose a date and a start time.";
+  }
+
+  function gettingThere(job) {
+    const c = me();
+    const arrived = job.arrival === "arrived" || job.arrival === "let_in";
+    const answers = job.safetyOnSite || [null, null, null, null, null];
+    const anyNo = answers.some(v => v === "no");
+    const allYes = answers.every(v => v === "yes");
+    const qs = ONSITE_Q.map((q, i) => '<div class="stack"><p>' + esc(q) + '</p><div class="row"><button class="chip" type="button" data-act="onsite" data-i="' + i + '" data-v="yes" aria-pressed="' + (answers[i] === "yes" ? "true" : "false") + '">Yes</button><button class="chip" type="button" data-act="onsite" data-i="' + i + '" data-v="no" aria-pressed="' + (answers[i] === "no" ? "true" : "false") + '">No</button></div></div>').join("");
+    const canStart = arrived && allYes && c.guideDone;
+    return '<div class="card stack"><h2>Getting there</h2><p><strong>Live status: ' + esc(liveStatus(job)) + "</strong></p>" +
+      '<p class="small"><span class="demo">Demo</span> Location and time are checked only when you tap Just arrived.</p>' +
+      '<div class="row"><span class="field">On my way</span>' + [10, 20, 30, 45].map(n => '<button class="chip" type="button" data-act="on-way" data-v="' + n + '" data-id="' + job.id + '">' + n + " minutes</button>").join("") + "</div>" +
+      '<div class="row"><span class="field">Running late</span><button class="chip" type="button" data-act="late" data-v="15" data-id="' + job.id + '">+15 minutes</button><button class="chip" type="button" data-act="late" data-v="30" data-id="' + job.id + '">+30 minutes</button></div>' +
+      '<label class="check"><input type="checkbox" data-field="job.far"' + (job.farDemo ? " checked" : "") + "> <span>Demo: pretend I am far from the building</span></label>" +
+      (job.farMessage ? '<p class="notice notice-bad" role="alert">' + esc(job.farMessage) + "</p>" : "") +
+      '<button class="btn btn-primary" type="button" data-act="arrived" data-id="' + job.id + '">Just arrived</button>' +
+      '<button class="btn btn-secondary" type="button" data-act="cannot" data-id="' + job.id + '">I cannot get in</button></div>' +
+      (arrived ? '<div class="card stack"><h2>On-site safety</h2>' + qs +
+        (anyNo ? '<div class="notice notice-bad" role="alert"><p>Do not start. If it is not safe, stop. Take a photo, tell the manager, and leave. There is no penalty.</p><button class="btn btn-emergency" type="button" data-act="stop-unsafe" data-id="' + job.id + '">Stop</button></div>' : "") +
+        (c.guideDone ? '<p class="small">Safety guide: done.</p>' : '<button class="btn btn-secondary" type="button" data-act="open-guide">Read the safety guide</button>') +
+        '<button class="btn btn-primary" type="button" data-act="start-work" data-id="' + job.id + '"' + (canStart ? "" : " disabled") + ">Start work</button></div>" : "");
+  }
+  function stageKey(job) {
+    if (job.stage === "fix1") return "fix1";
+    if (job.stage === "fix2") return "fix2";
+    return "both";
+  }
+  function needPill(items, minPhotos, needVideo) {
+    const photos = items.filter(i => i.kind === "photo").length;
+    const video = items.some(i => i.kind === "video");
+    if (photos >= minPhotos && (!needVideo || video)) return '<span class="pill pill-ok">Enough</span>';
+    if (photos < minPhotos) {
+      const n = minPhotos - photos;
+      return '<span class="pill pill-warn">Needs ' + n + " more photo" + (n === 1 ? "" : "s") + "</span>";
+    }
+    return '<span class="pill pill-warn">Needs a video</span>';
+  }
+  function evidenceCapture(job) {
+    const hue = tradeById(job.tradeId).hue;
+    const last = job.challenges[job.challenges.length - 1];
+    const fixNote = (job.stage === "fix1" || job.stage === "fix2") && last
+      ? '<div class="notice notice-warn"><strong>' + (job.stage === "fix2" ? "Final fix requested" : "Fix requested") + "</strong><ul class=\"clean\">" + last.items.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul>" + (last.note ? "<p>" + esc(last.note) + "</p>" : "") + (job.stage === "fix2" ? "<p>After you submit the final fix, the money is released.</p>" : "") + "</div>"
+      : "";
+    function block(title, key, minPhotos, needVideo) {
+      const items = job.evidence[key] || [];
+      const photos = items.filter(i => i.kind === "photo").length;
+      return '<div class="card stack"><div class="between"><h3>' + title + "</h3>" + needPill(items, minPhotos, needVideo) + "</div>" +
+        '<p class="small">Do not film people or belongings. <span class="demo">Demo</span> The camera, time and distance are simulated.</p>' +
+        '<div class="thumbs">' + mediaThumbs(items, hue) + "</div>" +
+        '<div class="row"><button class="btn btn-secondary auto" type="button" data-act="take-photo" data-stage="' + key + '" data-id="' + job.id + '"' + (photos >= 10 ? " disabled" : "") + '>Take a photo</button>' +
+        '<button class="btn btn-secondary auto" type="button" data-act="take-video" data-stage="' + key + '" data-id="' + job.id + '"' + (items.some(i => i.kind === "video") ? " disabled" : "") + ">Take a video</button></div></div>";
+    }
+    let blocks = "";
+    if (job.stage === "onsite") {
+      blocks = block("Before photos", "before", 3, false) + block("After photos and video", "after", 3, true);
+    } else if (job.stage === "fix1") blocks = block("Fix photos and video", "fix1", 2, true);
+    else blocks = block("Final fix photos and video", "fix2", 2, true);
+    const ready = canSubmit(job);
+    return fixNote + blocks + '<div class="card stack"><label class="check"><input type="checkbox" data-field="job.far"' + (job.farDemo ? " checked" : "") + '> <span>Demo: pretend I am far from the building</span></label>' +
+      (job.farMessage ? '<p class="notice notice-bad" role="alert">' + esc(job.farMessage) + "</p>" : "") +
+      '<button class="btn btn-primary" type="button" data-act="submit-work" data-id="' + job.id + '"' + (ready ? "" : " disabled") + ">Submit the job</button>" +
+      '<button class="btn btn-emergency" type="button" data-act="stop-unsafe" data-id="' + job.id + '">Stop: this job is unsafe</button></div>';
+  }
+  function canSubmit(job) {
+    const before = job.evidence.before || [], after = job.evidence.after || [];
+    if (job.stage === "onsite") return before.filter(i => i.kind === "photo").length >= 3 && after.filter(i => i.kind === "photo").length >= 3 && after.some(i => i.kind === "video");
+    const key = job.stage === "fix1" ? "fix1" : "fix2";
+    const items = job.evidence[key] || [];
+    return items.filter(i => i.kind === "photo").length >= 2 && items.some(i => i.kind === "video");
+  }
+  function releasedContractor(job) {
+    const q = quoteById(job.awardedQuoteId);
+    const price = q ? q.price : 0;
+    return '<div class="card stack"><h2>Paid</h2><p>Your payout is on its way to your bank account ending ' + esc(me().bankLast4) + ", less the " + feePhrase() + ' platform fee.</p>' +
+      "<p>Quote " + money(price) + "<br>Platform fee (" + feePhrase() + ") " + money(feeFor(price)) + "<br><strong>You receive " + money(receives(price)) + " (" + keepPct() + "%)</strong></p>" +
+      '<p><span class="demo">Demo</span> The payout is simulated. Strata App never sees or stores the account number.</p></div>';
+  }
+
+  function myOffers() {
+    const mine = state.quotes.filter(q => q.contractorId === state.meId);
+    const cards = mine.map(q => {
+      const job = jobById(q.jobId);
+      if (!job) return "";
+      let status = "Offer sent";
+      if (job.awardedQuoteId === q.id && job.stage === "approved") status = "Waiting for payment";
+      else if (job.awardedQuoteId === q.id) status = statusLabel(job);
+      else if (job.awardedQuoteId && job.awardedQuoteId !== q.id) status = "Not chosen";
+      return '<article class="card stack"><h2>' + esc(job.title) + "</h2><p>" + esc(streetPublic(job)) + "</p><p>" + money(q.price) + " · " + esc(status) + '</p><button class="btn btn-secondary" type="button" data-act="open-job" data-id="' + job.id + '">View details</button></article>';
+    }).join("");
+    return '<div class="stack"><h1>My offers</h1>' + (cards || '<p class="muted">You have not sent an offer yet.</p>') + "</div>";
+  }
+  function activeJobs() {
+    const groups = [["needs", "Needs you"], ["waiting", "Waiting for the manager"], ["done", "Done"]];
+    const n = needsContractorCount();
+    let html = '<div class="stack"><h1>Active</h1>' + (n ? noticeNeeds(n, "active") : '<div class="notice notice-ok"><strong>Nothing needs you right now</strong></div>');
+    groups.forEach(g => {
+      const items = state.jobs.filter(j => contractorBucket(j) === g[0]);
+      html += "<h2>" + g[1] + "</h2>";
+      html += items.length ? items.map(j => '<article class="card stack"><h3>' + esc(j.title) + "</h3><p>" + esc(statusLabel(j)) + '</p><button class="btn btn-secondary" type="button" data-act="open-job" data-id="' + j.id + '">Open</button></article>').join("") : '<p class="muted">Nothing in this group.</p>';
+    });
+    return html + "</div>";
+  }
+
+  function contractorProfile() {
+    const c = me();
+    const days = insuranceDays(c);
+    let ins = "Public liability insurance valid to " + fmtDateShort(c.insuranceUntil) + ".";
+    if (state.insExpiredDemo || days < 0) ins = "Your public liability insurance has expired. You cannot make an offer until it is renewed.";
+    else if (days <= 30) ins = "Your public liability insurance expires in " + days + " days. Renew it before it runs out.";
+    const trades = ALL_TRADES.map(t => '<button class="chip" type="button" data-act="toggle-trade" data-trade="' + t.id + '" aria-pressed="' + (offersTrade(c, t.id) ? "true" : "false") + '">' + esc(t.name) + "</button>").join("");
+    const preview = '<div class="card"><h3>What managers see</h3><p><strong>' + esc(c.name) + "</strong> · " + esc(c.trades.map(id => tradeById(id).name).join(", ")) + "</p><p>" + c.years + ' years in the trade · <span class="pill pill-verified">Verified</span></p><p>' + esc(c.consentPublic ? c.description : "Hidden until you agree.") + "</p></div>";
+    return '<div class="stack"><h1>Profile</h1><p>Your profile is free. There is no subscription.</p>' +
+      '<div class="card stack"><div class="between"><h2>Verified</h2><span class="demo">Demo</span></div><p>Licence and insurance checks are simulated.</p><p>' + esc(c.licence) + ", valid to " + fmtDateShort(c.licenceUntil) + ".</p><p>" + esc(ins) + "</p><p>ABN " + esc(c.abn) + " verified.</p><p>" + (c.gst ? "GST registered, checked against the ABN register." : "Not registered for GST, checked against the ABN register.") + "</p>" +
+      '<label class="check"><input type="checkbox" data-field="me.expired"' + (state.insExpiredDemo ? " checked" : "") + "> <span>Demo: treat my insurance as expired</span></label></div>" +
+      areaField("Short description", "me.description", c.description) +
+      field("Years in the trade", "number", "me.years", c.years) + preview +
+      '<label class="check"><input type="checkbox" data-field="me.consent"' + (c.consentPublic ? " checked" : "") + "> <span>I agree that my verification, description and years in the trade are visible to managers before a quote is approved.</span></label>" +
+      '<h2>Trades I offer</h2><div class="row">' + trades + "</div>" +
+      '<div class="card stack"><h2>Get paid</h2><span class="demo">Demo</span><p>Bank account ending ' + esc(c.bankLast4) + ".</p><p>Strata App never sees or stores the account number. A payment provider holds it.</p></div>" +
+      '<div class="card stack"><h2>Safety guide</h2><p>' + (c.guideDone ? "Done." : "Not done yet.") + '</p><button class="btn btn-secondary" type="button" data-act="open-guide">' + (c.guideDone ? "Read it again" : "Open the safety guide") + "</button></div></div>";
+  }
+  function guideScreen() {
+    const points = [
+      "Look after yourself before the job.",
+      "Stop if the area is not safe. There is no penalty.",
+      "Read the safe work method statement when the job needs one.",
+      "Do not film people or their belongings.",
+      "If you find asbestos, damage or someone at risk, stop and tell the manager."
+    ];
+    return '<div class="card stack"><h2>Safety guide</h2><ol class="clean">' + points.map(p => "<li>" + p + "</li>").join("") + '</ol><button class="btn btn-primary" type="button" data-act="guide-done">I have read the safety guide</button></div>';
+  }
+
+  function evidenceScreen() {
+    const job = jobById(state.ctx.id);
+    if (!job) return "<p>No record.</p>";
+    const hue = tradeById(job.tradeId).hue;
+    function sec(title, items) {
+      return "<h3>" + title + "</h3>" + (items && items.length ? '<div class="thumbs">' + mediaThumbs(items, hue) + "</div>" : '<p class="muted">Nothing in this part yet.</p>');
+    }
+    const answers = (job.safetyOnSite || []).map((v, i) => v ? "<li>" + esc(ONSITE_Q[i]) + " — " + (v === "yes" ? "Yes" : "No") + "</li>" : "").join("");
+    return '<div class="stack"><div class="card stack"><div class="between"><h2>Evidence record</h2><span class="demo">Demo</span></div>' +
+      '<p class="small">The app checks that the evidence is complete and that the time and distance were recorded. It does not judge whether the work is good.</p>' +
+      sec("Request photos", (job.photos || []).concat(job.video ? [job.video] : [])) +
+      sec("Before", job.evidence.before) + sec("After", job.evidence.after) + sec("First fix", job.evidence.fix1) + sec("Final fix", job.evidence.fix2) +
+      "<h3>On-site safety answers</h3>" + (answers ? "<ul class=\"clean\">" + answers + "</ul>" : '<p class="muted">Not answered yet.</p>') +
+      timelineHtml(job) +
+      '<button class="btn btn-secondary" type="button" data-act="export" data-id="' + job.id + '">Export <span class="demo">Demo</span></button></div>' +
+      (state.exportText ? '<div class="card"><h3>Export preview</h3><pre style="white-space:pre-wrap;font-family:inherit">' + esc(state.exportText) + "</pre></div>" : "") +
+      "</div>";
+  }
+
+  function emergencyScreen() {
+    if (state.role === "contractor") return contractorEmergency();
+    const e = state.emergency || (state.emergency = { buildingId: state.buildings[0] ? state.buildings[0].id : "", kind: "", trade: "", where: "", danger: "", description: "", phone: state.manager.phone, photos: [] });
+    const kinds = EMERGENCY_KINDS.map(k => '<button class="chip" type="button" data-act="em-kind" data-v="' + k.id + '" aria-pressed="' + (e.kind === k.id ? "true" : "false") + '">' + esc(k.label) + "</button>").join("");
+    const trades = ALL_TRADES.map(t => '<button class="chip" type="button" data-act="em-trade" data-trade="' + t.id + '" aria-pressed="' + (e.trade === t.id ? "true" : "false") + '">' + esc(t.name) + "</button>").join("");
+    return '<div class="stack"><div class="notice notice-bad"><strong>If someone is in danger, call 000.</strong><p>Strata App is not an emergency service. Gas and lifts are not covered yet.</p><a class="btn btn-emergency" href="tel:000">Call 000</a></div>' +
+      '<div class="card stack"><label class="field">Building<select data-field="em.buildingId">' + state.buildings.map(b => '<option value="' + b.id + '"' + (b.id === e.buildingId ? " selected" : "") + ">" + esc(b.name) + "</option>").join("") + "</select></label>" +
+      '<span class="field">What is wrong</span><div class="row">' + kinds + "</div>" +
+      (e.kind === "other" ? '<span class="field">Trade</span><div class="row">' + trades + "</div>" : "") +
+      field("Where exactly", "text", "em.where", e.where) +
+      '<span class="field">Is anyone in danger?</span><div class="row"><button class="chip" type="button" data-act="em-danger" data-v="yes" aria-pressed="' + (e.danger === "yes" ? "true" : "false") + '">Yes</button><button class="chip" type="button" data-act="em-danger" data-v="no" aria-pressed="' + (e.danger === "no" ? "true" : "false") + '">No</button></div>' +
+      (e.danger === "yes" ? '<p><a href="tel:000">Call 000 now</a></p>' : "") +
+      areaField("Description (optional)", "em.description", e.description) +
+      field("Phone number for the contractor", "tel", "em.phone", e.phone) +
+      '<p class="small">Up to 10 photos. <span class="demo">Demo</span></p><div class="thumbs">' + mediaThumbs(e.photos, 8) + '</div><button class="btn btn-secondary" type="button" data-act="em-photo"' + (e.photos.length >= 10 ? " disabled" : "") + '>Take a photo</button>' +
+      '<button class="btn btn-emergency" type="button" data-act="send-emergency">Send emergency request</button></div></div>';
+  }
+  function contractorEmergency() {
+    const job = state.ctx.fromJob ? jobById(state.ctx.fromJob) : null;
+    const onJob = job && job.awardedTo === state.meId;
+    return '<div class="stack"><div class="notice notice-bad"><strong>If someone is in danger, call 000.</strong><p>Strata App is not an emergency service.</p><a class="btn btn-emergency" href="tel:000">Call 000</a></div>' +
+      (onJob ? '<div class="card stack"><p>You are on ' + esc(job.title) + '.</p><button class="btn btn-emergency" type="button" data-act="alert-support" data-id="' + job.id + '">Alert the site contact and Strata App support</button><button class="btn btn-secondary" type="button" data-act="stop-unsafe" data-id="' + job.id + '">Stop work: this job is unsafe</button></div>' : '<p class="card">Open one of your active jobs first if you need to alert the site contact.</p>') +
+      "</div>";
+  }
+
+  function captureItem(job, kind) {
+    if (job.farDemo) {
+      job.farMessage = "You are 640 m from the building. Move closer and retake it.";
+      return null;
+    }
+    job.farMessage = "";
+    const p = placeOf(job);
+    const maxOk = Math.max(1, p.captureM - 1);
+    const distance = Math.min(30, maxOk);
+    return { id: uid("ev"), kind: kind, at: Date.now(), distanceM: distance, seconds: kind === "video" ? 18 : 0, hue: tradeById(job.tradeId).hue };
+  }
+  function release(job, text) {
+    job.stage = "released";
+    job.releasedAt = Date.now();
+    log(job, text);
+  }
+  function exportRecord(job) {
+    const q = quoteById(job.awardedQuoteId);
+    const lines = ["Evidence record", job.title, addressFull(job), "Posted " + fmtStamp(job.postedAt)];
+    ["before", "after", "fix1", "fix2"].forEach(key => {
+      (job.evidence[key] || []).forEach(item => lines.push(key + ": " + item.kind + " at " + fmtStamp(item.at) + (item.distanceM != null ? ", " + item.distanceM + " m" : "")));
+    });
+    job.timeline.forEach(ev => lines.push(fmtStamp(ev.at) + " — " + ev.text));
+    if (q) lines.push("Quote " + money(q.price));
+    state.exportText = lines.join("\n");
+    toast("Evidence record prepared (demo). Nothing was saved or sent.");
+  }
+
+  function applyField(field, value) {
+    if (field === "find.q") { state.find.q = value; return false; }
+    if (field.indexOf("manager.") === 0) {
+      const key = field.split(".")[1];
+      state.manager[key] = key === "consent" ? !!value : value;
+      return true;
+    }
+    if (field.indexOf("building.") === 0) {
+      const [, id, key] = field.split(".");
+      const b = building(id); if (!b) return false;
+      if (key === "weekends") b.weekends = !!value;
+      else if (key === "limit" || key === "captureM") b[key] = Number(value);
+      else b[key] = value;
+      return true;
+    }
+    if (field.indexOf("owner.") === 0) {
+      const key = field.split(".")[1];
+      if (key === "gstOnFee") state.owner.gstOnFee = !!value;
+      else state.owner[key] = Number(value);
+      if (state.owner.radiusKm < 1) state.owner.radiusKm = 1;
+      if (state.owner.feePercent < 0) state.owner.feePercent = 0;
+      return true;
+    }
+    if (field.indexOf("draft.") === 0) {
+      const key = field.split(".")[1];
+      if (!state.draft) return false;
+      if (key === "flexible" || key === "swms") state.draft[key] = !!value;
+      else state.draft[key] = value;
+      if (key === "buildingId") {
+        const b = building(value);
+        if (b) { state.draft.access = b.access; state.draft.invoiceTo = b.oc; state.draft.invoiceAbn = b.ocAbn; }
+      }
+      if (key === "instructions" && state.draft.instructions.length > 500) state.draft.instructions = state.draft.instructions.slice(0, 500);
+      return true;
+    }
+    if (field.indexOf("new.") === 0) {
+      state.newBuilding[field.split(".")[1]] = value;
+      return true;
+    }
+    if (field.indexOf("offer.") === 0) {
+      if (state.offer) state.offer[field.split(".")[1]] = value;
+      return true;
+    }
+    if (field.indexOf("me.") === 0) {
+      const c = me();
+      const key = field.split(".")[1];
+      if (key === "description") c.description = value;
+      if (key === "years") c.years = Number(value) || 0;
+      if (key === "consent") c.consentPublic = !!value;
+      if (key === "expired") state.insExpiredDemo = !!value;
+      return true;
+    }
+    if (field.indexOf("em.") === 0) {
+      state.emergency[field.split(".")[1]] = value;
+      return true;
+    }
+    if (field === "approve.consent") { state.approveConsent = !!value; return true; }
+    if (field.indexOf("challenge.") === 0) {
+      if (field === "challenge.note") state.challengeNote = value;
+      else {
+        state.challengePicks = state.challengePicks || {};
+        state.challengePicks[field.split(".")[1]] = !!value;
+      }
+      return true;
+    }
+    if (field === "job.far") {
+      const job = jobById(state.ctx.id);
+      if (job) { job.farDemo = !!value; if (!value) job.farMessage = ""; }
+      return true;
+    }
+    return true;
+  }
+
+  function onClick(e) {
+    const t = e.target.closest("[data-act]");
+    if (!t) return;
+    if (t.getAttribute("aria-disabled") === "true" || t.disabled) return;
+    const act = t.dataset.act;
+    const keep = ["distance", "find-trade", "sort", "find-view", "toggle-filters", "show-booked", "people-trade", "pin"].indexOf(act) !== -1;
+    if (act === "tab") {
+      if (t.dataset.screen === "find" && state.screen === "home" && state.role === "contractor") { /* keep */ }
+      goTab(t.dataset.screen);
+      return;
+    }
+    if (act === "role") {
+      state.role = t.dataset.role;
+      state.history = [];
+      state.screen = "home";
+      state.ctx = {};
+      state.title = "";
+      render();
+      return;
+    }
+    if (act === "theme") {
+      state.themeChoice = state.themeChoice === "auto" ? "light" : state.themeChoice === "light" ? "dark" : "auto";
+      saveTheme();
+      render({ keepScroll: true });
+      return;
+    }
+    if (act === "back") { back(); return; }
+    if (act === "new-request") { startRequest({ tradeId: t.dataset.trade || "plumbing" }); return; }
+    if (act === "owner") { push("owner", {}, "Owner settings"); return; }
+    if (act === "add-building") {
+      state.newBuilding = { name: "", number: "", street: "", suburb: "Balwyn", oc: "", limit: 4999 };
+      push("building-new", {}, "Add a building");
+      return;
+    }
+    if (act === "save-building") return saveBuilding(false);
+    if (act === "join-wait") return saveBuilding(true);
+    if (act === "set-manager-role") { state.manager.role = t.dataset.value; render({ keepScroll: true }); return; }
+    if (act === "set-manager-pay") { state.manager.payment = t.dataset.value; render({ keepScroll: true }); return; }
+    if (act === "people-trade") { state.peopleTrade = t.dataset.trade; render({ keepScroll: true }); return; }
+    if (act === "open-person") { push("person", { id: t.dataset.id }, "Contractor"); return; }
+    if (act === "open-job" || act === "card-action") {
+      const job = jobById(t.dataset.id);
+      if (!job) return;
+      if (act === "card-action" && offerState(job) === "outside") return;
+      push("job", { id: job.id }, job.title);
+      if (act === "card-action" && offerState(job) === "offer") render({ scrollOffer: true });
+      return;
+    }
+    if (act === "open-evidence") { push("evidence", { id: t.dataset.id }, "Evidence"); return; }
+    if (act === "open-pay") { state.payMethod = ""; push("pay", { id: t.dataset.id }, "Pay to start"); return; }
+    if (act === "open-guide") { push("guide", {}, "Safety guide"); return; }
+    if (act === "emergency") {
+      const fromJob = state.role === "contractor" && state.screen === "job" ? state.ctx.id : "";
+      state.emergency = null;
+      push("emergency", { fromJob: fromJob }, "Emergency");
+      return;
+    }
+    if (act === "step-back") {
+      if (state.step === 1) back();
+      else { state.step -= 1; render(); }
+      return;
+    }
+    if (act === "step-next") {
+      const err = validateStep(state.draft);
+      if (err) { toast(err); return; }
+      if (state.step < 5) { state.step += 1; render(); }
+      else postDraft();
+      return;
+    }
+    if (act === "draft-trade") { state.draft.tradeId = t.dataset.trade; if (state.draft.safety[4] === "yes") state.draft.swms = true; render({ keepScroll: true }); return; }
+    if (act === "draft-photo") return addDraftMedia("photo");
+    if (act === "draft-video") return addDraftMedia("video");
+    if (act === "safety") {
+      const i = Number(t.dataset.i);
+      state.draft.safety[i] = t.dataset.v;
+      if (i === 0 && t.dataset.v === "yes") state.draft.urgency = "emergency";
+      if (i === 4 && t.dataset.v === "yes") state.draft.swms = true;
+      render({ keepScroll: true });
+      return;
+    }
+    if (act === "make-emergency") { state.draft.urgency = "emergency"; toast("This request is now an emergency."); render({ keepScroll: true }); return; }
+    if (act === "parking") { state.draft.parking = t.dataset.v; render({ keepScroll: true }); return; }
+    if (act === "lift") { state.draft.lift = t.dataset.v; render({ keepScroll: true }); return; }
+    if (act === "urgency") { state.draft.urgency = t.dataset.v; render({ keepScroll: true }); return; }
+    if (act === "time-mode") { state.draft.timeMode = t.dataset.v; state.draft.exactTime = ""; render({ keepScroll: true }); return; }
+    if (act === "exact-time") { state.draft.timeMode = "exact"; state.draft.exactTime = t.dataset.time; render({ keepScroll: true }); return; }
+    if (act === "deadline") { state.draft.deadline = t.dataset.v; render({ keepScroll: true }); return; }
+    if (act === "materials") { state.draft.materials = t.dataset.v; render({ keepScroll: true }); return; }
+    if (act === "insurance") { state.draft.insurance = t.dataset.v; render({ keepScroll: true }); return; }
+    if (act === "notice") { state.draft.notice = t.dataset.v; render({ keepScroll: true }); return; }
+    if (act === "draft-date") {
+      if (t.getAttribute("aria-disabled") === "true") return;
+      state.draft.date = t.dataset.date;
+      render({ keepScroll: true });
+      return;
+    }
+    if (act === "cal-nav" || act === "offer-nav") return shiftMonth(act === "offer-nav" ? state.offerCal : state.cal, Number(t.dataset.dir));
+    if (act === "cal-day") { state.cal.selected = t.dataset.date; render({ keepScroll: true }); return; }
+    if (act === "book-day") { startRequest({ date: t.dataset.date }); return; }
+    if (act === "search") { state.screen = "find"; state.role = "contractor"; state.history = []; state.title = ""; render(); return; }
+    if (act === "see-map") { state.find.view = "map"; goTab("find"); return; }
+    if (act === "find-trade") {
+      const already = state.screen === "find";
+      state.find.trade = t.dataset.trade;
+      if (!already) { state.screen = "find"; state.history = []; state.title = ""; }
+      render({ keepScroll: already && keep });
+      return;
+    }
+    if (act === "distance") { state.find.distance = Number(t.dataset.v); render({ keepScroll: true }); return; }
+    if (act === "sort") { state.find.sort = t.dataset.v; render({ keepScroll: true }); return; }
+    if (act === "find-view") { state.find.view = t.dataset.v; render({ keepScroll: true }); return; }
+    if (act === "toggle-filters") { state.find.filtersOpen = !state.find.filtersOpen; render({ keepScroll: true }); return; }
+    if (act === "show-booked") { state.find.showBooked = !state.find.showBooked; render({ keepScroll: true }); return; }
+    if (act === "pin") { state.find.previewId = t.dataset.id; render({ keepScroll: true }); return; }
+    if (act === "scroll-offer") { const el = document.getElementById("offer-form"); if (el) el.scrollIntoView({ block: "start" }); return; }
+    if (act === "offer-date") {
+      if (t.getAttribute("aria-disabled") === "true") return;
+      state.offer.date = t.dataset.date;
+      render({ keepScroll: true });
+      return;
+    }
+    if (act === "offer-duration") { state.offer.duration = t.dataset.dur; state.offer.time = ""; render({ keepScroll: true }); return; }
+    if (act === "offer-time") { state.offer.time = t.dataset.time; render({ keepScroll: true }); return; }
+    if (act === "eta-arrive") { state.offer.eta = t.dataset.v; render({ keepScroll: true }); return; }
+    if (act === "send-offer") return sendOffer(t.dataset.id);
+    if (act === "approve") { state.approveConsent = false; push("approve", { quoteId: t.dataset.id }, "Approve quote"); return; }
+    if (act === "committee") {
+      const q = quoteById(t.dataset.id); if (!q) return;
+      q.committeeApproved = true;
+      toast("Committee approval recorded (demo).");
+      render({ keepScroll: true });
+      return;
+    }
+    if (act === "approve-continue") return doApprove(t.dataset.id);
+    if (act === "pay-method") { state.payMethod = t.dataset.v; render({ keepScroll: true }); return; }
+    if (act === "pay-hold") return doPay(t.dataset.id);
+    if (act === "release-slot") return doReleaseSlot(t.dataset.id);
+    if (act === "confirm-arrival") return mutateJob(t.dataset.id, job => { job.arrivalConfirmed = true; log(job, "Manager confirmed the arrival."); toast("Arrival confirmed."); });
+    if (act === "let-in") return mutateJob(t.dataset.id, job => { job.arrival = "arrived"; job.arrivalAt = Date.now(); log(job, "Manager let the contractor in."); toast("They can start the safety check."); });
+    if (act === "seen-alert") return mutateJob(t.dataset.id, job => { job.alertSeen = true; log(job, "Manager has seen the emergency alert."); });
+    if (act === "accept" || act === "skip-48") return mutateJob(t.dataset.id, job => release(job, act === "skip-48" ? "The 48 hours ended with no response, so the work was accepted. The money has been released." : "The manager accepted the work. The money has been released."));
+    if (act === "challenge") return doChallenge(t.dataset.id);
+    if (act === "on-way") return mutateJob(t.dataset.id, job => { job.arrival = "on_way"; job.eta = Number(t.dataset.v); log(job, "On the way, about " + job.eta + " minutes."); });
+    if (act === "late") return mutateJob(t.dataset.id, job => {
+      const add = Number(t.dataset.v);
+      job.eta = (job.eta || 0) + add;
+      job.arrival = "late";
+      log(job, "Running late, about " + job.eta + " minutes.");
+    });
+    if (act === "arrived") return markArrived(t.dataset.id);
+    if (act === "cannot") return mutateJob(t.dataset.id, job => { job.arrival = "cannot_get_in"; log(job, "Contractor cannot get in."); toast("The manager has been told."); });
+    if (act === "onsite") {
+      const job = jobById(state.ctx.id); if (!job) return;
+      job.safetyOnSite[Number(t.dataset.i)] = t.dataset.v;
+      render({ keepScroll: true });
+      return;
+    }
+    if (act === "start-work") return mutateJob(t.dataset.id, job => {
+      const c = me();
+      if (!(job.arrival === "arrived" || job.letIn) || !job.safetyOnSite.every(v => v === "yes") || !c.guideDone) { toast("Arrive, answer yes to every safety question, and finish the safety guide first."); return; }
+      job.stage = "onsite";
+      log(job, "Work started. On-site safety answers saved.");
+    });
+    if (act === "stop-unsafe") return mutateJob(t.dataset.id, job => {
+      job.stage = "paid";
+      job.safetyOnSite = [null, null, null, null, null];
+      log(job, "Stopped as unsafe. Safety answers cleared. No penalty.");
+      toast("Work stopped. The job is booked again.");
+      if (state.screen === "emergency") back();
+    });
+    if (act === "take-photo" || act === "take-video") return takeEvidence(t.dataset.id, t.dataset.stage, act === "take-photo" ? "photo" : "video");
+    if (act === "submit-work") return submitWork(t.dataset.id);
+    if (act === "toggle-trade") return toggleTrade(t.dataset.trade);
+    if (act === "guide-done") { me().guideDone = true; toast("Safety guide done."); back(); return; }
+    if (act === "export") { exportRecord(jobById(t.dataset.id)); render({ keepScroll: true }); return; }
+    if (act === "em-kind") { state.emergency.kind = t.dataset.v; render({ keepScroll: true }); return; }
+    if (act === "em-trade") { state.emergency.trade = t.dataset.trade; render({ keepScroll: true }); return; }
+    if (act === "em-danger") { state.emergency.danger = t.dataset.v; render({ keepScroll: true }); return; }
+    if (act === "em-photo") {
+      if (state.emergency.photos.length >= 10) return;
+      state.emergency.photos.push({ id: uid("ph"), kind: "photo", at: Date.now(), distanceM: null, hue: 8 });
+      render({ keepScroll: true });
+      return;
+    }
+    if (act === "send-emergency") return sendEmergency();
+    if (act === "alert-support") return mutateJob(t.dataset.id, job => {
+      job.contractorAlert = true;
+      job.alertSeen = false;
+      log(job, "Contractor alerted the site contact and Strata App support.");
+      toast("The manager and Strata App support have been alerted (demo).");
+    });
+  }
+
+  function shiftMonth(cal, dir) {
+    cal.month += dir;
+    if (cal.month < 0) { cal.month = 11; cal.year -= 1; }
+    if (cal.month > 11) { cal.month = 0; cal.year += 1; }
+    render({ keepScroll: true });
+  }
+  function addDraftMedia(kind) {
+    const d = state.draft;
+    if (kind === "photo" && d.photos.length >= 10) return;
+    if (kind === "video" && d.video) return;
+    const item = { id: uid("ph"), kind: kind, at: Date.now(), distanceM: null, seconds: kind === "video" ? 12 : 0, hue: tradeById(d.tradeId).hue };
+    if (kind === "photo") d.photos.push(item); else d.video = item;
+    render({ keepScroll: true });
+  }
+  function saveBuilding(waiting) {
+    const n = state.newBuilding;
+    if (!n.name.trim() || !n.street.trim() || !n.number.trim() || !n.oc.trim()) { toast("Add the name, address and OC or plan number."); return; }
+    const s = suburbByName(n.suburb);
+    const rec = { id: uid("b"), name: n.name.trim(), streetNumber: n.number.trim(), street: n.street.trim(), suburb: s.name, lat: s.lat, lng: s.lng, oc: n.oc.trim(), ocAbn: "", limit: Number(n.limit) || 4999, open: "08:00", close: "17:00", weekends: false, access: "", captureM: 150, sample: false };
+    if (!inRadius(s.lat, s.lng)) {
+      if (!waiting) { render({ keepScroll: true }); return; }
+      state.waiting.push(rec);
+      toast("Saved to the waiting list.");
+      state.history = [];
+      state.screen = "buildings";
+      state.title = "";
+      render();
+      return;
+    }
+    state.buildings.push(rec);
+    toast("Building saved.");
+    state.history = [];
+    state.screen = "buildings";
+    state.title = "";
+    render();
+  }
+  function sendOffer(jobId) {
+    const job = jobById(jobId);
+    const o = state.offer;
+    const reason = blockReason(job);
+    if (reason) { toast(reason); return; }
+    const price = Number(o.price);
+    if (!price || price <= 0) { toast("Add a total price."); return; }
+    const scope = o.scope.split(/\n/).map(s => s.trim()).filter(Boolean);
+    if (!scope.length) { toast("Add what is included, one item per line."); return; }
+    let date, time, duration;
+    if (isEmergency(job)) {
+      if (!o.eta) { toast("Choose when you can be there."); return; }
+      if (!o.duration) { toast("Choose how long the job will take."); return; }
+      const arrival = new Date(Date.now() + Number(o.eta) * 60000);
+      date = fmtISO(arrival);
+      time = pad(arrival.getHours()) + ":" + pad(arrival.getMinutes() < 30 ? 0 : 30);
+      duration = o.duration;
+    } else {
+      if (!o.date || !o.duration || !o.time) { toast("Choose a date, how long, and a start time."); return; }
+      date = o.date; time = o.time; duration = o.duration;
+    }
+    const quote = { id: uid("q"), jobId: job.id, contractorId: state.meId, price: price, date: date, time: time, duration: duration, scope: scope, note: o.note.trim(), at: Date.now(), committeeApproved: false };
+    state.quotes.push(quote);
+    log(job, "Offer sent by " + me().name + " for " + money(price) + ".");
+    toast("Offer sent.");
+    render();
+  }
+  function doApprove(quoteId) {
+    const q = quoteById(quoteId);
+    const job = jobById(q.jobId);
+    const p = placeOf(job);
+    if (q.price > p.limit && !q.committeeApproved) { toast("Needs committee approval."); return; }
+    if (!state.approveConsent) { toast("Tick the consent to continue."); return; }
+    job.stage = "approved";
+    job.awardedQuoteId = q.id;
+    job.awardedTo = q.contractorId;
+    log(job, "Quote from " + person(q.contractorId).name + " approved for " + money(q.price) + ".");
+    state.payMethod = state.manager.payment || "";
+    state.history = [];
+    state.screen = "pay";
+    state.ctx = { id: job.id };
+    state.title = "Pay to start";
+    toast("Quote approved. Pay to hold the money.");
+    render();
+  }
+  function doPay(jobId) {
+    const job = jobById(jobId);
+    if (!state.payMethod) { toast("Choose bank transfer or card."); return; }
+    job.stage = "paid";
+    job.payMethod = state.payMethod;
+    job.paidAt = Date.now();
+    log(job, "Payment held (" + (state.payMethod === "card" ? "card" : "bank transfer") + "). The job can start.");
+    toast("Payment held (demo). The job can start.");
+    state.history = [];
+    state.screen = "job";
+    state.ctx = { id: job.id };
+    state.title = job.title;
+    render();
+  }
+  function doReleaseSlot(jobId) {
+    const job = jobById(jobId);
+    job.stage = "open";
+    job.awardedQuoteId = null;
+    job.awardedTo = null;
+    log(job, "Unpaid slot released (demo).");
+    toast("The time slot has been released (demo).");
+    state.history = [];
+    state.screen = "job";
+    state.ctx = { id: job.id };
+    state.title = job.title;
+    render();
+  }
+  function mutateJob(id, fn) {
+    const job = jobById(id);
+    if (!job) return;
+    fn(job);
+    render({ keepScroll: true });
+  }
+  function markArrived(id) {
+    const job = jobById(id);
+    if (job.farDemo) {
+      job.farMessage = "You are 640 m from the building. Move closer and retake it.";
+      render({ keepScroll: true });
+      return;
+    }
+    const p = placeOf(job);
+    job.farMessage = "";
+    job.arrival = "arrived";
+    job.arrivalAt = Date.now();
+    job.arrivalDistance = Math.min(20, Math.max(1, p.captureM - 1));
+    log(job, "Arrived, " + job.arrivalDistance + " m from the building at " + fmtClock(job.arrivalAt) + ".");
+    toast("Arrival recorded. The site contact has been told (demo).");
+    render({ keepScroll: true });
+  }
+  function takeEvidence(id, stage, kind) {
+    const job = jobById(id);
+    const items = job.evidence[stage] || (job.evidence[stage] = []);
+    if (kind === "photo" && items.filter(i => i.kind === "photo").length >= 10) { toast("You can add up to 10 photos for this stage."); return; }
+    if (kind === "video" && items.some(i => i.kind === "video")) { toast("You can add one video for this stage."); return; }
+    const item = captureItem(job, kind);
+    if (!item) { render({ keepScroll: true }); return; }
+    items.push(item);
+    log(job, (kind === "photo" ? "Photo" : "Video") + " added (" + stage + "), " + item.distanceM + " m from the building.");
+    render({ keepScroll: true });
+  }
+  function submitWork(id) {
+    const job = jobById(id);
+    if (!canSubmit(job)) { toast("Add the photos and video this stage needs."); return; }
+    if (job.stage === "onsite") {
+      job.stage = "review0";
+      job.reviewStartedAt = Date.now();
+      log(job, "Work submitted for review. The manager has 48 hours.");
+      toast("Submitted. The manager has 48 hours.");
+    } else if (job.stage === "fix1") {
+      job.stage = "review1";
+      job.reviewStartedAt = Date.now();
+      log(job, "Fix submitted. The manager has another 48 hours.");
+      toast("Fix submitted.");
+    } else if (job.stage === "fix2") {
+      release(job, "The final fix was submitted and the evidence is complete. The money has been released.");
+      toast("Final fix submitted. The money has been released.");
+    }
+    render({ keepScroll: true });
+  }
+  function doChallenge(id) {
+    const job = jobById(id);
+    const q = quoteById(job.awardedQuoteId);
+    const picks = [];
+    (q.scope || []).forEach((item, i) => { if (state.challengePicks && state.challengePicks[i]) picks.push(item); });
+    if (!picks.length) { toast("Choose at least one item to challenge."); return; }
+    const round = job.challenges.length + 1;
+    job.challenges.push({ round: round, items: picks, note: (state.challengeNote || "").trim(), at: Date.now() });
+    state.challengePicks = {};
+    state.challengeNote = "";
+    if (job.stage === "review0") {
+      job.stage = "fix1";
+      log(job, "Manager challenged: " + picks.join(", ") + ".");
+      toast("Fix requested.");
+    } else {
+      job.stage = "fix2";
+      log(job, "Manager challenged again: " + picks.join(", ") + ". This is the final fix.");
+      toast("Final fix requested.");
+    }
+    render();
+  }
+  function toggleTrade(id) {
+    const c = me();
+    const i = c.trades.indexOf(id);
+    if (i === -1) c.trades.push(id);
+    else {
+      if (c.trades.length === 1) { toast("Choose at least one trade."); return; }
+      c.trades.splice(i, 1);
+    }
+    render({ keepScroll: true });
+  }
+  function sendEmergency() {
+    const e = state.emergency;
+    if (!e.buildingId || !e.kind || !e.where.trim() || !e.danger || !e.phone.trim()) { toast("Add the building, what is wrong, where, whether anyone is in danger, and a phone number."); return; }
+    if (e.kind === "other" && !e.trade) { toast("Choose a trade for this emergency."); return; }
+    const kind = EMERGENCY_KINDS.find(k => k.id === e.kind);
+    const b = building(e.buildingId);
+    if (!inRadius(b.lat, b.lng)) { toast("We do not cover this area yet."); return; }
+    const job = {
+      id: uid("job"), owned: true, sample: false, buildingId: b.id, area: e.where.trim(),
+      title: kind.label === "Something else" ? "Emergency: " + tradeById(e.trade).name : kind.label,
+      tradeId: kind.trade || e.trade, otherTrade: "", instructions: e.description.trim(),
+      photos: e.photos, video: null,
+      safety: [e.danger === "yes" ? "yes" : "no", "yes", "no", "no", "no", "no", "no"],
+      safetyNote: "", parking: "Yes", parkingNote: "", siteRules: "",
+      urgency: "emergency", date: todayISO(), timeMode: "anytime", exactTime: "", flexible: false, deadline: "today",
+      materials: "contractor", insurance: 20, swms: false, notice: "will", lift: "none",
+      reference: "", approver: state.manager.name || "Manager", invoiceTo: b.oc, invoiceAbn: b.ocAbn,
+      access: b.access, phone: e.phone.trim(), postedAt: Date.now(), stage: "open",
+      arrival: null, eta: null, arrivalAt: null, arrivalDistance: null, arrivalConfirmed: false,
+      safetyOnSite: [null, null, null, null, null], contractorAlert: false, alertSeen: false,
+      awardedQuoteId: null, awardedTo: null, paidAt: null, payMethod: null, challenges: [],
+      evidence: { before: [], after: [], fix1: [], fix2: [] }, timeline: [], releasedAt: null, reviewStartedAt: null, farDemo: false
+    };
+    log(job, "Emergency request sent. Contractors were alerted (demo).");
+    state.jobs.unshift(job);
+    toast("Emergency sent. Contractors were alerted (demo).");
+    state.history = [];
+    state.screen = "job";
+    state.ctx = { id: job.id };
+    state.title = job.title;
+    render();
+  }
+
+  document.addEventListener("click", onClick);
+  document.addEventListener("input", e => {
+    const el = e.target;
+    if (!el.dataset || !el.dataset.field) return;
+    const rerender = applyField(el.dataset.field, el.type === "checkbox" ? el.checked : el.value);
+    if (rerender) render({ keepScroll: true, keepFocus: true });
+  });
+  document.addEventListener("change", e => {
+    const el = e.target;
+    if (!el.dataset || !el.dataset.field) return;
+    if (el.type !== "checkbox" && el.tagName !== "SELECT") return;
+    applyField(el.dataset.field, el.type === "checkbox" ? el.checked : el.value);
+    render({ keepScroll: true, keepFocus: true });
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key === "Enter" && e.target.dataset && e.target.dataset.field === "find.q") {
+      e.preventDefault();
+      state.role = "contractor";
+      state.screen = "find";
+      state.history = [];
+      render();
+    }
+  });
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (state.themeChoice === "auto") applyTheme();
+  });
+
+  loadTheme();
+  seed();
+  applyTheme();
+  render();
+
+  window.__strata = {
+    state: state,
+    haversine: haversine,
+    kmFromCbd: kmFromCbd,
+    profileComplete: profileComplete,
+    money: money,
+    receives: receives,
+    feeFor: feeFor
+  };
+})();
+</script>
+</body>
+</html>
