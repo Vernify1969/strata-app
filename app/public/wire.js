@@ -7,6 +7,31 @@
 
   function hooks() { return window.StrataWire.hooks; }
 
+  function rememberedEmail() {
+    try {
+      const value = localStorage.getItem("strata-last-email") || "";
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? value : "";
+    } catch (err) {
+      return "";
+    }
+  }
+
+  function rememberEmail(email) {
+    try { localStorage.setItem("strata-last-email", email); } catch (err) { /* this browser cannot store the email */ }
+  }
+
+  function isoDay(date) {
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return date.getFullYear() + "-" + month + "-" + day;
+  }
+
+  function shiftCal(cal, dir) {
+    cal.month += Number(dir) || 0;
+    if (cal.month < 0) { cal.month = 11; cal.year -= 1; }
+    if (cal.month > 11) { cal.month = 0; cal.year += 1; }
+  }
+
   async function call(method, path, body) {
     const res = await fetch(path, {
       method: method,
@@ -74,6 +99,7 @@
     const res = await call("GET", "/api/buildings");
     if (!res.ok) return;
     state.buildings = (res.json.buildings || []).map(toClientBuilding);
+    if (state.preferredBuildingId && !state.buildings.some(item => item.id === state.preferredBuildingId)) state.preferredBuildingId = "";
     state.waiting = (res.json.waiting || []).map(item => ({
       id: item.id,
       name: item.name,
@@ -135,12 +161,26 @@
     state.noteDay = state.noteDay || "all";
     state.notes = (res.json.notes || []).map(note => ({
       id: note.id,
-      date: String(note.created_at).slice(0, 10),
+      date: note.notice_on || String(note.created_at).slice(0, 10),
       at: Date.parse(note.created_at),
       author: note.author_name,
       text: note.body,
       sample: false
     }));
+  }
+
+  function applyPreferences(prefs) {
+    const state = hooks().state;
+    if (!prefs) return;
+    if (Number.isInteger(prefs.calYear) && prefs.calMonth >= 0 && prefs.calMonth <= 11) {
+      state.cal.year = prefs.calYear;
+      state.cal.month = prefs.calMonth;
+    }
+    if (Number.isInteger(prefs.noteYear) && prefs.noteMonth >= 0 && prefs.noteMonth <= 11) {
+      state.noteCal = { year: prefs.noteYear, month: prefs.noteMonth };
+    }
+    if (prefs.noteDay) state.noteDay = prefs.noteDay;
+    if (prefs.buildingId) state.preferredBuildingId = prefs.buildingId;
   }
 
   window.StrataWire = {
@@ -161,6 +201,7 @@
       const params = new URLSearchParams(location.search);
       const state = api.state;
       state.auth = state.auth || { kind: "manager", role: "building_manager", name: "", email: "", mobile: "", password: "", confirm: "", businessName: "", agree: false, current: "", token: "" };
+      if (!state.auth.email) state.auth.email = rememberedEmail();
       if (location.pathname === "/reset") state.auth.token = params.get("token") || "";
       try {
         const health = await fetch("/api/health");
@@ -182,12 +223,15 @@
         api.state.jobs = [];
         api.state.buildings = [];
         api.state.notes = [];
+        api.state.devices = [];
         api.state.screen = location.pathname === "/reset" ? "reset" : (api.state.screen === "checkmail" ? "checkmail" : "welcome");
         api.render();
         return;
       }
       api.state.account = res.json.user;
       api.state.account.banner = res.json.banner;
+      api.state.devices = res.json.devices || [];
+      applyPreferences(res.json.preferences);
       if (res.json.user.role === "contractor") {
         api.seed();
         applyAccount();
@@ -239,6 +283,40 @@
       if (act === "auth-reset") { this.reset(); return true; }
       if (act === "auth-resend") { this.resend(); return true; }
       if (act === "sign-out") { this.signOut(); return true; }
+      if (act === "sign-out-all") { this.signOutAll(); return true; }
+      if (act === "note-today") {
+        const now = new Date();
+        state.noteCal = { year: now.getFullYear(), month: now.getMonth() };
+        state.noteDay = isoDay(now);
+        this.schedulePrefs();
+        api.render();
+        return true;
+      }
+      if (act === "note-day") {
+        state.noteDay = t.dataset.date;
+        this.schedulePrefs();
+        api.render();
+        return true;
+      }
+      if (act === "note-nav") {
+        if (!state.noteCal) state.noteCal = { year: new Date().getFullYear(), month: new Date().getMonth() };
+        shiftCal(state.noteCal, t.dataset.dir);
+        this.schedulePrefs();
+        api.render();
+        return true;
+      }
+      if (act === "cal-nav" && state.remote && state.cal) {
+        shiftCal(state.cal, t.dataset.dir);
+        this.schedulePrefs();
+        api.render();
+        return true;
+      }
+      if (act === "cal-day" && state.remote && state.cal) {
+        state.cal.selected = t.dataset.date;
+        this.schedulePrefs();
+        api.render();
+        return true;
+      }
       if (act === "open-password") { state.screen = "password"; state.title = "Change password"; api.render(); return true; }
       if (act === "change-password") { this.changePassword(); return true; }
       if (act === "download-data") { this.download(); return true; }
@@ -285,6 +363,7 @@
       const auth = api.state.auth;
       const res = await call("POST", "/api/login", { email: auth.email, password: auth.password, keep: auth.keep !== false });
       if (!res.ok) { api.toast(res.json.error || "The email or password is not right."); return; }
+      rememberEmail(auth.email);
       auth.password = "";
       api.toast("Signed in.");
       await this.refresh();
@@ -317,7 +396,33 @@
       await call("POST", "/api/logout", {});
       hooks().state.screen = "welcome";
       await this.refresh();
-      hooks().toast("Signed out.");
+      hooks().toast("Signed out of this device.");
+    },
+    async signOutAll() {
+      await call("POST", "/api/me/sessions/sign-out-all", {});
+      hooks().state.screen = "welcome";
+      await this.refresh();
+      hooks().toast("Signed out of every device.");
+    },
+    schedulePrefs() {
+      const self = this;
+      clearTimeout(this.prefTimer);
+      this.prefTimer = setTimeout(function () { self.savePrefs(); }, 300);
+    },
+    async savePrefs() {
+      const state = hooks().state;
+      if (!state.account || state.account.role === "contractor" || state.account.role === "platform_owner") return;
+      const now = new Date();
+      const noteCal = state.noteCal || { year: now.getFullYear(), month: now.getMonth() };
+      const res = await call("PATCH", "/api/me/preferences", {
+        buildingId: state.preferredBuildingId || "",
+        calYear: state.cal && state.cal.year ? state.cal.year : now.getFullYear(),
+        calMonth: state.cal && state.cal.month != null ? state.cal.month : now.getMonth(),
+        noteYear: noteCal.year,
+        noteMonth: noteCal.month,
+        noteDay: state.noteDay && state.noteDay !== "all" ? state.noteDay : ""
+      });
+      if (!res.ok) hooks().toast(res.json.error || "Those preferences were not saved.");
     },
     async setRole(value) {
       const api = hooks();
@@ -498,7 +603,7 @@
       const api = hooks();
       const text = String(api.state.noteDraft || "").trim();
       if (!text) { api.toast("Write a short note first."); return; }
-      const res = await call("POST", "/api/notes", { text: text });
+      const res = await call("POST", "/api/notes", { text: text, date: api.state.noteDay || "" });
       if (!res.ok) { api.toast(res.json.error || "The note was not saved."); return; }
       api.state.noteDraft = "";
       await loadNotes();

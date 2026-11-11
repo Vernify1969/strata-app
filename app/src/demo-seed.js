@@ -77,6 +77,12 @@ export async function seedDemo(db) {
     );
     db.prepare(`INSERT INTO places (id, building_id, organisation_id, kind, name, level, token, created_at)
       VALUES (?, ?, ?, 'lift', 'Lift 1', 'Ground', ?, ?)`).run(placeId, buildingId, managerOrg, DEMO_QR_TOKEN, now);
+    const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const yesterday = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.now() - 86400000));
+    const addNote = db.prepare("INSERT INTO notes (id, organisation_id, author_id, author_name, body, notice_on, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    addNote.run(newId(), managerOrg, managerId, DEMO_MANAGER.name, "Handover: the leak in unit 12 is with the plumber. Sam Okonkwo is due back in the morning.", today, now);
+    addNote.run(newId(), managerOrg, managerId, DEMO_MANAGER.name, "The plant-room key was returned to the concierge.", yesterday, now);
+    addNote.run(newId(), managerOrg, managerId, DEMO_MANAGER.name, "Plumber coming that morning for the lobby tap.", visit, now);
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");
