@@ -149,6 +149,15 @@
     buildingTimer: 0,
     async boot(api) {
       this.hooks = api;
+      const now = new Date();
+      if (!api.state.cal.year) {
+        api.state.cal.year = now.getFullYear();
+        api.state.cal.month = now.getMonth();
+      }
+      if (!api.state.offerCal.year) {
+        api.state.offerCal.year = now.getFullYear();
+        api.state.offerCal.month = now.getMonth();
+      }
       const params = new URLSearchParams(location.search);
       const state = api.state;
       state.auth = state.auth || { kind: "manager", role: "building_manager", name: "", email: "", mobile: "", password: "", confirm: "", businessName: "", agree: false, current: "", token: "" };
