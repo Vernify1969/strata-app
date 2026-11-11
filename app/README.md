@@ -45,3 +45,5 @@ npm test
 Stripe test payments can be started only after the security tests have passed. A live secret key is refused. Nothing is marked paid until a signed payment notice arrives. The platform does not keep a balance of the job money: the record says Stripe holds it, and a connected contractor account is the destination. Leave `STRIPE_SECRET_KEY` empty until you have a test key (`sk_test_...`). Set `SECURITY_GATE=passed` only on a machine where `npm test` has passed.
 
 The postcodes we serve start as 39 Melbourne postcodes within about 12 km of Flinders Street Station, taken from approximate centres. The platform owner can replace that list. Check it against a postcode map before launch. Victorian public holidays for 2026 and 2027 are stored for later deadlines and must be checked against the Victorian Government list.
+
+QR codes are web addresses with a random token. Printing a label sheet stays off until the security tests have passed and `PUBLIC_BASE_URL` is a permanent https address, not a temporary or localhost address. Urgent reports are emailed. They are not sent by text message.

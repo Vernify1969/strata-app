@@ -296,6 +296,7 @@ function clientJob(db, job, user, quotes = [], contractors = new Map()) {
     urgency: job.urgency,
     date: payload.date || "",
     stage: job.stage,
+    postedAt: Date.parse(job.created_at) || Date.now(),
     access: showAddress ? building.access_note : "",
     phone: showAddress ? (payload.phone || "") : "",
     awardedQuoteId: job.awarded_quote_id,

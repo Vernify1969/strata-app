@@ -11,6 +11,7 @@ import {
 import { registerBuildingRoutes } from "./buildings.js";
 import { registerJobRoutes } from "./jobs.js";
 import { handleStripeWebhook, registerPaymentRoutes } from "./payments.js";
+import { registerQrRoutes } from "./qr.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -107,7 +108,8 @@ export async function createApp(config) {
     const text = purpose === "verify"
       ? `Confirm your email for Strata App by opening this link within 24 hours:\n${link}\n\nIf you did not create an account, ignore this email.`
       : `Reset your Strata App password by opening this link within 1 hour:\n${link}\n\nIf you did not ask for this, ignore this email.`;
-    return mail.send({ to: user.email, subject, text });
+    const delivery = await mail.send({ to: user.email, subject, text });
+    return { ...delivery, link };
   }
 
   app.get("/api/health", (_req, res) => {
@@ -154,9 +156,10 @@ export async function createApp(config) {
       ok: true,
       email,
       emailSent: delivery.sent,
+      devLink: !delivery.sent && config.devMailbox ? delivery.link : "",
       message: delivery.sent
         ? "Check your email and open the confirmation link, then sign in."
-        : "The confirmation link is waiting in the server mailbox until an email service is connected. Open that link, then sign in."
+        : "Email is not connected yet, so the confirmation link is shown here. Open it, then sign in."
     });
   });
 
@@ -337,6 +340,7 @@ export async function createApp(config) {
   registerBuildingRoutes(app, { db, sendError, requireUser, requireJson });
   registerJobRoutes(app, { db, sendError, requireUser, requireJson });
   registerPaymentRoutes(app, { db, config, sendError, requireUser, requireJson });
+  registerQrRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
 
   app.get("/api/owner/settings", requireUser, (req, res) => {
     if (req.user.role !== "platform_owner") return sendError(res, 403, "Only the platform owner can open these settings.");

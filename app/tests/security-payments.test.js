@@ -97,6 +97,8 @@ test("money is marked paid only by a verified Stripe event, and a repeated reque
       body: JSON.stringify(failEvent)
     });
     assert.equal((await fail.json()).status, "failed");
+    const booked = server.app.locals.db.prepare("SELECT stage FROM jobs WHERE id = ?").get(jobId);
+    assert.equal(booked.stage, "paid");
   } finally {
     await server.close();
   }

@@ -77,9 +77,13 @@ export function handleStripeWebhook(req, res, { db, config }) {
   }
   if (event.type === "payment_failed") {
     db.prepare("UPDATE payments SET status = 'failed', failure_reason = ? WHERE id = ?").run(String(event.reason || "The card was declined."), payment.id);
-  } else if (event.type === "payment_succeeded") {
-    db.prepare("UPDATE payments SET status = 'succeeded', provider_ref = COALESCE(?, provider_ref) WHERE id = ?").run(event.providerRef ? String(event.providerRef) : null, payment.id);
-  } else {
+    } else if (event.type === "payment_succeeded") {
+      db.prepare("UPDATE payments SET status = 'succeeded', provider_ref = COALESCE(?, provider_ref) WHERE id = ?").run(event.providerRef ? String(event.providerRef) : null, payment.id);
+      const job = db.prepare("SELECT * FROM jobs WHERE id = ?").get(payment.job_id);
+      if (job && job.needs_prepay && job.stage === "approved") {
+        db.prepare("UPDATE jobs SET stage = 'paid' WHERE id = ?").run(job.id);
+      }
+    } else {
     res.status(400).json({ error: "That payment notice is not used." });
     return;
   }

@@ -123,6 +123,7 @@ swap(
     }
     if (state.screen === "checkmail") {
       return '<div class="stack" style="max-width:560px;margin:0 auto"><section class="hero"><p class="eyebrow">Check your email</p><h1>Confirm the address, then sign in</h1><p>' + esc(state.checkMessage || "Open the confirmation link.") + "</p></section>" +
+        (state.verifyLink ? '<a class="btn btn-primary" href="' + esc(state.verifyLink) + '">Open the confirmation link</a>' : "") +
         '<button class="btn btn-secondary" type="button" data-act="auth-resend">Send the link again</button>' +
         '<button class="btn btn-primary" type="button" data-act="auth-goto" data-screen="signin">Sign in</button></div>';
     }
@@ -388,6 +389,25 @@ swap(
       if (state.remote && window.StrataWire) window.StrataWire.scheduleBuilding(id);
       return true;`,
   "save building fields"
+);
+
+swap(
+  'areaField("What is included (one item per line)", "offer.scope", o.scope) +',
+  `'<span class="field">Payment before the start</span><div class="row" role="group" aria-label="Payment before the start">' +
+      [["none", "Paid after the work"], ["25", "25% deposit"], ["30", "30% deposit"], ["50", "50% deposit"]].map(pair => '<button class="chip" type="button" data-act="deposit-type" data-v="' + pair[0] + '" aria-pressed="' + ((o.depositType || "none") === pair[0] ? "true" : "false") + '">' + pair[1] + "</button>").join("") + "</div>" +
+      areaField("What is included (one item per line)", "offer.scope", o.scope) +`,
+  "deposit choice"
+);
+swap(
+  'if (act === "send-offer") return sendOffer(t.dataset.id);',
+  'if (act === "deposit-type") { if (state.offer) state.offer.depositType = t.dataset.v; render({ keepScroll: true }); return; }\n    if (act === "send-offer") return sendOffer(t.dataset.id);',
+  "deposit click"
+);
+
+swap(
+  "I agree to prepay this quote. Strata App holds the money until the job is complete.",
+  "I agree to pay this through Stripe. Stripe holds the money. Strata App does not.",
+  "approve consent"
 );
 
 const out = path.resolve(here, "../public/index.html");

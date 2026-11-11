@@ -100,7 +100,7 @@
     }, job, {
       evidence: job.evidence || { before: [], after: [], fix1: [], fix2: [] },
       challenges: job.challenges || [],
-      timeline: (job.timeline || []).map(event => ({ t: event.t, x: event.who + ": " + event.x }))
+      timeline: (job.timeline || []).map(event => ({ at: Date.parse(event.t) || Date.now(), text: (event.who ? event.who + ": " : "") + (event.x || "") }))
     }));
     state.quotes = res.json.quotes || [];
     const people = res.json.contractors || [];
@@ -149,6 +149,15 @@
     buildingTimer: 0,
     async boot(api) {
       this.hooks = api;
+      const now = new Date();
+      if (!api.state.cal.year) {
+        api.state.cal.year = now.getFullYear();
+        api.state.cal.month = now.getMonth();
+      }
+      if (!api.state.offerCal.year) {
+        api.state.offerCal.year = now.getFullYear();
+        api.state.offerCal.month = now.getMonth();
+      }
       const params = new URLSearchParams(location.search);
       const state = api.state;
       state.auth = state.auth || { kind: "manager", role: "building_manager", name: "", email: "", mobile: "", password: "", confirm: "", businessName: "", agree: false, current: "", token: "" };
@@ -229,6 +238,8 @@
       if (act === "privacy-request") { this.privacy(t.dataset.kind); return true; }
       if (act === "set-manager-role" && state.remote) { this.setRole(t.dataset.value); return true; }
       if (act === "add-note" && state.remote) { this.addNote(); return true; }
+      if (act === "submit-work" && state.remote) { this.submitWork(t.dataset.id); return true; }
+      if (act === "accept" && state.remote) { this.acceptWork(t.dataset.id); return true; }
       if ((act === "save-building" || act === "join-wait") && state.remote) { this.saveBuilding(); return true; }
       if (act === "owner" && state.account && state.account.role !== "platform_owner") {
         api.toast("Only the platform owner can open these settings.");
@@ -258,6 +269,7 @@
       if (!res.ok) { api.toast(res.json.error || "The account could not be created."); return; }
       api.state.pendingEmail = auth.email;
       api.state.checkMessage = res.json.message;
+      api.state.verifyLink = res.json.devLink || "";
       api.state.screen = "checkmail";
       api.render();
     },
@@ -415,6 +427,22 @@
       api.toast("Offer sent.");
       api.render();
     },
+    async submitWork(jobId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/submit-work", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The work was not handed in."); return; }
+      await loadJobs();
+      api.toast("Work submitted. The manager has 72 hours.");
+      api.render();
+    },
+    async acceptWork(jobId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/accept", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The work was not accepted."); return; }
+      await loadJobs();
+      api.toast("Work accepted. The final invoice follows. Stripe has not released the money.");
+      api.render();
+    },
     async pay(jobId) {
       const api = hooks();
       const res = await call("POST", "/api/jobs/" + jobId + "/payments", { idempotencyKey: "pay-" + jobId });
@@ -431,9 +459,11 @@
       if (!res.ok) { api.toast((res.json && res.json.error) || "The quote was not approved."); return; }
       await loadJobs();
       api.toast(res.json.stage === "approved" ? "Approved. The payment before the start is not paid yet." : "Approved. Nothing is paid before the work. Stripe has not been asked for money.");
+      const booked = api.state.jobs.find(item => item.id === quote.jobId);
       api.state.history = [];
       api.state.screen = "job";
       api.state.ctx = { id: quote.jobId };
+      api.state.title = booked ? booked.title : "Job";
       api.render();
     },
     async saveBuilding() {
