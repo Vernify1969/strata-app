@@ -229,6 +229,8 @@
       if (act === "privacy-request") { this.privacy(t.dataset.kind); return true; }
       if (act === "set-manager-role" && state.remote) { this.setRole(t.dataset.value); return true; }
       if (act === "add-note" && state.remote) { this.addNote(); return true; }
+      if (act === "submit-work" && state.remote) { this.submitWork(t.dataset.id); return true; }
+      if (act === "accept" && state.remote) { this.acceptWork(t.dataset.id); return true; }
       if ((act === "save-building" || act === "join-wait") && state.remote) { this.saveBuilding(); return true; }
       if (act === "owner" && state.account && state.account.role !== "platform_owner") {
         api.toast("Only the platform owner can open these settings.");
@@ -258,6 +260,7 @@
       if (!res.ok) { api.toast(res.json.error || "The account could not be created."); return; }
       api.state.pendingEmail = auth.email;
       api.state.checkMessage = res.json.message;
+      api.state.verifyLink = res.json.devLink || "";
       api.state.screen = "checkmail";
       api.render();
     },
@@ -413,6 +416,22 @@
       if (!res.ok) { api.toast((res.json && res.json.error) || "The offer was not sent."); return; }
       await loadJobs();
       api.toast("Offer sent.");
+      api.render();
+    },
+    async submitWork(jobId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/submit-work", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The work was not handed in."); return; }
+      await loadJobs();
+      api.toast("Work submitted. The manager has 72 hours.");
+      api.render();
+    },
+    async acceptWork(jobId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/accept", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The work was not accepted."); return; }
+      await loadJobs();
+      api.toast("Work accepted. The final invoice follows. Stripe has not released the money.");
       api.render();
     },
     async pay(jobId) {

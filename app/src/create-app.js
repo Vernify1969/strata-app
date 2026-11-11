@@ -108,7 +108,8 @@ export async function createApp(config) {
     const text = purpose === "verify"
       ? `Confirm your email for Strata App by opening this link within 24 hours:\n${link}\n\nIf you did not create an account, ignore this email.`
       : `Reset your Strata App password by opening this link within 1 hour:\n${link}\n\nIf you did not ask for this, ignore this email.`;
-    return mail.send({ to: user.email, subject, text });
+    const delivery = await mail.send({ to: user.email, subject, text });
+    return { ...delivery, link };
   }
 
   app.get("/api/health", (_req, res) => {
@@ -155,9 +156,10 @@ export async function createApp(config) {
       ok: true,
       email,
       emailSent: delivery.sent,
+      devLink: !delivery.sent && config.devMailbox ? delivery.link : "",
       message: delivery.sent
         ? "Check your email and open the confirmation link, then sign in."
-        : "The confirmation link is waiting in the server mailbox until an email service is connected. Open that link, then sign in."
+        : "Email is not connected yet, so the confirmation link is shown here. Open it, then sign in."
     });
   });
 
