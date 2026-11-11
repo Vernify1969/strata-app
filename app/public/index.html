@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Strata App</title>
+<title>TaskSpeck Strata</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230E2A66'/%3E%3Cpath d='M7 25V14.2L16 7l9 7.2V25' fill='none' stroke='%23F6E7C1' stroke-width='1.7' stroke-linejoin='round'/%3E%3Cpath d='M13 25v-6h6v6' fill='none' stroke='%23F6E7C1' stroke-width='1.7'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1356,7 +1356,7 @@ const PHOTOS = {
     return '<svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M6.5 26V14.2L16 6.5l9.5 7.7V26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M13 26v-6.2h6V26" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M11.5 16.2h2.2M18.3 16.2H20.5M11.5 19.4h2.2M18.3 19.4H20.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
   }
   function brandMark() {
-    return '<div class="brand"><span class="mark" aria-hidden="true">' + logoSvg() + "</span><span>Strata App</span></div>";
+    return '<div class="brand"><span class="mark" aria-hidden="true">' + logoSvg() + "</span><span>TaskSpeck Strata</span></div>";
   }
   function avatar(c) {
     const parts = String(c.name || "").split(" ").filter(Boolean);
@@ -1389,7 +1389,7 @@ const PHOTOS = {
     } else if (state.account) {
       bar = brandMark() + '<p class="signed-as"><span class="signed-label">Signed in as </span>' + esc(state.account.name) + '</p><div class="spacer"></div><div class="roles"><span class="pill pill-muted">' + esc(state.account.roleLabel) + "</span></div>";
     } else {
-      bar = brandMark() + '<div class="section-label">' + esc(section || "Strata App") + '</div><div class="spacer"></div><div class="roles" role="group" aria-label="Choose who you are"><button type="button" data-act="role" data-role="manager" aria-pressed="' + (state.role === "manager" ? "true" : "false") + '">Manager</button><button type="button" data-act="role" data-role="contractor" aria-pressed="' + (state.role === "contractor" ? "true" : "false") + '">Contractor</button></div>';
+      bar = brandMark() + '<div class="section-label">' + esc(section || "TaskSpeck Strata") + '</div><div class="spacer"></div><div class="roles" role="group" aria-label="Choose who you are"><button type="button" data-act="role" data-role="manager" aria-pressed="' + (state.role === "manager" ? "true" : "false") + '">Manager</button><button type="button" data-act="role" data-role="contractor" aria-pressed="' + (state.role === "contractor" ? "true" : "false") + '">Contractor</button></div>';
     }
     const themeBtn = '<button class="icon-btn" type="button" data-act="theme" aria-label="Theme ' + themeLabel + '. Activate to change.">' + themeIcon + '<span class="theme-label">' + themeLabel + "</span></button>";
     const emergencyBtn = onAuth || state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
@@ -1411,7 +1411,7 @@ const PHOTOS = {
     const kindBtn = (id, label) => '<button class="chip" type="button" data-act="auth-kind" data-kind="' + id + '" aria-pressed="' + (a.kind === id ? "true" : "false") + '">' + label + "</button>";
     const roleBtn = (id, label) => '<button class="chip" type="button" data-act="auth-role" data-role="' + id + '" aria-pressed="' + (a.role === id ? "true" : "false") + '">' + label + "</button>";
     if (state.screen === "welcome") {
-      return '<div class="welcome-layout"><section class="hero"><p class="eyebrow">Strata App</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. Strata App does not.</p></section><div class="stack">' +
+      return '<div class="welcome-layout"><section class="hero"><p class="eyebrow">TaskSpeck Strata</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. TaskSpeck Strata does not.</p></section><div class="stack">' +
         '<button class="btn btn-primary" type="button" data-act="auth-goto" data-screen="register">Create an account</button>' +
         '<button class="btn btn-secondary" type="button" data-act="auth-goto" data-screen="signin">Sign in</button>' +
         (state.demo ? '<div class="card stack"><p><strong>Two demo accounts. Pick one.</strong></p><div class="demo-pair"><div class="demo-account"><h2>Manager</h2><p><strong>Mina Costa</strong></p><p class="small">mina.costa@harbour.example</p><p class="small">Password Harbour1</p></div><div class="demo-account"><h2>Contractor</h2><p><strong>Sam Okonkwo</strong></p><p class="small">sam@plumbing.example</p><p class="small">Password Pipes123</p></div></div><p class="small">A new account shows its confirmation link on this screen. No email is sent. Sample building: Harbour View Apartments. The Lift 1 report page is /r/demo-lift-1.</p></div>' : "") +
@@ -1419,8 +1419,8 @@ const PHOTOS = {
     }
     if (state.screen === "terms") {
       return '<div class="stack auth-panel"><div class="card stack"><h1>Terms and privacy summary</h1><p class="demo">Draft for a solicitor to review</p>' +
-        "<p>Strata App is a tool. It is not the contractor's employer. The contract is between the manager or owners corporation and the contractor.</p>" +
-        "<p>Stripe holds and moves money. Strata App does not hold it, does not judge the quality of the work, and does not decide disputes.</p>" +
+        "<p>TaskSpeck Strata is a tool. It is not the contractor's employer. The contract is between the manager or owners corporation and the contractor.</p>" +
+        "<p>Stripe holds and moves money. TaskSpeck Strata does not hold it, does not judge the quality of the work, and does not decide disputes.</p>" +
         "<p>You agree to pay approved payment requests through Stripe within the agreed terms. Managers pay no platform fee. The contractor fee is 15% of each payment, with GST on that fee switched off until the platform is registered.</p>" +
         "<p>We collect the account details you type, and, on a public maintenance report, the description, photographs and contact details you choose to give. Reporter details are not passed to a contractor.</p>" +
         '<button class="btn btn-secondary" type="button" data-act="auth-goto" data-screen="register">Back</button></div></div>';
@@ -1676,8 +1676,8 @@ const PHOTOS = {
       field("Billing email", "email", "manager.email", m.email) +
       field("Phone for the site", "tel", "manager.phone", m.phone) +
       '<span class="field">How you pay</span><div class="row" role="group" aria-label="How you pay">' + payBtn("bank", "Bank transfer") + payBtn("card", "Card") + "</div>" +
-      '<label class="check"><input type="checkbox" data-field="manager.consent"' + (m.consent ? " checked" : "") + '> <span>I consent to pay approved payment requests through Stripe within the agreed terms. Strata App does not hold the money.</span></label>' +
-      '<p class="small muted">Chargebacks are charged to the OC or manager under the terms, and the manager pays no Strata App fee.</p></div>' +
+      '<label class="check"><input type="checkbox" data-field="manager.consent"' + (m.consent ? " checked" : "") + '> <span>I consent to pay approved payment requests through Stripe within the agreed terms. TaskSpeck Strata does not hold the money.</span></label>' +
+      '<p class="small muted">Chargebacks are charged to the OC or manager under the terms, and the manager pays no TaskSpeck Strata fee.</p></div>' +
       '<p class="small muted">You have ' + state.buildings.length + (state.buildings.length === 1 ? " building" : " buildings") + " saved.</p>" +
       '<div class="card stack"><h2>My account</h2><p class="small">' + esc(state.account ? state.account.email : m.email) + " · " + esc(state.account ? state.account.roleLabel : "Not signed in") + "</p>" +
       '<button class="btn btn-secondary" type="button" data-act="open-password">Change password</button>' +
@@ -1712,7 +1712,7 @@ const PHOTOS = {
       '<label class="check"><input type="checkbox" data-field="owner.gstOnFee"' + (o.gstOnFee ? " checked" : "") + "> <span>Add GST on the fee</span></label>" +
       '<p class="small">The fee stays at ' + esc(String(o.feePercent)) + "% until this is on. When it is on, the fee is that percentage plus 10% of the fee" + (o.gstOnFee ? " (now " + feePhrase() + ")" : " (15% would become 16.5%)") + ".</p>" +
       '<p class="small">On a ' + moneyShort(example) + " job the fee is " + money(fee) + ", the contractor receives " + money(receives(example)) + ", and the manager pays " + moneyShort(example) + ".</p>" +
-      "<p class=\"small muted\">Stripe holds and moves the money. Strata App does not hold it. The fee is taken from the contractor only. Managers pay no fee. Refunds, disputes and unpaid-deposit expiry are not built yet.</p></div></div>";
+      "<p class=\"small muted\">Stripe holds and moves the money. TaskSpeck Strata does not hold it. The fee is taken from the contractor only. Managers pay no fee. Refunds, disputes and unpaid-deposit expiry are not built yet.</p></div></div>";
   }
 
   function buildingsScreen() {
@@ -2190,7 +2190,7 @@ const PHOTOS = {
       "<p>Approval limit: " + money(q.price) + " of " + moneyShort(p.limit) + (q.price > p.limit ? " · Needs committee approval" : " · Inside the limit") + "</p>" +
       "<p>Included:</p><ul class=\"clean\">" + q.scope.map(s => "<li>" + esc(s) + "</li>").join("") + "</ul>" +
       '<p class="summary-card">You pay the approved quote. No hidden fees. Your money is held until the job is done.</p>' +
-      '<label class="check"><input type="checkbox" data-field="approve.consent"' + (state.approveConsent ? " checked" : "") + "> <span>I agree to pay this through Stripe. Stripe holds the money. Strata App does not.</span></label>" +
+      '<label class="check"><input type="checkbox" data-field="approve.consent"' + (state.approveConsent ? " checked" : "") + "> <span>I agree to pay this through Stripe. Stripe holds the money. TaskSpeck Strata does not.</span></label>" +
       (over ? '<p role="alert">Needs committee approval before you can continue.</p>' : "") +
       '<button class="btn btn-primary" type="button" data-act="approve-continue" data-id="' + q.id + '"' + ((!state.approveConsent || over) ? " disabled" : "") + ">Approve and continue to payment</button></div>";
   }
@@ -2228,7 +2228,7 @@ const PHOTOS = {
   }
   function releasedManager(job) {
     const q = quoteById(job.awardedQuoteId);
-    return '<div class="card stack"><h2>Money released</h2><p>' + money(q ? q.price : 0) + ' has been released.</p><p>If you are still not happy, take it up with the contractor directly. Strata App does not decide disputes.</p>' +
+    return '<div class="card stack"><h2>Money released</h2><p>' + money(q ? q.price : 0) + ' has been released.</p><p>If you are still not happy, take it up with the contractor directly. TaskSpeck Strata does not decide disputes.</p>' +
       '<button class="btn btn-secondary" type="button" data-act="export" data-id="' + job.id + '">Export evidence record <span class="demo">Demo</span></button>' +
       '<button class="btn btn-primary" type="button" data-act="open-evidence" data-id="' + job.id + '">View evidence record</button></div>';
   }
@@ -2568,7 +2568,7 @@ const PHOTOS = {
     const price = q ? q.price : 0;
     return '<div class="card stack"><h2>Paid</h2><p>Your payout is on its way to your bank account ending ' + esc(me().bankLast4) + ", less the " + feePhrase() + ' platform fee.</p>' +
       "<p>Quote " + money(price) + "<br>Platform fee (" + feePhrase() + ") " + money(feeFor(price)) + "<br><strong>You receive " + money(receives(price)) + " (" + keepPct() + "%)</strong></p>" +
-      '<p><span class="demo">Demo</span> The payout is simulated. Strata App never sees or stores the account number.</p></div>';
+      '<p><span class="demo">Demo</span> The payout is simulated. TaskSpeck Strata never sees or stores the account number.</p></div>';
   }
 
   function myOffers() {
@@ -2613,7 +2613,7 @@ const PHOTOS = {
       field("Postcode you work from", "text", "me.postcode", c.basePostcode || "") +
       '<h2>Trades I offer</h2><div class="row">' + trades + "</div>" +
       '<button class="btn btn-ghost" type="button" data-act="sign-out">Sign out</button>' +
-      '<div class="card stack"><h2>Get paid</h2><span class="demo">Demo</span><p>Bank account ending ' + esc(c.bankLast4) + ".</p><p>Strata App never sees or stores the account number. A payment provider holds it.</p></div>" +
+      '<div class="card stack"><h2>Get paid</h2><span class="demo">Demo</span><p>Bank account ending ' + esc(c.bankLast4) + ".</p><p>TaskSpeck Strata never sees or stores the account number. A payment provider holds it.</p></div>" +
       '<div class="card stack"><h2>Safety guide</h2><p>' + (c.guideDone ? "Done." : "Not done yet.") + '</p><button class="btn btn-secondary" type="button" data-act="open-guide">' + (c.guideDone ? "Read it again" : "Open the safety guide") + "</button></div></div>";
   }
   function guideScreen() {
@@ -2651,7 +2651,7 @@ const PHOTOS = {
     const e = state.emergency || (state.emergency = { buildingId: state.buildings[0] ? state.buildings[0].id : "", kind: "", trade: "", where: "", danger: "", description: "", phone: state.manager.phone, photos: [] });
     const kinds = EMERGENCY_KINDS.map(k => '<button class="chip" type="button" data-act="em-kind" data-v="' + k.id + '" aria-pressed="' + (e.kind === k.id ? "true" : "false") + '">' + esc(k.label) + "</button>").join("");
     const trades = ALL_TRADES.map(t => '<button class="chip" type="button" data-act="em-trade" data-trade="' + t.id + '" aria-pressed="' + (e.trade === t.id ? "true" : "false") + '">' + esc(t.name) + "</button>").join("");
-    return '<div class="stack"><div class="notice notice-bad"><strong>If someone is in danger, call 000.</strong><p>Strata App is not an emergency service. Gas and lifts are not covered yet.</p><a class="btn btn-emergency" href="tel:000">Call 000</a></div>' +
+    return '<div class="stack"><div class="notice notice-bad"><strong>If someone is in danger, call 000.</strong><p>TaskSpeck Strata is not an emergency service. Gas and lifts are not covered yet.</p><a class="btn btn-emergency" href="tel:000">Call 000</a></div>' +
       '<div class="card stack"><label class="field">Building<select data-field="em.buildingId">' + state.buildings.map(b => '<option value="' + b.id + '"' + (b.id === e.buildingId ? " selected" : "") + ">" + esc(b.name) + "</option>").join("") + "</select></label>" +
       '<span class="field">What is wrong</span><div class="row">' + kinds + "</div>" +
       (e.kind === "other" ? '<span class="field">Trade</span><div class="row">' + trades + "</div>" : "") +
@@ -2666,8 +2666,8 @@ const PHOTOS = {
   function contractorEmergency() {
     const job = state.ctx.fromJob ? jobById(state.ctx.fromJob) : null;
     const onJob = job && job.awardedTo === state.meId;
-    return '<div class="stack"><div class="notice notice-bad"><strong>If someone is in danger, call 000.</strong><p>Strata App is not an emergency service.</p><a class="btn btn-emergency" href="tel:000">Call 000</a></div>' +
-      (onJob ? '<div class="card stack"><p>You are on ' + esc(job.title) + '.</p><button class="btn btn-emergency" type="button" data-act="alert-support" data-id="' + job.id + '">Alert the site contact and Strata App support</button><button class="btn btn-secondary" type="button" data-act="stop-unsafe" data-id="' + job.id + '">Stop work: this job is unsafe</button></div>' : '<p class="card">Open one of your active jobs first if you need to alert the site contact.</p>') +
+    return '<div class="stack"><div class="notice notice-bad"><strong>If someone is in danger, call 000.</strong><p>TaskSpeck Strata is not an emergency service.</p><a class="btn btn-emergency" href="tel:000">Call 000</a></div>' +
+      (onJob ? '<div class="card stack"><p>You are on ' + esc(job.title) + '.</p><button class="btn btn-emergency" type="button" data-act="alert-support" data-id="' + job.id + '">Alert the site contact and TaskSpeck Strata support</button><button class="btn btn-secondary" type="button" data-act="stop-unsafe" data-id="' + job.id + '">Stop work: this job is unsafe</button></div>' : '<p class="card">Open one of your active jobs first if you need to alert the site contact.</p>') +
       "</div>";
   }
 
@@ -2993,8 +2993,8 @@ const PHOTOS = {
     if (act === "alert-support") return mutateJob(t.dataset.id, job => {
       job.contractorAlert = true;
       job.alertSeen = false;
-      log(job, "Contractor alerted the site contact and Strata App support.");
-      toast("The manager and Strata App support have been alerted (demo).");
+      log(job, "Contractor alerted the site contact and TaskSpeck Strata support.");
+      toast("The manager and TaskSpeck Strata support have been alerted (demo).");
     });
   }
 

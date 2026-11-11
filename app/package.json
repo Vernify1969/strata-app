@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Server for Strata App. The pages are the existing front end, with accounts and rules enforced on the server.",
+  "description": "Server for TaskSpeck Strata. The pages are the existing front end, with accounts and rules enforced on the server.",
   "engines": {
     "node": ">=22"
   },

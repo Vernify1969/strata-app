@@ -14,7 +14,7 @@ export async function startApp(overrides = {}) {
     outboxPath: path.join(dir, "outbox.jsonl"),
     devMailbox: true,
     cookieSecure: false,
-    smtp: { host: "", port: 587, user: "", password: "", from: "Strata App <notices@example.com>" },
+    smtp: { host: "", port: 587, user: "", password: "", from: "TaskSpeck Strata <notices@example.com>" },
     owner: { email: "", password: "", name: "" },
     stripeSecretKey: "",
     stripePublishableKey: "",

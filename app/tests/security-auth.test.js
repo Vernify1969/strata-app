@@ -39,7 +39,7 @@ test("a new account must confirm the email before it can sign in", async () => {
     const hidden = await api("GET", "/api/me");
     assert.equal(hidden.status, 401);
     const { link, message } = lastLink(server.config.outboxPath);
-    assert.match(message.subject, /Confirm your Strata App email/);
+    assert.match(message.subject, /Confirm your TaskSpeck Strata email/);
     assert.equal(message.text.includes("Harbour1"), false);
     const verified = await api("GET", link.slice(link.indexOf("/api/")));
     assert.equal(verified.status, 302);

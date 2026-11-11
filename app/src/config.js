@@ -40,7 +40,7 @@ export function loadConfig(overrides = {}) {
       port: Number(process.env.SMTP_PORT || 587),
       user: process.env.SMTP_USER || "",
       password: process.env.SMTP_PASSWORD || "",
-      from: process.env.SMTP_FROM || "Strata App <notices@example.com>"
+      from: process.env.SMTP_FROM || "TaskSpeck Strata <notices@example.com>"
     },
     owner: {
       email: (process.env.OWNER_EMAIL || "").trim().toLowerCase(),

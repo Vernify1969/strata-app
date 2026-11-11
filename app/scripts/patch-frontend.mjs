@@ -544,6 +544,8 @@ swap(
   "approve consent"
 );
 
+html = html.replaceAll("Strata App", "TaskSpeck Strata");
+
 const out = path.resolve(here, "../public/index.html");
 fs.writeFileSync(out, html);
 console.log("wrote", out, "bytes", html.length);

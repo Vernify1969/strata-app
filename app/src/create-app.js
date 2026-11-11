@@ -167,10 +167,10 @@ export async function createApp(config) {
     const link = purpose === "verify"
       ? `${config.publicBaseUrl}/api/verify-email?token=${encodeURIComponent(token)}`
       : `${config.publicBaseUrl}/reset?token=${encodeURIComponent(token)}`;
-    const subject = purpose === "verify" ? "Confirm your Strata App email" : "Reset your Strata App password";
+    const subject = purpose === "verify" ? "Confirm your TaskSpeck Strata email" : "Reset your TaskSpeck Strata password";
     const text = purpose === "verify"
-      ? `Confirm your email for Strata App by opening this link within 24 hours:\n${link}\n\nIf you did not create an account, ignore this email.`
-      : `Reset your Strata App password by opening this link within 1 hour:\n${link}\n\nIf you did not ask for this, ignore this email.`;
+      ? `Confirm your email for TaskSpeck Strata by opening this link within 24 hours:\n${link}\n\nIf you did not create an account, ignore this email.`
+      : `Reset your TaskSpeck Strata password by opening this link within 1 hour:\n${link}\n\nIf you did not ask for this, ignore this email.`;
     const delivery = await mail.send({ to: user.email, subject, text });
     return { ...delivery, link };
   }
