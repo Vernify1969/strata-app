@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { loadConfig } from "../src/config.js";
-import { DEMO_CONTRACTOR, DEMO_MANAGER, DEMO_QR_TOKEN } from "../src/demo-seed.js";
+import { DEMO_CONTRACTOR, DEMO_MANAGER, DEMO_OC_MANAGER, DEMO_PROPERTY_MANAGER, DEMO_QR_TOKEN } from "../src/demo-seed.js";
 import { client, startApp } from "./helpers.js";
 
 test("demo mode ignores Stripe keys and says it is a demo", () => {
@@ -41,6 +41,7 @@ test("the demo seeds sample people, simulates a payment, and keeps QR printing l
     const me = await manager("GET", "/api/me");
     assert.match(me.json.banner, /Demo, test data only/);
     const buildings = await manager("GET", "/api/buildings");
+    assert.equal(buildings.json.buildings.length, 1);
     assert.equal(buildings.json.buildings[0].name, "Harbour View Apartments");
     const jobs = await manager("GET", "/api/jobs");
     const quoted = jobs.json.jobs.find(job => job.title === "Garden tap will not turn off");
@@ -72,6 +73,18 @@ test("the demo seeds sample people, simulates a payment, and keeps QR printing l
     assert.match(created.json.devLink, /verify-email/);
     const contractor = await client(server.base)("POST", "/api/login", { email: DEMO_CONTRACTOR.email, password: DEMO_CONTRACTOR.password });
     assert.equal(contractor.status, 200);
+    assert.equal(contractor.json.user.roleLabel, "Contractor");
+    const oc = client(server.base);
+    const ocIn = await oc("POST", "/api/login", { email: DEMO_OC_MANAGER.email, password: DEMO_OC_MANAGER.password });
+    assert.equal(ocIn.json.user.roleLabel, "Owners Corporation manager");
+    const ocPlaces = await oc("GET", "/api/buildings");
+    assert.deepEqual(ocPlaces.json.buildings.map(item => item.name), ["Riverside Court"]);
+    const property = client(server.base);
+    const propertyIn = await property("POST", "/api/login", { email: DEMO_PROPERTY_MANAGER.email, password: DEMO_PROPERTY_MANAGER.password });
+    assert.equal(propertyIn.json.user.roleLabel, "Property manager");
+    const rentals = await property("GET", "/api/buildings");
+    assert.deepEqual(rentals.json.buildings.map(item => item.name), ["12 Clarendon Street rental"]);
+    assert.equal(rentals.json.buildings[0].world, "private");
   } finally {
     await server.close();
   }
