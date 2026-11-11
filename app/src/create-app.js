@@ -16,6 +16,51 @@ import { seedDemo } from "./demo-seed.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
+function calendarDate(value) {
+  const text = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return "";
+  const [year, month, day] = text.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return "";
+  if (year < 2020 || year > 2100) return "";
+  return text;
+}
+
+function melbourneToday() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
+function deviceLabel(agent) {
+  const text = String(agent || "");
+  let browser = "Browser";
+  if (/Edg\//.test(text)) browser = "Edge";
+  else if (/Chrome\//.test(text)) browser = "Chrome";
+  else if (/Firefox\//.test(text)) browser = "Firefox";
+  else if (/Safari\//.test(text) && !/Chrome\//.test(text)) browser = "Safari";
+  let computer = "computer";
+  if (/iPhone|iPad/.test(text)) computer = "iPhone or iPad";
+  else if (/Android/.test(text)) computer = "Android";
+  else if (/Windows/.test(text)) computer = "Windows";
+  else if (/Mac OS/.test(text)) computer = "Mac";
+  else if (/Linux/.test(text)) computer = "Linux";
+  return browser + " on " + computer;
+}
+
+function storedPreferences(raw) {
+  let parsed = {};
+  try { parsed = JSON.parse(raw || "{}"); } catch { parsed = {}; }
+  if (!parsed || typeof parsed !== "object" || !Number.isInteger(Number(parsed.calYear))) return null;
+  const noteDay = parsed.noteDay ? calendarDate(parsed.noteDay) : "";
+  return {
+    buildingId: String(parsed.buildingId || ""),
+    calYear: Number(parsed.calYear),
+    calMonth: Number(parsed.calMonth),
+    noteYear: Number(parsed.noteYear),
+    noteMonth: Number(parsed.noteMonth),
+    noteDay
+  };
+}
+
 const ROLE_WORLD = {
   building_manager: "common",
   oc_manager: "common",
@@ -66,6 +111,7 @@ export async function createApp(config) {
       db.prepare("DELETE FROM sessions WHERE token_hash = ?").run(hashToken(token));
       return null;
     }
+    db.prepare("UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?").run(new Date().toISOString(), hashToken(token));
     const user = userById(row.user_id);
     if (!user || !user.email_verified_at) return null;
     return user;
@@ -87,13 +133,29 @@ export async function createApp(config) {
     next();
   }
 
-  function issueSession(res, user, keep) {
+  function issueSession(req, res, user, keep) {
     const token = newToken();
     const hours = keep ? 24 * 30 : 12;
     const expires = new Date(Date.now() + hours * 3600 * 1000).toISOString();
-    db.prepare(`INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)`)
-      .run(newId(), user.id, hashToken(token), expires, new Date().toISOString());
+    const now = new Date().toISOString();
+    db.prepare(`INSERT INTO sessions (id, user_id, token_hash, expires_at, created_at, label, last_seen_at, keep_signed_in)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(newId(), user.id, hashToken(token), expires, now, deviceLabel(req.get("user-agent")), now, keep ? 1 : 0);
     res.setHeader("Set-Cookie", sessionCookie(token, { keep, secure: config.cookieSecure }));
+  }
+
+  function deviceList(req, user) {
+    const current = hashToken(readCookie(req, "strata_session"));
+    return db.prepare(`SELECT id, token_hash, label, created_at, last_seen_at, expires_at, keep_signed_in
+      FROM sessions WHERE user_id = ? ORDER BY created_at`).all(user.id).map(row => ({
+      id: row.id,
+      label: row.label || "This browser",
+      createdAt: row.created_at,
+      lastSeenAt: row.last_seen_at || row.created_at,
+      expiresAt: row.expires_at,
+      keep: row.keep_signed_in === 1,
+      current: row.token_hash === current
+    }));
   }
 
   async function sendToken(user, purpose) {
@@ -217,7 +279,7 @@ export async function createApp(config) {
     }
     if (!user.email_verified_at) return sendError(res, 403, "Confirm your email first. You can ask for the link again.");
     db.prepare("DELETE FROM login_attempts WHERE email = ?").run(email);
-    issueSession(res, user, keep);
+    issueSession(req, res, user, keep);
     audit(db, { actorId: user.id, organisationId: user.organisation_id, action: "account.signed_in", subjectType: "user", subjectId: user.id, detail: {} });
     res.json({ user: publicUser(user) });
   });
@@ -258,8 +320,46 @@ export async function createApp(config) {
   app.get("/api/me", requireUser, (req, res) => {
     res.json({
       user: publicUser(req.user),
-      banner: bannerFor(req.user, config.demoMode)
+      banner: bannerFor(req.user, config.demoMode),
+      preferences: storedPreferences(req.user.preferences),
+      devices: deviceList(req, req.user)
     });
+  });
+
+  app.get("/api/me/sessions", requireUser, (req, res) => {
+    res.json({ devices: deviceList(req, req.user) });
+  });
+
+  app.post("/api/me/sessions/sign-out-all", requireJson, requireUser, (req, res) => {
+    db.prepare("DELETE FROM sessions WHERE user_id = ?").run(req.user.id);
+    res.setHeader("Set-Cookie", clearSessionCookie(config.cookieSecure));
+    audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "account.signed_out_all", subjectType: "user", subjectId: req.user.id, detail: {} });
+    res.json({ ok: true, message: "Signed out of every device." });
+  });
+
+  app.patch("/api/me/preferences", requireJson, requireUser, (req, res) => {
+    const body = req.body || {};
+    const calYear = Number(body.calYear);
+    const calMonth = Number(body.calMonth);
+    const noteYear = Number(body.noteYear);
+    const noteMonth = Number(body.noteMonth);
+    const noteDay = body.noteDay ? calendarDate(body.noteDay) : "";
+    if (!Number.isInteger(calYear) || calYear < 2020 || calYear > 2100) return sendError(res, 400, "Choose a calendar year.");
+    if (!Number.isInteger(calMonth) || calMonth < 0 || calMonth > 11) return sendError(res, 400, "Choose a calendar month.");
+    if (!Number.isInteger(noteYear) || noteYear < 2020 || noteYear > 2100) return sendError(res, 400, "Choose a notices year.");
+    if (!Number.isInteger(noteMonth) || noteMonth < 0 || noteMonth > 11) return sendError(res, 400, "Choose a notices month.");
+    if (body.noteDay && !noteDay) return sendError(res, 400, "Choose a real day.");
+    const buildingId = String(body.buildingId || "").trim();
+    if (buildingId) {
+      const owned = db.prepare(`SELECT buildings.id FROM buildings
+        JOIN building_assignments ON building_assignments.building_id = buildings.id
+        WHERE buildings.id = ? AND buildings.organisation_id = ? AND building_assignments.user_id = ?`)
+        .get(buildingId, req.user.organisation_id, req.user.id);
+      if (!owned) return sendError(res, 400, "That building is not on this account.");
+    }
+    const preferences = { buildingId, calYear, calMonth, noteYear, noteMonth, noteDay };
+    db.prepare("UPDATE users SET preferences = ? WHERE id = ?").run(JSON.stringify(preferences), req.user.id);
+    res.json({ preferences });
   });
 
   app.patch("/api/me", requireJson, requireUser, async (req, res) => {
@@ -297,14 +397,12 @@ export async function createApp(config) {
     if (problem) return sendError(res, 400, problem);
     if (req.body?.password !== req.body?.confirm) return sendError(res, 400, "The two passwords do not match.");
     db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(await hashPassword(req.body.password), user.id);
-    const token = readCookie(req, "strata_session");
-    db.prepare("DELETE FROM sessions WHERE user_id = ? AND token_hash <> ?").run(user.id, hashToken(token));
     audit(db, { actorId: user.id, organisationId: user.organisation_id, action: "account.password_changed", subjectType: "user", subjectId: user.id, detail: {} });
-    res.json({ ok: true, message: "Password changed. The old password no longer works." });
+    res.json({ ok: true, message: "Password changed. The old password no longer works for a new sign-in. Other devices stay signed in until they sign out." });
   });
 
   app.get("/api/me/export", requireUser, (req, res) => {
-    const notes = db.prepare("SELECT id, body, author_name, created_at FROM notes WHERE organisation_id = ? ORDER BY created_at").all(req.user.organisation_id);
+    const notes = db.prepare("SELECT id, body, author_name, notice_on, created_at FROM notes WHERE organisation_id = ? ORDER BY created_at").all(req.user.organisation_id);
     const privacy = db.prepare("SELECT id, kind, detail, status, created_at FROM privacy_requests WHERE user_id = ?").all(req.user.id);
     res.json({
       exportedAt: new Date().toISOString(),
@@ -331,7 +429,8 @@ export async function createApp(config) {
   });
 
   app.get("/api/notes", requireUser, (req, res) => {
-    const rows = db.prepare("SELECT id, author_name, body, created_at FROM notes WHERE organisation_id = ? ORDER BY created_at DESC").all(req.user.organisation_id);
+    if (req.user.role === "contractor") return res.json({ notes: [] });
+    const rows = db.prepare("SELECT id, author_name, body, notice_on, created_at FROM notes WHERE organisation_id = ? ORDER BY created_at DESC").all(req.user.organisation_id);
     res.json({ notes: rows });
   });
 
@@ -340,12 +439,15 @@ export async function createApp(config) {
     const body = String(req.body?.text || "").trim();
     if (!body) return sendError(res, 400, "Write a short note first.");
     if (body.length > 2000) return sendError(res, 400, "Keep the note under 2,000 characters.");
+    const noticeOn = req.body?.date ? calendarDate(req.body.date) : melbourneToday();
+    if (!noticeOn) return sendError(res, 400, "Choose a real day.");
     const id = newId();
     const now = new Date().toISOString();
-    db.prepare("INSERT INTO notes (id, organisation_id, author_id, author_name, body, created_at) VALUES (?, ?, ?, ?, ?, ?)")
-      .run(id, req.user.organisation_id, req.user.id, req.user.name, body, now);
-    audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "note.added", subjectType: "note", subjectId: id, detail: {} });
-    res.status(201).json({ note: { id, author_name: req.user.name, body, created_at: now } });
+    const author = req.user.name;
+    db.prepare("INSERT INTO notes (id, organisation_id, author_id, author_name, body, notice_on, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(id, req.user.organisation_id, req.user.id, author, body, noticeOn, now);
+    audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "note.added", subjectType: "note", subjectId: id, detail: { noticeOn } });
+    res.status(201).json({ note: { id, author_name: author, body, notice_on: noticeOn, created_at: now } });
   });
 
   registerBuildingRoutes(app, { db, sendError, requireUser, requireJson });

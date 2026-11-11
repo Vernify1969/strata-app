@@ -295,6 +295,17 @@ function migrate(db) {
     `);
     db.exec("PRAGMA user_version = 5");
   }
+  if (userVersion(db) < 6) {
+    db.exec(`
+      ALTER TABLE notes ADD COLUMN notice_on TEXT NOT NULL DEFAULT '';
+      UPDATE notes SET notice_on = substr(created_at, 1, 10) WHERE notice_on = '';
+      ALTER TABLE users ADD COLUMN preferences TEXT NOT NULL DEFAULT '{}';
+      ALTER TABLE sessions ADD COLUMN label TEXT NOT NULL DEFAULT '';
+      ALTER TABLE sessions ADD COLUMN last_seen_at TEXT NOT NULL DEFAULT '';
+      ALTER TABLE sessions ADD COLUMN keep_signed_in INTEGER NOT NULL DEFAULT 0;
+    `);
+    db.exec("PRAGMA user_version = 6");
+  }
 }
 
 export function audit(db, event) {
