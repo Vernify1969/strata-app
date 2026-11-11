@@ -403,10 +403,14 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
 .hero h1, .hero p, .hero .lead { color: #fff; }
 .hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); }
 .eyebrow { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #DBEAFE; }
-.hero .btn-primary {
-  margin-top: 18px; width: auto; min-width: 180px;
-  background: #fff; color: #0E2A66;
-  box-shadow: 0 10px 24px rgba(0,0,0,.18);
+.btn.request-bar {
+  min-height: 64px;
+  border-radius: 16px;
+  padding: 16px 22px;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  box-shadow: 0 12px 28px rgba(29, 78, 216, 0.32);
 }
 .hero-stat { margin: 12px 0 0; font-size: 1.05rem; color: #E0EAFF; }
 .hero-stat strong { font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 2.6rem; font-weight: 500; line-height: 1; letter-spacing: -0.03em; color: #fff; margin-right: 6px; vertical-align: -6px; }
@@ -427,7 +431,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
 @media (max-width: 700px) {
   .hero { padding: 22px 20px 18px; }
   .hero h1 { font-size: 2.05rem; }
-  .hero .btn-primary { margin-top: 14px; }
+  .btn.request-bar { min-height: 60px; font-size: 1.05rem; }
 }
 .tile {
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 30px rgba(29, 78, 216, 0.08);
@@ -547,7 +551,7 @@ button.stat { cursor: pointer; }
 :root[data-theme="dark"] .ring.gold .ring-fg { stroke: #E4C36A; }
 :root[data-theme="dark"] .avatar { color: #E8F0FA; }
 :root[data-theme="dark"] .btn-primary { background: linear-gradient(180deg, #DBEAFE, #93C5FD); color: #0B1020; }
-:root[data-theme="dark"] .hero .btn-primary { background: #fff; color: #0E2A66; }
+:root[data-theme="dark"] .btn.request-bar { box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35); }
 :root[data-theme="dark"] .tile .bubble {
   background: linear-gradient(165deg, hsl(var(--hue) 32% 26%), hsl(var(--hue) 28% 16%));
   color: hsl(var(--hue) 70% 88%);
@@ -1456,7 +1460,8 @@ const PHOTOS = {
       '<button class="stat" type="button" data-act="tab" data-screen="calendar">' + ring(owned.length ? upcoming.length / owned.length : 0, "teal") + '<span><p class="stat-k">Upcoming</p><p class="stat-v">' + upcoming.length + '</p><p class="small">Booked on your buildings</p></span></button>' +
       '<div class="stat">' + ring(heldRatio, "gold") + '<span><p class="stat-k">Money held</p><p class="stat-v">' + moneyShort(held) + '</p><p class="small">Held until the work is finished</p></span></div>' +
       "</div>";
-    const primary = '<div class="home-primary stack"><section class="hero' + heroPhoto + '><p class="eyebrow">For managers</p><h1>What do you need?</h1><p>Describe the job. A licensed contractor can make an offer.</p><button class="btn btn-primary" type="button" data-act="new-request">New request</button></section>' +
+    const primary = '<div class="home-primary stack"><section class="hero' + heroPhoto + '><p class="eyebrow">For managers</p><h1>What do you need?</h1><p>Describe the job. A licensed contractor can make an offer.</p></section>' +
+      '<button class="btn btn-primary request-bar" type="button" data-act="new-request">New request</button>' +
       stats +
       '<div class="dash">' + noticeProfile() + "</div>" +
       '<div class="trade-grid">' + tiles + "</div>" +
