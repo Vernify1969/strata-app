@@ -163,6 +163,71 @@ function migrate(db) {
     for (const code of STARTING_POSTCODES) postcode.run(code);
     db.exec("PRAGMA user_version = 2");
   }
+  if (userVersion(db) < 3) {
+    db.exec(`
+      ALTER TABLE users ADD COLUMN base_postcode TEXT NOT NULL DEFAULT '';
+      ALTER TABLE users ADD COLUMN trades TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE users ADD COLUMN gst_registered INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE buildings ADD COLUMN dep_cap INTEGER;
+      CREATE TABLE jobs (
+        id TEXT PRIMARY KEY,
+        organisation_id TEXT NOT NULL REFERENCES organisations(id),
+        building_id TEXT NOT NULL REFERENCES buildings(id),
+        created_by TEXT NOT NULL REFERENCES users(id),
+        title TEXT NOT NULL,
+        area TEXT NOT NULL,
+        trade_id TEXT NOT NULL,
+        instructions TEXT NOT NULL DEFAULT '',
+        urgency TEXT NOT NULL DEFAULT 'standard',
+        stage TEXT NOT NULL DEFAULT 'open',
+        approved_cents INTEGER,
+        awarded_quote_id TEXT,
+        contractor_user_id TEXT,
+        needs_prepay INTEGER NOT NULL DEFAULT 0,
+        pay_after INTEGER NOT NULL DEFAULT 1,
+        quote_deadline TEXT,
+        review_ends_at TEXT,
+        fewer_reason TEXT NOT NULL DEFAULT '',
+        owner_approval INTEGER NOT NULL DEFAULT 0,
+        approvals TEXT NOT NULL DEFAULT '{}',
+        payload TEXT NOT NULL DEFAULT '{}',
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX jobs_org ON jobs(organisation_id);
+      CREATE INDEX jobs_building ON jobs(building_id);
+      CREATE TABLE quotes (
+        id TEXT PRIMARY KEY,
+        job_id TEXT NOT NULL REFERENCES jobs(id),
+        contractor_user_id TEXT NOT NULL REFERENCES users(id),
+        price_cents INTEGER NOT NULL,
+        deposit_type TEXT NOT NULL DEFAULT 'none',
+        deposit_cents INTEGER NOT NULL DEFAULT 0,
+        start_date TEXT NOT NULL,
+        start_time TEXT NOT NULL,
+        duration TEXT NOT NULL DEFAULT '2h',
+        scope TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'open',
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE job_messages (
+        id TEXT PRIMARY KEY,
+        job_id TEXT NOT NULL REFERENCES jobs(id),
+        contractor_user_id TEXT NOT NULL,
+        author_user_id TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE job_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        job_id TEXT NOT NULL,
+        at TEXT NOT NULL,
+        actor_name TEXT NOT NULL,
+        body TEXT NOT NULL
+      );
+    `);
+    db.exec("PRAGMA user_version = 3");
+  }
 }
 
 export function audit(db, event) {

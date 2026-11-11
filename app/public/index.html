@@ -2029,6 +2029,7 @@ const PHOTOS = {
     return "";
   }
   function postDraft() {
+    if (state.remote && window.StrataWire) return window.StrataWire.postDraft();
     const d = state.draft;
     for (let s = 1; s <= 5; s++) {
       state.step = s;
@@ -2568,7 +2569,9 @@ const PHOTOS = {
       areaField("Short description", "me.description", c.description) +
       field("Years in the trade", "number", "me.years", c.years) + preview +
       '<label class="check"><input type="checkbox" data-field="me.consent"' + (c.consentPublic ? " checked" : "") + "> <span>I agree that my verification, description and years in the trade are visible to managers before a quote is approved.</span></label>" +
+      field("Postcode you work from", "text", "me.postcode", c.basePostcode || "") +
       '<h2>Trades I offer</h2><div class="row">' + trades + "</div>" +
+      '<button class="btn btn-ghost" type="button" data-act="sign-out">Sign out</button>' +
       '<div class="card stack"><h2>Get paid</h2><span class="demo">Demo</span><p>Bank account ending ' + esc(c.bankLast4) + ".</p><p>Strata App never sees or stores the account number. A payment provider holds it.</p></div>" +
       '<div class="card stack"><h2>Safety guide</h2><p>' + (c.guideDone ? "Done." : "Not done yet.") + '</p><button class="btn btn-secondary" type="button" data-act="open-guide">' + (c.guideDone ? "Read it again" : "Open the safety guide") + "</button></div></div>";
   }
@@ -2712,6 +2715,7 @@ const PHOTOS = {
       const key = field.split(".")[1];
       if (key === "description") c.description = value;
       if (key === "years") c.years = Number(value) || 0;
+      if (key === "postcode") c.basePostcode = value;
       if (key === "consent") c.consentPublic = !!value;
       if (key === "expired") state.insExpiredDemo = !!value;
       return true;
@@ -2987,6 +2991,7 @@ const PHOTOS = {
     render();
   }
   function sendOffer(jobId) {
+    if (state.remote && window.StrataWire) return window.StrataWire.sendOffer(jobId);
     const job = jobById(jobId);
     const o = state.offer;
     const reason = blockReason(job);
@@ -3014,6 +3019,7 @@ const PHOTOS = {
     render();
   }
   function doApprove(quoteId) {
+    if (state.remote && window.StrataWire) return window.StrataWire.doApprove(quoteId);
     const q = quoteById(quoteId);
     const job = jobById(q.jobId);
     const p = placeOf(job);
@@ -3032,6 +3038,7 @@ const PHOTOS = {
     render();
   }
   function doPay(jobId) {
+    if (state.remote) { toast("Stripe is not connected yet. Nothing has been marked paid."); return; }
     const job = jobById(jobId);
     if (!state.payMethod) { toast("Choose bank transfer or card."); return; }
     job.stage = "paid";

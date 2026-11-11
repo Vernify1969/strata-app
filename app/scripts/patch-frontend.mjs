@@ -341,6 +341,43 @@ swap(
 );
 
 swap(
+  "  function postDraft() {",
+  "  function postDraft() {\n    if (state.remote && window.StrataWire) return window.StrataWire.postDraft();",
+  "post draft"
+);
+swap(
+  "  function sendOffer(jobId) {",
+  "  function sendOffer(jobId) {\n    if (state.remote && window.StrataWire) return window.StrataWire.sendOffer(jobId);",
+  "send offer"
+);
+swap(
+  "  function doApprove(quoteId) {",
+  "  function doApprove(quoteId) {\n    if (state.remote && window.StrataWire) return window.StrataWire.doApprove(quoteId);",
+  "approve"
+);
+swap(
+  "  function doPay(jobId) {",
+  "  function doPay(jobId) {\n    if (state.remote) { toast(\"Stripe is not connected yet. Nothing has been marked paid.\"); return; }",
+  "block fake pay"
+);
+swap(
+  `      '<h2>Trades I offer</h2><div class="row">' + trades + "</div>" +`,
+  `      field("Postcode you work from", "text", "me.postcode", c.basePostcode || "") +
+      '<h2>Trades I offer</h2><div class="row">' + trades + "</div>" +
+      '<button class="btn btn-ghost" type="button" data-act="sign-out">Sign out</button>' +`,
+  "contractor postcode"
+);
+swap(
+  `      if (key === "description") c.description = value;
+      if (key === "years") c.years = Number(value) || 0;
+      if (key === "consent") c.consentPublic = !!value;`,
+  `      if (key === "description") c.description = value;
+      if (key === "years") c.years = Number(value) || 0;
+      if (key === "postcode") c.basePostcode = value;
+      if (key === "consent") c.consentPublic = !!value;`,
+  "postcode field"
+);
+swap(
   `      if (key === "weekends") b.weekends = !!value;
       else if (key === "limit" || key === "captureM") b[key] = Number(value);
       else b[key] = value;
