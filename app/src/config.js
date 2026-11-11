@@ -49,6 +49,11 @@ export function loadConfig(overrides = {}) {
     },
     stripeSecretKey: demoMode ? "" : (process.env.STRIPE_SECRET_KEY || ""),
     stripePublishableKey: demoMode ? "" : (process.env.STRIPE_PUBLISHABLE_KEY || ""),
-    stripeWebhookSecret: demoMode ? "" : (process.env.STRIPE_WEBHOOK_SECRET || "")
+    stripeWebhookSecret: demoMode ? "" : (process.env.STRIPE_WEBHOOK_SECRET || ""),
+    commissionPercent: Number(process.env.COMMISSION_PERCENT || 15),
+    urgentFeeCents: Number(process.env.URGENT_FEE_CENTS || 2500),
+    apartmentFeeCents: Number(process.env.APARTMENT_FEE_CENTS || 0),
+    apartmentFeeEnabled: process.env.APARTMENT_FEE_ENABLED === "1",
+    documentsPath: overrides.documentsPath || process.env.DOCUMENTS_PATH || path.join(root, "var", "documents")
   };
 }

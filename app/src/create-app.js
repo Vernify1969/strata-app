@@ -10,7 +10,8 @@ import {
 } from "./ids.js";
 import { registerBuildingRoutes } from "./buildings.js";
 import { registerJobRoutes } from "./jobs.js";
-import { handleStripeWebhook, registerPaymentRoutes } from "./payments.js";
+import { handleStripeWebhook, ensureMoneySettings, moneySettings, registerPaymentRoutes } from "./payments.js";
+import { registerDocumentRoutes } from "./documents.js";
 import { registerQrRoutes } from "./qr.js";
 import { seedDemo } from "./demo-seed.js";
 
@@ -451,19 +452,41 @@ export async function createApp(config) {
   });
 
   registerBuildingRoutes(app, { db, sendError, requireUser, requireJson });
-  registerJobRoutes(app, { db, sendError, requireUser, requireJson });
+  ensureMoneySettings(db, config);
+  registerJobRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerPaymentRoutes(app, { db, config, sendError, requireUser, requireJson });
+  registerDocumentRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
   registerQrRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
 
   app.get("/api/owner/settings", requireUser, (req, res) => {
     if (req.user.role !== "platform_owner") return sendError(res, 403, "Only the platform owner can open these settings.");
     audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "owner.settings_viewed", subjectType: "owner", subjectId: req.user.id, detail: {} });
+    const settings = moneySettings(db, config);
     res.json({
-      feePercent: 15,
+      feePercent: settings.commissionPercent,
       gstOnFee: false,
       maxPayDays: 14,
-      message: "These settings are stored for the platform owner only. Managers and contractors cannot open this screen."
+      urgentFeeCents: settings.urgentFeeCents,
+      apartmentFeeCents: settings.apartmentFeeCents,
+      apartmentFeeEnabled: settings.apartmentFeeEnabled,
+      apartmentFeeCharged: false,
+      message: "These settings are stored for the platform owner only. The per-apartment fee is off, so nothing is charged. Managers and contractors cannot open this screen."
     });
+  });
+
+  app.patch("/api/owner/settings", requireJson, requireUser, (req, res) => {
+    if (req.user.role !== "platform_owner") return sendError(res, 403, "Only the platform owner can change these settings.");
+    const current = moneySettings(db, config);
+    const commission = req.body?.commissionPercent == null ? current.commissionPercent : Number(req.body.commissionPercent);
+    const urgent = req.body?.urgentFeeCents == null ? current.urgentFeeCents : Number(req.body.urgentFeeCents);
+    const apartment = req.body?.apartmentFeeCents == null ? current.apartmentFeeCents : Number(req.body.apartmentFeeCents);
+    const enabled = req.body?.apartmentFeeEnabled == null ? current.apartmentFeeEnabled : !!req.body.apartmentFeeEnabled;
+    if (!Number.isInteger(commission) || commission < 0 || commission > 30) return sendError(res, 400, "Commission is a whole number from 0 to 30.");
+    if (!Number.isInteger(urgent) || urgent < 0) return sendError(res, 400, "The urgent fee is a number of cents.");
+    if (!Number.isInteger(apartment) || apartment < 0) return sendError(res, 400, "The apartment fee is a number of cents.");
+    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, apartment_fee_cents = ?, apartment_fee_enabled = ? WHERE id = 'main'`)
+      .run(commission, urgent, apartment, enabled ? 1 : 0);
+    res.json({ ...moneySettings(db, config), apartmentFeeCharged: false });
   });
 
   app.use("/api", (req, res) => {

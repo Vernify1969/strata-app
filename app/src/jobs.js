@@ -1,5 +1,7 @@
 import { audit } from "./db.js";
+import { complianceBlock } from "./documents.js";
 import { abnOk, newId } from "./ids.js";
+import { moneySettings } from "./payments.js";
 import { approvalFor, depositAllowed, depositCents, hasContact, invoiceDecision, reviewEndsAt } from "./rules.js";
 
 // TODO(owner): refunds are not built. A cancellation before arrival should refund through Stripe once you decide the policy.
@@ -9,7 +11,7 @@ import { approvalFor, depositAllowed, depositCents, hasContact, invoiceDecision,
 
 const MANAGER = new Set(["building_manager", "oc_manager", "property_manager"]);
 
-export function registerJobRoutes(app, { db, sendError, requireUser, requireJson }) {
+export function registerJobRoutes(app, { db, config = {}, sendError, requireUser, requireJson }) {
   app.patch("/api/me/work", requireJson, requireUser, (req, res) => {
     if (req.user.role !== "contractor") return sendError(res, 403, "Only a contractor sets trades and a work postcode.");
     const trades = Array.isArray(req.body?.trades) ? req.body.trades.map(String) : [];
@@ -75,6 +77,8 @@ export function registerJobRoutes(app, { db, sendError, requireUser, requireJson
 
   app.post("/api/jobs/:id/quotes", requireJson, requireUser, (req, res) => {
     if (req.user.role !== "contractor") return sendError(res, 403, "Only a contractor can make an offer.");
+    const blocked = complianceBlock(db, req.user.id, new Date().toISOString().slice(0, 10));
+    if (blocked) return sendError(res, 403, blocked);
     const job = jobById(db, req.params.id);
     if (!job || job.stage !== "open") return sendError(res, 404, "That job is not open for offers.");
     const trades = JSON.parse(req.user.trades || "[]");
@@ -131,7 +135,17 @@ export function registerJobRoutes(app, { db, sendError, requireUser, requireJson
     db.prepare("UPDATE quotes SET status = 'awarded' WHERE id = ?").run(quote.id);
     addEvent(db, job.id, req.user.name, prepay ? "Quote approved. Payment before the start is still unpaid." : "Quote approved. Nothing is paid before the work.");
     audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "job.approved", subjectType: "job", subjectId: job.id, detail: { prepay, quoteId: quote.id } });
-    res.json({ stage: prepay ? "approved" : "paid", paid: false });
+    const settings = moneySettings(db, config);
+    const urgent = job.urgency === "urgent" || job.urgency === "after_hours";
+    res.json({
+      stage: prepay ? "approved" : "paid",
+      paid: false,
+      urgent,
+      urgentFeeCents: urgent ? settings.urgentFeeCents : 0,
+      commissionPercent: settings.commissionPercent,
+      shownBeforeApproval: true,
+      // TODO(owner): refunds and disputes are not decided. Do not refund or judge from this approval.
+    });
   });
 
   app.post("/api/jobs/:id/messages", requireJson, requireUser, (req, res) => {
