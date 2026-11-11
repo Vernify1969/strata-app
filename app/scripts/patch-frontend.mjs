@@ -1,0 +1,317 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const source = fs.readFileSync(path.resolve(here, "../../index.html"), "utf8");
+let html = source;
+
+function swap(from, to, label) {
+  if (!html.includes(from)) throw new Error("Missing patch: " + label);
+  html = html.replace(from, to);
+}
+
+swap(
+  '<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>\n<script>',
+  '<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>\n<script src="/wire.js"></script>\n<script>',
+  "wire script"
+);
+
+swap(
+  "    seq: 1\n  };",
+  "    seq: 1,\n    remote: false,\n    account: null,\n    auth: { kind: \"manager\", role: \"building_manager\", name: \"\", email: \"\", mobile: \"\", password: \"\", confirm: \"\", businessName: \"\", agree: false, current: \"\", token: \"\", keep: true },\n    pendingEmail: \"\",\n    checkMessage: \"\"\n  };",
+  "state fields"
+);
+
+swap(
+  'if (!m.consent) items.push("Agree to prepay approved quotes");',
+  'if (!m.consent) items.push("Agree to pay approved payment requests through Stripe");',
+  "profile checklist"
+);
+
+swap(
+  '<label class="check"><input type="checkbox" data-field="manager.consent"\' + (m.consent ? " checked" : "") + \'> <span>I consent to prepay approved quotes, or pay the invoice, within 48 hours before a job starts. Strata App holds the money until the job is complete.</span></label>\' +',
+  '<label class="check"><input type="checkbox" data-field="manager.consent"\' + (m.consent ? " checked" : "") + \'> <span>I consent to pay approved payment requests through Stripe within the agreed terms. Strata App does not hold the money.</span></label>\' +',
+  "consent sentence"
+);
+
+swap(
+  '"<p class=\\"small muted\\">Strata App holds the money until the job is finished, then releases 100%. There is no retention. Managers pay the approved quote and no service fee.</p></div></div>";',
+  '"<p class=\\"small muted\\">Stripe holds and moves the money. Strata App does not hold it. The fee is taken from the contractor only. Managers pay no fee. Refunds, disputes and unpaid-deposit expiry are not built yet.</p></div></div>";',
+  "owner money sentence"
+);
+
+swap(
+  '["buildings", "Buildings", 0],',
+  '["buildings", state.manager.role === "property" ? "Properties" : "Buildings", 0],',
+  "properties tab"
+);
+
+swap(
+  `    if (detail) {
+      bar = '<button class="back-btn" type="button" data-act="back" aria-label="Back">' + icon("back") + " Back</button><h1 class=\\"top-title\\">" + esc(state.title || "Back") + "</h1>";
+    } else {
+      bar = brandMark() + '<div class="section-label">' + esc(section || "Strata App") + '</div><div class="spacer"></div><div class="roles" role="group" aria-label="Choose who you are"><button type="button" data-act="role" data-role="manager" aria-pressed="' + (state.role === "manager" ? "true" : "false") + '">Manager</button><button type="button" data-act="role" data-role="contractor" aria-pressed="' + (state.role === "contractor" ? "true" : "false") + '">Contractor</button></div>';
+    }`,
+  `    const onAuth = ["welcome", "signin", "register", "checkmail", "forgot", "reset", "terms"].indexOf(state.screen) !== -1;
+    if (onAuth) {
+      bar = brandMark();
+    } else if (detail) {
+      bar = '<button class="back-btn" type="button" data-act="back" aria-label="Back">' + icon("back") + " Back</button><h1 class=\\"top-title\\">" + esc(state.title || "Back") + "</h1>";
+    } else if (state.account) {
+      bar = brandMark() + '<div class="section-label">' + esc(section || "Strata App") + '</div><div class="spacer"></div><div class="roles"><span class="pill pill-muted">' + esc(state.account.roleLabel) + "</span></div>";
+    } else {
+      bar = brandMark() + '<div class="section-label">' + esc(section || "Strata App") + '</div><div class="spacer"></div><div class="roles" role="group" aria-label="Choose who you are"><button type="button" data-act="role" data-role="manager" aria-pressed="' + (state.role === "manager" ? "true" : "false") + '">Manager</button><button type="button" data-act="role" data-role="contractor" aria-pressed="' + (state.role === "contractor" ? "true" : "false") + '">Contractor</button></div>';
+    }`,
+  "header role"
+);
+
+swap(
+  `    const emergencyBtn = state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
+    return '<div class="shell" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
+      '<aside class="rail">' + brandMark() + tabsHtml("rail") + "</aside>" +
+      '<div><header class="topbar">' + bar + (detail ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + themeBtn + emergencyBtn + "</div></header><p class=\\"samplebar\\">Sample data. The people, buildings and jobs are fictional.</p>" +
+      '<main class="main" id="main"><div class="stage"><div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>' + screenHtml() + "</div></main></div></div>" +
+      '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>";`,
+  `    const emergencyBtn = onAuth || state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
+    const sample = onAuth ? "" : '<p class="samplebar">' + (state.account ? esc(state.account.banner || "Signed in.") : "Sample data. The people, buildings and jobs are fictional.") + "</p>";
+    const rail = onAuth ? "" : '<aside class="rail">' + brandMark() + tabsHtml("rail") + "</aside>";
+    const nav = onAuth ? "" : '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>";
+    return '<div class="shell" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
+      rail +
+      '<div><header class="topbar">' + bar + (detail && !onAuth ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + themeBtn + emergencyBtn + "</div></header>" + sample +
+      '<main class="main" id="main"><div class="stage"><div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>' + screenHtml() + "</div></main></div></div>" +
+      nav;`,
+  "shell chrome"
+);
+
+swap(
+  `      success: successScreen
+    };`,
+  `      success: successScreen,
+      welcome: authScreen,
+      signin: authScreen,
+      register: authScreen,
+      checkmail: authScreen,
+      forgot: authScreen,
+      reset: authScreen,
+      terms: authScreen,
+      password: passwordScreen
+    };`,
+  "auth screens"
+);
+
+swap(
+  `  function screenHtml() {`,
+  `  function authScreen() {
+    const a = state.auth;
+    const kindBtn = (id, label) => '<button class="chip" type="button" data-act="auth-kind" data-kind="' + id + '" aria-pressed="' + (a.kind === id ? "true" : "false") + '">' + label + "</button>";
+    const roleBtn = (id, label) => '<button class="chip" type="button" data-act="auth-role" data-role="' + id + '" aria-pressed="' + (a.role === id ? "true" : "false") + '">' + label + "</button>";
+    if (state.screen === "welcome") {
+      return '<div class="stack" style="max-width:560px;margin:0 auto"><section class="hero"><p class="eyebrow">Strata App</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. Strata App does not.</p></section>' +
+        '<button class="btn btn-primary" type="button" data-act="auth-goto" data-screen="register">Create an account</button>' +
+        '<button class="btn btn-secondary" type="button" data-act="auth-goto" data-screen="signin">Sign in</button>' +
+        '<div class="card stack"><p>Building managers and OC managers look after apartment buildings and common property. Property managers look after private rental properties. Contractors do the work. An account is one of these, not more than one.</p><p class="small muted">The terms and privacy summary are a draft for a solicitor to review.</p><button class="btn btn-ghost" type="button" data-act="auth-goto" data-screen="terms">Read the terms and privacy summary</button></div></div>';
+    }
+    if (state.screen === "terms") {
+      return '<div class="stack"><div class="card stack"><h1>Terms and privacy summary</h1><p class="demo">Draft for a solicitor to review</p>' +
+        "<p>Strata App is a tool. It is not the contractor's employer. The contract is between the manager or owners corporation and the contractor.</p>" +
+        "<p>Stripe holds and moves money. Strata App does not hold it, does not judge the quality of the work, and does not decide disputes.</p>" +
+        "<p>You agree to pay approved payment requests through Stripe within the agreed terms. Managers pay no platform fee. The contractor fee is 15% of each payment, with GST on that fee switched off until the platform is registered.</p>" +
+        "<p>We collect the account details you type, and, on a public maintenance report, the description, photographs and contact details you choose to give. Reporter details are not passed to a contractor.</p>" +
+        '<button class="btn btn-secondary" type="button" data-act="auth-goto" data-screen="register">Back</button></div></div>';
+    }
+    if (state.screen === "checkmail") {
+      return '<div class="stack" style="max-width:560px;margin:0 auto"><section class="hero"><p class="eyebrow">Check your email</p><h1>Confirm the address, then sign in</h1><p>' + esc(state.checkMessage || "Open the confirmation link.") + "</p></section>" +
+        '<button class="btn btn-secondary" type="button" data-act="auth-resend">Send the link again</button>' +
+        '<button class="btn btn-primary" type="button" data-act="auth-goto" data-screen="signin">Sign in</button></div>';
+    }
+    if (state.screen === "signin") {
+      return '<div class="stack" style="max-width:560px;margin:0 auto"><h1>Sign in</h1><div class="card stack">' +
+        field("Email", "email", "auth.email", a.email) +
+        field("Password", "password", "auth.password", a.password) +
+        '<label class="check"><input type="checkbox" data-field="auth.keep"' + (a.keep !== false ? " checked" : "") + "> <span>Keep me signed in on this device</span></label>" +
+        '<button class="btn btn-primary" type="button" data-act="auth-signin">Sign in</button>' +
+        '<button class="btn btn-ghost" type="button" data-act="auth-goto" data-screen="forgot">Forgot your password?</button></div></div>';
+    }
+    if (state.screen === "forgot") {
+      return '<div class="stack" style="max-width:560px;margin:0 auto"><h1>Forgot your password?</h1><div class="card stack">' +
+        field("Email", "email", "auth.email", a.email) +
+        '<button class="btn btn-primary" type="button" data-act="auth-forgot">Send a reset link</button>' +
+        '<button class="btn btn-ghost" type="button" data-act="auth-goto" data-screen="signin">Back to sign in</button></div></div>';
+    }
+    if (state.screen === "reset") {
+      return '<div class="stack" style="max-width:560px;margin:0 auto"><h1>Choose a new password</h1><div class="card stack">' +
+        field("New password", "password", "auth.password", a.password) +
+        field("Confirm password", "password", "auth.confirm", a.confirm) +
+        '<p class="small muted">At least 8 characters, with letters and a number, and not containing the email.</p>' +
+        '<button class="btn btn-primary" type="button" data-act="auth-reset">Update password</button></div></div>';
+    }
+    const roles = a.kind === "manager"
+      ? '<span class="field">Your role</span><div class="row" role="group" aria-label="Your role">' + roleBtn("building_manager", "Building manager") + roleBtn("oc_manager", "OC manager") + roleBtn("property_manager", "Property manager") + '</div><p class="small muted">These are different roles. The account is one or the other.</p>'
+      : "";
+    return '<div class="stack" style="max-width:560px;margin:0 auto"><h1>Create an account</h1><div class="card stack">' +
+      '<span class="field">I am a</span><div class="row" role="group" aria-label="Account kind">' + kindBtn("manager", "Manager") + kindBtn("contractor", "Contractor") + "</div>" +
+      roles +
+      (a.kind === "contractor" ? field("Business name", "text", "auth.businessName", a.businessName) : "") +
+      field("Full name", "text", "auth.name", a.name) +
+      field("Email", "email", "auth.email", a.email) +
+      field("Mobile", "tel", "auth.mobile", a.mobile) +
+      field("Password", "password", "auth.password", a.password) +
+      field("Confirm password", "password", "auth.confirm", a.confirm) +
+      '<label class="check"><input type="checkbox" data-field="auth.agree"' + (a.agree ? " checked" : "") + '> <span>I agree to the terms and the privacy summary.</span></label>' +
+      '<button class="btn btn-ghost" type="button" data-act="auth-goto" data-screen="terms">Read the terms and privacy summary</button>' +
+      '<button class="btn btn-primary" type="button" data-act="auth-register">Create an account</button></div></div>';
+  }
+  function passwordScreen() {
+    const a = state.auth;
+    return '<div class="stack" style="max-width:560px"><h1>Change password</h1><div class="card stack">' +
+      field("Current password", "password", "auth.current", a.current || "") +
+      field("New password", "password", "auth.password", a.password) +
+      field("Confirm password", "password", "auth.confirm", a.confirm) +
+      '<button class="btn btn-primary" type="button" data-act="change-password">Change password</button></div></div>';
+  }
+  function screenHtml() {`,
+  "auth screen functions"
+);
+
+swap(
+  `'<p class="small muted">You have ' + state.buildings.length + (state.buildings.length === 1 ? " building" : " buildings") + " saved.</p>" +
+      '<button class="owner-link" type="button" data-act="owner">Owner settings (demo)</button></div>';`,
+  `'<p class="small muted">You have ' + state.buildings.length + (state.buildings.length === 1 ? " building" : " buildings") + " saved.</p>" +
+      '<div class="card stack"><h2>My account</h2><p class="small">' + esc(state.account ? state.account.email : m.email) + " · " + esc(state.account ? state.account.roleLabel : "Not signed in") + "</p>" +
+      '<button class="btn btn-secondary" type="button" data-act="open-password">Change password</button>' +
+      '<button class="btn btn-secondary" type="button" data-act="download-data">Download my data</button>' +
+      '<button class="btn btn-secondary" type="button" data-act="privacy-request" data-kind="copy">Send a privacy request</button>' +
+      '<button class="btn btn-ghost" type="button" data-act="sign-out">Sign out</button>' +
+      '<p class="small muted">A privacy reply is aimed for within 30 days. Some records must be kept. A solicitor must confirm that period.</p></div>' +
+      (state.account && state.account.role === "platform_owner" ? '<button class="owner-link" type="button" data-act="owner">Owner settings</button>' : "") + "</div>";`,
+  "account card"
+);
+
+swap(
+  '<h2 id="diary-title">Notices and comments</h2><span class="pill pill-muted">Sample</span>',
+  '<h2 id="diary-title">Notices and comments</h2>\' + (state.account ? "" : \'<span class="pill pill-muted">Sample</span>\') + \'',
+  "diary pill"
+);
+swap(
+  "Handover notes for managers who share this profile. Sample entries are fictional.",
+  "' + (state.account ? \"Notes for this organisation. They stay on the server and are not shown to other organisations.\" : \"Handover notes for managers who share this profile. Sample entries are fictional.\") + '",
+  "diary copy"
+);
+
+swap(
+  `    if (field.indexOf("manager.") === 0) {
+      const key = field.split(".")[1];
+      state.manager[key] = key === "consent" ? !!value : value;
+      return true;
+    }`,
+  `    if (field.indexOf("auth.") === 0) {
+      const key = field.split(".")[1];
+      state.auth[key] = key === "agree" || key === "keep" ? !!value : value;
+      return key === "agree" || key === "keep";
+    }
+    if (field.indexOf("manager.") === 0) {
+      const key = field.split(".")[1];
+      state.manager[key] = key === "consent" ? !!value : value;
+      if (state.remote && window.StrataWire) window.StrataWire.scheduleProfile();
+      return true;
+    }`,
+  "auth fields"
+);
+
+swap(
+  `    const act = t.dataset.act;
+    const keep = ["distance", "find-trade", "sort", "find-view", "toggle-filters", "show-booked", "people-trade", "pin"].indexOf(act) !== -1;`,
+  `    const act = t.dataset.act;
+    if (window.StrataWire && window.StrataWire.handle(act, t)) return;
+    const keep = ["distance", "find-trade", "sort", "find-view", "toggle-filters", "show-booked", "people-trade", "pin"].indexOf(act) !== -1;`,
+  "wire clicks"
+);
+
+swap(
+  `    if (act === "role") {
+      state.role = t.dataset.role;`,
+  `    if (act === "role") {
+      if (state.account) { toast("This account stays as " + state.account.roleLabel + "."); return; }
+      state.role = t.dataset.role;`,
+  "role lock"
+);
+
+swap(
+  `      state.role = "contractor";
+      state.screen = "find";`,
+  `      if (!state.account) state.role = "contractor";
+      state.screen = "find";`,
+  "search role"
+);
+
+swap(
+  "You have 48 hours (",
+  "You have 72 hours (",
+  "review sentence"
+);
+
+swap(
+  "48 * 3600000",
+  "72 * 3600000",
+  "review clock"
+);
+
+swap(
+  'Skip the 48 hours <span class="demo">Demo</span>',
+  'End the review <span class="demo">Demo</span>',
+  "skip label"
+);
+
+swap(
+  "The manager has 48 hours.",
+  "The manager has 72 hours.",
+  "submit toast"
+);
+
+swap(
+  "The manager has another 48 hours.",
+  "The manager has another 72 hours.",
+  "fix toast"
+);
+
+swap(
+  "They have 48 hours to accept or challenge.",
+  "They have 72 hours to accept or challenge. If that lands on a weekend or public holiday, it stays open until 5 pm on the next working day.",
+  "contractor review"
+);
+
+swap(
+  "The 48 hours ended with no response, so the work was accepted.",
+  "The 72 hours ended with no response, so the work was accepted.",
+  "skip log"
+);
+
+swap(
+  `  loadTheme();
+  seed();
+  seedNotes();
+  applyTheme();
+  render();`,
+  `  loadTheme();
+  applyTheme();
+  if (window.StrataWire) {
+    window.StrataWire.boot({ state: state, render: render, toast: toast, seed: seed, seedNotes: seedNotes });
+  } else {
+    seed();
+    seedNotes();
+    render();
+  }`,
+  "boot"
+);
+
+swap(
+  "<h1>Buildings</h1>",
+  "<h1>' + (state.manager.role === \"property\" ? \"Properties\" : \"Buildings\") + '</h1>",
+  "buildings heading"
+);
+
+const out = path.resolve(here, "../public/index.html");
+fs.writeFileSync(out, html);
+console.log("wrote", out, "bytes", html.length);

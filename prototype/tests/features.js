@@ -1,0 +1,96 @@
+const {JSDOM}=require('jsdom');const fs=require('fs'),path=require('path');
+const html=fs.readFileSync(process.env.APP||path.join(__dirname,'..','taskspeck-managers.html'),'utf8');
+let fail=0;const ok=(c,m)=>{if(!c){fail++;console.log('FAIL',m)}else console.log('ok  ',m)};
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const mk=(url)=>{const errs=[];const dom=new JSDOM(html,{runScripts:'dangerously',pretendToBeVisual:true,url:url||'https://example.org/?demo=1',beforeParse(w){w.addEventListener('error',e=>errs.push(e.message))}});const w=dom.window,d=w.document;return{w,d,errs,$:s=>d.querySelector(s),$$:s=>[...d.querySelectorAll(s)],ev:c=>w.eval(c),txt:()=>d.querySelector('#view').textContent.replace(/\s+/g,' '),click:s=>{const e=typeof s==='string'?d.querySelector(s):s;if(!e)throw new Error('missing '+s);e.click()},inp:(e,v)=>{e.value=v;e.dispatchEvent(new w.Event('input',{bubbles:true}))},chg:(e,v)=>{e.value=v;e.dispatchEvent(new w.Event('change',{bubbles:true}))},chk:(e,v)=>{e.checked=v;e.dispatchEvent(new w.Event('change',{bubbles:true}))},toast:()=>d.querySelector('#toast').textContent}};
+const PROF="S.prof.role='OC manager';S.prof.pay='bank';S.prof.consent=true;S.prof.abn='12 345 678 319';S.prof.billing='a@b.co';S.prof.oc='OC (sample)';";
+(async()=>{try{
+ let I=mk();await sleep(300);const ev=c=>I.ev(c);ev(PROF);
+ // ===== search =====
+ ev("S.stack=[];S.tab.manager='jobs';render()");
+ ok(I.$('#jq')&&/Search jobs/.test(I.txt())&&I.$$('#jres h2').length>=2,'the Jobs list has a search box above the groups');
+ const find=q=>{I.inp(I.$('#jq'),q);return I.$$('#jres [data-a=mjob]').map(b=>b.dataset.v)};
+ ok(find('tap').length>=1&&find('tap').every(id=>/tap/i.test(ev("(j=>j.title+' '+j.area+' '+j.instr)(job('"+id+"'))"))),'searching a word finds the jobs that mention it');
+ ok(/found/.test(I.txt())&&I.$$('#jres h2').length===1,'the results replace the groups and say how many were found');
+ const byBld=find('Park Terrace');ok(byBld.length>=1&&byBld.every(id=>ev("job('"+id+"').bid")==='b3'),'a building name finds its jobs');
+ const wo=ev("job('m4').wo");ok(find(wo).includes('m4')&&find(wo).length===1,'a work order number finds that job');
+ const cn=ev("(CON[job('m4').con]||{}).name");ok(find(cn.split(' ')[0]).includes('m4'),'a contractor name finds their jobs');
+ ok(find('zzzz').length===0&&/No jobs match/.test(I.txt()),'nothing matching says so');
+ ok(find('').length>0&&I.$$('#jres h2').length>=2,'clearing the box brings the groups back');
+ ev("S.jobB='b3';S.jq='';render()");ok(find('Plant').every(id=>ev("job('"+id+"').bid")==='b3'),'with a building chosen, the search stays inside it');ev("S.jobB='all';S.jq='';render()");I.w.close();
+ I=mk('https://example.org/?demo=property');await sleep(300);I.ev("S.stack=[];S.tab.manager='jobs';render()");ok(!!I.$('#jq')&&/property/.test(I.$('#jq').placeholder),'property managers have it too, in property words');I.w.close();
+ // ===== help and notification settings =====
+ I=mk();await sleep(300);I.ev(PROF);I.ev("S.stack=[];S.tab.manager='mprof';render()");
+ ok(!!I.$('[data-a=help]')&&!!I.$('[data-a=notify]')&&/Help and settings/.test(I.txt()),'Profile has Help and support and Notification settings');
+ I.click('[data-a=help]');let t=I.txt();
+ ok(/In an emergency call 000/.test(t)&&/support@your-domain\.example/.test(t)&&/placeholder/.test(t)&&I.$$('#view details').length===7&&/Managers pay nothing\. Contractors pay a 15% fee/.test(t)&&/72 hours/.test(t),'the help page puts 000 first, gives a placeholder contact and answers seven common questions');
+ ok(/Help and support/.test(I.d.querySelector('#top').textContent),'with its own title and a back arrow');I.ev("A.back()");
+ I.click('[data-a=notify]');t=I.txt();
+ ok(['A quote arrives','The contractor hands in work to review','A payment is due or overdue','A new QR report arrives','An invoice is late','A message arrives'].every(x=>t.includes(x))&&/Urgent and emergency alerts/.test(t)&&I.$('input[disabled][checked]'),'managers choose what they are told about, and urgent and emergency alerts are always on');
+ I.chk(I.$('[data-nf="ch.sms"]'),true);I.chk(I.$('[data-nf="ev.late"]'),false);
+ ok(I.ev("S.prof.nf.ch.sms")===true&&I.ev("S.prof.nf.ev.late")===false&&I.ev("S.prof.nf.ch.email")===true&&I.ev("S.prof.nf.ev.quote")!==false,'a change is saved and the others are untouched');
+ I.w.close();
+ I=mk('https://example.org/?demo=contractor');await sleep(300);I.ev("S.stack=[];S.tab.contractor='cprof';render()");ok(!!I.$('[data-a=help]')&&!!I.$('[data-a=notify]'),'contractors have both too');I.click('[data-a=notify]');t=I.txt();
+ ok(['A new job near me','My offer is accepted or declined','A payment is released','The manager accepts or challenges my work','A message arrives','My licence or insurance is about to expire'].every(x=>t.includes(x))&&!/A quote arrives/.test(t),'with the contractor’s own list');I.chk(I.$('[data-nf="ev.job"]'),false);ok(I.ev("S.me.nf.ev.job")===false&&I.ev("S.prof.nf")===undefined,'saved on the contractor, not the manager');I.w.close();
+ // ===== quote deadline, decline, withdraw =====
+ I=mk();await sleep(300);const e2=c=>I.ev(c);e2(PROF);
+ ok(e2("J.filter(j=>j.stage==='open').every(j=>/^\\d{4}-\\d{2}-\\d{2}$/.test(j.qdue))"),'every open job has a quote deadline');
+ e2("job('m1').quotes.length");e2("S.stack=[];S.tab.manager='jobs';render();go('mjob',{id:'m1'})");
+ ok(/Quotes wanted by/.test(I.txt())&&/Compare quotes/.test(I.txt()),'the manager sees the date quotes are wanted by');
+ e2("job('m1').qdue=addDays(todayIso(),-1)");e2("render()");ok(/The quote deadline has passed/.test(I.txt())&&I.$('[data-a=qextend]'),'after it, the manager is told and can extend it');
+ I.click('[data-a=qextend]');ok(e2("job('m1').qdue")===e2("addDays(todayIso(),2)")&&/Quotes wanted by/.test(I.txt())&&/Quotes now wanted by/.test(I.toast()),'extending gives two more days from today');
+ // decline
+ const q0=e2("job('m1').quotes[0].id"),n0=e2("job('m1').quotes.length");
+ ok(I.$$('[data-a=qdecline]').length===n0&&I.$('#dw-'+q0),'every quote can be declined, with an optional reason');
+ I.chg(I.$('#dw-'+q0),'Price too high');I.click('[data-a=qdecline][data-v="m1|'+q0+'"]');
+ ok(e2("job('m1').quotes[0].declined.why")==='Price too high'&&/Declined/.test(I.txt())&&I.$('[data-a=qundo]')&&I.$$('[data-a=qdecline]').length===n0-1,'declining greys the quote out, keeps the reason and removes its Decline and approve buttons');
+ ok(e2("job('m1').quotes.length")===n0&&e2("openQ(job('m1')).length")===n0-1&&e2("job('m1').log.some(l=>/Declined the quote from/.test(l.x))"),'the quote is kept for the record (it still counts as obtained), and the job history says so');
+ e2("job('m1').quotes.forEach(q=>q.declined={on:todayIso(),why:''})");e2("S.stack=[];S.tab.manager='jobs';render()");
+ ok(!e2("needsMe(job('m1'))")&&/Awaiting quotes/.test(I.txt())&&I.$$('#jres [data-a=mjob][data-v=m1]').length===1,'when every quote is declined the job is back in Awaiting quotes and no longer needs the manager');
+ I.click('[data-a=mjob][data-v=m1]');I.click('[data-a=qundo]');ok(e2("job('m1').quotes.filter(q=>q.declined).length")===n0-1&&e2("needsMe(job('m1'))"),'Undo restores a quote');
+ // contractor side
+ e2("(()=>{const j=job('m1');j.quotes=[Object.assign({},job('m1').quotes[0],{id:'qme',c:ME,declined:{on:todayIso(),why:'Price too high'}})]})()");e2("S.role='contractor';S.stack=[];S.tab.contractor='cquotes';render()");
+ ok(/Declined by the manager \(Price too high\)/.test(I.txt()),'the contractor sees that the offer was declined, and why');
+ e2("(()=>{const j=job('m1');j.quotes=[Object.assign({},job('m1').quotes[0],{id:'qme',c:ME,declined:undefined})];j.qdue=addDays(todayIso(),2)})()");e2("S.stack=[];A.cjob('m1')");
+ ok(/Quote by/.test(I.txt())&&I.$('[data-a=wdraw]')&&/Withdraw my offer/.test(I.txt()),'a contractor with a pending offer can withdraw it, and sees the deadline');
+ I.click('[data-a=wdraw]');ok(e2("job('m1').quotes.length")===0&&/Offer withdrawn/.test(I.toast())&&e2("job('m1').log.some(l=>/withdrew their offer/.test(l.x))"),'withdrawing removes the offer, tells the manager through the job history, and counts as no quote');
+ ok(!I.$('[data-a=wdraw]')&&!!I.$('[data-a=sendq]'),'and the contractor can offer again');
+ e2("job('m1').qdue=addDays(todayIso(),-1)");e2("S.stack=[];A.cjob('m1')");ok(/The quote deadline has passed/.test(I.txt())&&!I.$('[data-a=sendq]'),'after the deadline a contractor cannot offer');
+ const jn=e2("job('m1').quotes.length");e2("A.sendq('m1')");ok(e2("job('m1').quotes.length")===jn&&/deadline has passed/.test(I.toast()),'and sending is refused');
+ e2("(()=>{const j=job('m2');j.quotes=[Object.assign({},job('m1').quotes[0],{id:'qme2',c:ME,declined:undefined})]})()");ok(e2("A.wdraw('m2'),job('m2').quotes.length")===1&&/can no longer be withdrawn/.test(I.toast()),'an offer on a job that is no longer open cannot be withdrawn');
+ // ===== edit a request =====
+ I.w.close();I=mk();await sleep(300);const e3=c=>I.ev(c);e3(PROF);
+ e3("A.new();S.draft.bid='b1';S.draft.area='Level 2 laundry';S.draft.title='Dripping tap';S.draft.instr='The tap drips all day';S.draft.photos=1;S.draft.dl='3d';S.draft.date=addDays(todayIso(),3);while(dow(S.draft.date)===0||dow(S.draft.date)===6)S.draft.date=addDays(S.draft.date,1);S.step=5;render()");
+ const n=e3("J.length");e3("A.post()");const id=e3("J[0].id");
+ ok(e3("J.length")===n+1&&e3("job('"+id+"').qdue")===e3("addDays(todayIso(),3)"),'a new request gets a quote deadline from the choice made at step 4 (3 days)');
+ e3("S.stack=[{n:'mjob',a:{id:'"+id+"'}}];render()");ok(I.$('[data-a=editreq]')&&/You can edit a request until the first quote arrives/.test(I.txt()),'before any quote, the manager can edit the request');
+ I.click('[data-a=editreq]');ok(e3("cur().n")==='new'&&e3("S.step")===2&&e3("S.editing")==='"+id+"'.length&&0||e3("S.editing")===id,'Edit opens the request form');
+ ok(e3("S.draft.title")==='Dripping tap'&&e3("S.draft.area")==='Level 2 laundry'&&e3("S.draft.instr")==='The tap drips all day'&&e3("S.draft.trade")===e3("job('"+id+"').trade")&&e3("S.draft.photos")===1,'filled in with what was sent');
+ e3("S.draft.title='Dripping tap and loose handle';S.step=5;render()");const n2=e3("J.length");e3("A.post()");
+ ok(e3("J.length")===n2&&e3("job('"+id+"').title")==='Dripping tap and loose handle'&&e3("job('"+id+"').stage")==='open'&&/Request updated/.test(I.toast())&&e3("S.editing")===null,'saving replaces the request: same job, new title, nothing duplicated');
+ ok(e3("job('"+id+"').log.map(l=>l.x)").some(x=>/Request posted/.test(x))&&e3("job('"+id+"').log.map(l=>l.x)").some(x=>/Request edited by the manager/.test(x))&&e3("cur().n")==='mjob','the history keeps the original and notes the edit');
+ e3("A.new()");ok(e3("S.editing")===null,'starting a new request after that does not edit the old one');
+ e3("S.stack=[{n:'mjob',a:{id:'m1'}}];render()");ok(!I.$('[data-a=editreq]')&&/Quotes have been received, so the request can no longer be edited/.test(I.txt()),'once quotes have arrived it cannot be edited, and the manager is told what to do instead');
+ e3("A.editreq('m1')");ok(/can no longer be edited/.test(I.toast())&&e3("S.editing")!=='m1','and the action is refused');
+ // ===== edit details and archive =====
+ e3("S.stack=[];S.tab.manager='bld';S.bopen={b:'b2',s:{'b2:edit':true},add:false};render()");
+ ok(I.$('.bsec[data-k="b2:edit"]')&&I.$('#be-name-b2').value==='Riverside Gardens'&&I.$$('#be-ptype-b2 option').length===4&&I.$('#be-oc-b2'),'a building has an Edit details or archive group with its name, address, postcode, type and plan number');
+ I.chg(I.$('#be-name-b2'),'R');ok(/Enter the name/.test(I.toast())&&e3("bld('b2').name")==='Riverside Gardens','a name that is too short is refused');
+ I.chg(I.$('#be-pc-b2'),'31');ok(/4-digit postcode/.test(I.toast()),'a postcode must have four digits');
+ I.chg(I.$('#be-pc-b2'),'3128');ok(/do not cover this area/.test(I.toast())&&e3("bld('b2').pc")!=='3128','and must be inside the area we serve');
+ I.chg(I.$('#be-name-b2'),'Riverside Gardens East');I.chg(I.$('#be-ptype-b2'),'Townhouse or villa complex');ok(e3("bld('b2').name")==='Riverside Gardens East'&&e3("bld('b2').ptype")==='Townhouse or villa complex'&&/Riverside Gardens East/.test(I.txt()),'changes are saved and shown');
+ I.click('[data-a=barchive][data-v=b3]');ok(/Finish or cancel the \d+ open job/.test(I.toast())&&!e3("bld('b3').archived"),'a building with open jobs cannot be archived');
+ e3("S.nb={name:'Temp Court',street:'9 Test Road',suburb:'Richmond',state:'VIC',pc:'3121',ptype:'Apartment building',oc:'PS 1',limit:'',res:null,imgs:[]};A.bsave()");const tid=e3("B[B.length-1].id");
+ ok(e3("bld('"+tid+"').name")==='Temp Court','a new building is added');
+ e3("S.stack=[];S.tab.manager='bld';S.bopen={b:'"+tid+"',s:{},add:false};render()");I.click('[data-a=barchive][data-v="'+tid+'"]');
+ ok(e3("bld('"+tid+"').archived")===true&&!I.$('.bcard[data-b='+tid+']')&&/Archived \(1\)/.test(I.txt())&&I.$('[data-a=bunarchive]')&&/records are kept/.test(I.toast()),'a building with no open jobs can be archived: it leaves the list and appears under Archived');
+ e3("A.new()");ok(!I.$$('#view select option').some(o=>/Temp Court/.test(o.textContent)),'it no longer appears when choosing where a request is');
+ e3("S.stack=[];go('emerg')");ok(!I.$$('#view select option').some(o=>/Temp Court/.test(o.textContent)),'or in the emergency form');
+ e3("S.stack=[];A.breport('b1')");ok(!I.$$('#rb option').some(o=>/Temp Court/.test(o.textContent)),'or in reporting');
+ e3("S.stack=[];S.tab.manager='bld';render()");I.click('[data-a=bunarchive]');ok(e3("bld('"+tid+"').archived")===false&&!!I.$('.bcard[data-b='+tid+']'),'Restore brings it back');
+ e3("S.nb={name:'Last Court',street:'1 Test Road',suburb:'Richmond',state:'VIC',pc:'3121',ptype:'Apartment building',oc:'PS 2',limit:'',res:null,imgs:[]};A.bsave()");const lid=e3("B[B.length-1].id");e3("B.filter(b=>b.id!=='"+lid+"').forEach(b=>b.archived=true);S.stack=[];S.tab.manager='bld';S.bopen={b:'"+lid+"',s:{},add:false};render()");I.click('[data-a=barchive][data-v="'+lid+'"]');ok(!e3("bld('"+lid+"').archived")&&/Keep at least one/.test(I.toast()),'the last building cannot be archived');
+ e3("B.forEach(b=>b.archived=false)");
+ e3("bld('b2').archived=true;S.stack=[];S.tab.manager='jobs';S.jobB='all';render()");ok(e3("J.filter(j=>j.mine&&j.bid==='b2').length")>0&&I.$$('#jres [data-a=mjob]').some(b=>e3("job('"+b.dataset.v+"').bid")==='b2'),'the jobs of an archived building stay in the Jobs list');
+ e3("bld('b2').archived=false");
+ console.log(fail?fail+' FAILED':'ALL PASSED');
+}catch(e){console.log('EXCEPTION',e.message,'\n',e.stack.split('\n').slice(0,6).join('\n'))}process.exit(0)})();

@@ -1,0 +1,45 @@
+# Strata App server
+
+This folder is the real app. It uses the same front end as the page at the root of the repository (the blue layout, Plus Jakarta Sans, the New request bar, and the notices and comments panel). The root `index.html` is left as it is, so GitHub Pages can keep serving that file on its own. This server serves its own copy, with accounts wired in.
+
+## What is in place
+
+People create an account, confirm their email, and sign in. The role is stored on the server. A building manager and an OC manager can switch with each other. A property manager stays a property manager. A contractor stays a contractor. The old Manager / Contractor switch is not shown once someone is signed in, because one account is one role.
+
+Buildings, jobs and payments are not stored on the server yet. After sign-in, a building or OC manager still sees the sample buildings and jobs so the existing screens can be used. A property manager does not see those sample apartment buildings. Notices and comments are saved for that organisation only.
+
+## How to run it
+
+You need Node.js 22 or newer.
+
+```
+cd app
+cp .env.example .env
+npm install
+npm start
+```
+
+Open http://127.0.0.1:8787
+
+Until an email service is connected, confirmation and password-reset messages are written to `app/var/outbox.jsonl`. Open the link in that file, then sign in. Do not commit `.env` or the `var` folder.
+
+```
+npm test
+```
+
+The specification prototype and its original checks live in `prototype/`.
+
+```
+cd prototype
+npm install
+npm test
+```
+
+## What you need to set up
+
+- An email sending service, by filling in `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_FROM` in `.env`.
+- A web address of your own, in `PUBLIC_BASE_URL`, before any link is sent to a real person.
+- Hosting for this server. GitHub Pages can only serve the static file at the root. It cannot run accounts.
+- A platform-owner sign-in, if you want one, with `OWNER_EMAIL` and `OWNER_PASSWORD`. Leave them empty until you choose them.
+
+Stripe is not connected in this stage. Live card payments are not switched on.
