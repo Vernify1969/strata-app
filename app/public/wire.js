@@ -162,6 +162,13 @@
       const state = api.state;
       state.auth = state.auth || { kind: "manager", role: "building_manager", name: "", email: "", mobile: "", password: "", confirm: "", businessName: "", agree: false, current: "", token: "" };
       if (location.pathname === "/reset") state.auth.token = params.get("token") || "";
+      try {
+        const health = await fetch("/api/health");
+        const info = await health.json();
+        api.state.demo = !!info.demo;
+      } catch (err) {
+        api.state.demo = false;
+      }
       await this.refresh();
       if (params.get("verified") === "1") api.toast("Email confirmed. You can sign in.");
       if (params.get("verify") === "invalid") api.toast("That confirmation link has expired. Ask for a new one.");
@@ -290,7 +297,9 @@
     async resend() {
       const api = hooks();
       const res = await call("POST", "/api/resend-verification", { email: api.state.pendingEmail || api.state.auth.email });
+      if (res.json.devLink) api.state.verifyLink = res.json.devLink;
       api.toast(res.json.message || "If that account is waiting, a new link is on its way.");
+      if (res.json.devLink) api.render();
     },
     async reset() {
       const api = hooks();
@@ -447,7 +456,7 @@
       const api = hooks();
       const res = await call("POST", "/api/jobs/" + jobId + "/payments", { idempotencyKey: "pay-" + jobId });
       if (!res.ok) { api.toast((res.json && res.json.error) || "The payment was not started."); return; }
-      api.toast(res.json.paid ? "Stripe has confirmed the payment." : "Stripe is holding this request. It is not paid until Stripe confirms it.");
+      api.toast(res.json.simulated ? "Demo only. No card was charged. The test payment is marked paid so you can see the next step." : (res.json.paid ? "Stripe has confirmed the payment." : "Stripe is holding this request. It is not paid until Stripe confirms it."));
       await loadJobs();
       api.render();
     },

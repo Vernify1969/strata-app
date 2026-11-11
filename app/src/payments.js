@@ -6,9 +6,12 @@ import { liveKeyProblem, securityGateOpen } from "./security-gate.js";
 
 export function registerPaymentRoutes(app, { db, config, sendError, requireUser, requireJson }) {
   app.post("/api/jobs/:id/payments", requireJson, requireUser, async (req, res) => {
+    if (config.demoMode && (config.stripeSecretKey || config.stripePublishableKey)) {
+      return sendError(res, 400, "Demo mode does not use Stripe keys.");
+    }
     const problem = liveKeyProblem(config.stripeSecretKey, config.stripePublishableKey);
     if (problem) return sendError(res, 400, problem);
-    if (!securityGateOpen(config)) return sendError(res, 403, "Payments stay off until the security tests pass.");
+    if (!config.demoMode && !securityGateOpen(config)) return sendError(res, 403, "Payments stay off until the security tests pass.");
     const job = db.prepare(`SELECT jobs.* FROM jobs
       JOIN building_assignments ON building_assignments.building_id = jobs.building_id
       WHERE jobs.id = ? AND jobs.organisation_id = ? AND building_assignments.user_id = ?`).get(req.params.id, req.user.organisation_id, req.user.id);
@@ -26,7 +29,10 @@ export function registerPaymentRoutes(app, { db, config, sendError, requireUser,
     const id = newId();
     const now = new Date().toISOString();
     let providerRef = "test_" + id;
-    if (config.stripeSecretKey) {
+    let simulated = false;
+    if (config.demoMode) {
+      simulated = true;
+    } else if (config.stripeSecretKey) {
       const Stripe = (await import("stripe")).default;
       const stripe = new Stripe(config.stripeSecretKey);
       const contractor = db.prepare("SELECT stripe_account_id FROM users WHERE id = ?").get(job.contractor_user_id);
@@ -41,12 +47,18 @@ export function registerPaymentRoutes(app, { db, config, sendError, requireUser,
       }, { idempotencyKey: key });
       providerRef = intent.id;
     }
+    const status = simulated ? "succeeded" : "requires_payment";
     db.prepare(`INSERT INTO payments (id, job_id, organisation_id, amount_cents, fee_cents, net_cents, status, idempotency_key, provider_ref, holder, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, 'requires_payment', ?, ?, 'stripe', ?)`).run(
-      id, job.id, job.organisation_id, amount, split.fee, split.net, key, providerRef, now
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'stripe', ?)`).run(
+      id, job.id, job.organisation_id, amount, split.fee, split.net, status, key, providerRef, now
     );
-    audit(db, { actorId: req.user.id, organisationId: job.organisation_id, action: "payment.created", subjectType: "payment", subjectId: id, detail: { holder: "stripe", amount } });
-    res.status(201).json(publicPayment(db.prepare("SELECT * FROM payments WHERE id = ?").get(id)));
+    if (simulated && job.needs_prepay && job.stage === "approved") {
+      db.prepare("UPDATE jobs SET stage = 'paid' WHERE id = ?").run(job.id);
+    }
+    audit(db, { actorId: req.user.id, organisationId: job.organisation_id, action: simulated ? "payment.simulated" : "payment.created", subjectType: "payment", subjectId: id, detail: { holder: "stripe", amount, simulated } });
+    const body = publicPayment(db.prepare("SELECT * FROM payments WHERE id = ?").get(id));
+    body.simulated = simulated;
+    res.status(201).json(body);
   });
 
 }

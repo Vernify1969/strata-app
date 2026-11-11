@@ -22,16 +22,19 @@ export function loadConfig(overrides = {}) {
   const root = overrides.root || path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
   if (!overrides.skipEnvFile) loadEnvFile(path.join(root, ".env"));
   const port = Number(overrides.port ?? process.env.PORT ?? 8787);
-  const publicBaseUrl = (overrides.publicBaseUrl ?? process.env.PUBLIC_BASE_URL ?? `http://127.0.0.1:${port}`).replace(/\/$/, "");
+  const demoMode = overrides.demoMode ?? process.env.DEMO_MODE === "1";
+  const publicBaseUrl = (overrides.publicBaseUrl ?? process.env.PUBLIC_BASE_URL ?? process.env.RENDER_EXTERNAL_URL ?? `http://127.0.0.1:${port}`).replace(/\/$/, "");
   const databasePath = overrides.databasePath || process.env.DATABASE_PATH || path.join(root, "var", "strata.db");
+  const cookieSecure = overrides.cookieSecure ?? (process.env.COOKIE_SECURE === "1" || publicBaseUrl.startsWith("https://"));
   return {
     root,
     port,
+    demoMode,
     publicBaseUrl,
     databasePath: path.isAbsolute(databasePath) ? databasePath : path.resolve(root, databasePath),
     outboxPath: overrides.outboxPath || path.join(root, "var", "outbox.jsonl"),
-    devMailbox: overrides.devMailbox ?? process.env.DEV_MAILBOX === "1",
-    cookieSecure: overrides.cookieSecure ?? process.env.COOKIE_SECURE === "1",
+    devMailbox: demoMode || (overrides.devMailbox ?? process.env.DEV_MAILBOX === "1"),
+    cookieSecure,
     smtp: {
       host: process.env.SMTP_HOST || "",
       port: Number(process.env.SMTP_PORT || 587),
@@ -44,8 +47,8 @@ export function loadConfig(overrides = {}) {
       password: process.env.OWNER_PASSWORD || "",
       name: process.env.OWNER_NAME || "Platform owner"
     },
-    stripeSecretKey: process.env.STRIPE_SECRET_KEY || "",
-    stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
-    stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || ""
+    stripeSecretKey: demoMode ? "" : (process.env.STRIPE_SECRET_KEY || ""),
+    stripePublishableKey: demoMode ? "" : (process.env.STRIPE_PUBLISHABLE_KEY || ""),
+    stripeWebhookSecret: demoMode ? "" : (process.env.STRIPE_WEBHOOK_SECRET || "")
   };
 }

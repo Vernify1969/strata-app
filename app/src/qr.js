@@ -17,7 +17,8 @@ export function registerQrRoutes(app, { db, config, mail, sendError, requireUser
     }
     const a = randomBytes(2).readUInt16BE(0) % 8 + 1;
     const b = randomBytes(2).readUInt16BE(0) % 8 + 1;
-    res.type("html").send(page(place.building_name + " · " + place.name, formHtml(place, a, b)));
+    const demo = config.demoMode ? "<p><strong>Demo, test data only.</strong> This is not a real building.</p>" : "";
+    res.type("html").send(page(place.building_name + " · " + place.name, demo + formHtml(place, a, b)));
   });
 
   app.post("/api/public/reports", requireJson, async (req, res) => {
@@ -151,6 +152,7 @@ export function registerQrRoutes(app, { db, config, mail, sendError, requireUser
   app.get("/api/places/:id/sheet", requireUser, (req, res) => {
     const place = ownPlace(db, req.user, req.params.id);
     if (!place) return sendError(res, 404, "That place is not on your account.");
+    if (config.demoMode) return sendError(res, 403, "QR sheets stay off in this demo. Do not print codes from this address.");
     if (!securityGateOpen(config)) return sendError(res, 403, "QR sheets stay off until the security tests pass.");
     if (!permanentHttps(config.publicBaseUrl)) return sendError(res, 403, "Set a permanent https address before printing. Do not print a code that points at a temporary address.");
     res.type("html").send(page("Labels", "<p>In an emergency call 000.</p><p>" + escapeHtml(place.name) + "</p><p>" + escapeHtml(config.publicBaseUrl) + "/r/" + escapeHtml(place.token) + "</p>"));

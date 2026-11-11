@@ -12,6 +12,7 @@ import { registerBuildingRoutes } from "./buildings.js";
 import { registerJobRoutes } from "./jobs.js";
 import { handleStripeWebhook, registerPaymentRoutes } from "./payments.js";
 import { registerQrRoutes } from "./qr.js";
+import { seedDemo } from "./demo-seed.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -113,7 +114,7 @@ export async function createApp(config) {
   }
 
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, service: "strata-app" });
+    res.json({ ok: true, service: "strata-app", demo: !!config.demoMode });
   });
 
   app.post("/api/register", requireJson, async (req, res) => {
@@ -156,7 +157,7 @@ export async function createApp(config) {
       ok: true,
       email,
       emailSent: delivery.sent,
-      devLink: !delivery.sent && config.devMailbox ? delivery.link : "",
+      devLink: !delivery.sent && (config.devMailbox || config.demoMode) ? delivery.link : "",
       message: delivery.sent
         ? "Check your email and open the confirmation link, then sign in."
         : "Email is not connected yet, so the confirmation link is shown here. Open it, then sign in."
@@ -179,8 +180,18 @@ export async function createApp(config) {
   app.post("/api/resend-verification", requireJson, async (req, res) => {
     const email = normalEmail(req.body?.email);
     const user = emailOk(email) ? userByEmail(email) : null;
-    if (user && !user.email_verified_at) await sendToken(user, "verify");
-    res.json({ ok: true, message: "If that account is waiting to be confirmed, a new link is on its way." });
+    let devLink = "";
+    if (user && !user.email_verified_at) {
+      const delivery = await sendToken(user, "verify");
+      if (!delivery.sent && (config.devMailbox || config.demoMode)) devLink = delivery.link;
+    }
+    res.json({
+      ok: true,
+      devLink,
+      message: devLink
+        ? "Email is not connected, so the confirmation link is shown here."
+        : "If that account is waiting to be confirmed, a new link is on its way."
+    });
   });
 
   app.post("/api/login", requireJson, async (req, res) => {
@@ -247,7 +258,7 @@ export async function createApp(config) {
   app.get("/api/me", requireUser, (req, res) => {
     res.json({
       user: publicUser(req.user),
-      banner: bannerFor(req.user)
+      banner: bannerFor(req.user, config.demoMode)
     });
   });
 
@@ -275,7 +286,7 @@ export async function createApp(config) {
       .run(name, mobile, business, abn, payment, consent, role, user.id);
     if (business) db.prepare("UPDATE organisations SET name = ? WHERE id = ?").run(business, user.organisation_id);
     audit(db, { actorId: user.id, organisationId: user.organisation_id, action: "account.profile_updated", subjectType: "user", subjectId: user.id, detail: { roleChanged: role !== user.role } });
-    res.json({ user: publicUser(userById(user.id)), banner: bannerFor(userById(user.id)) });
+    res.json({ user: publicUser(userById(user.id)), banner: bannerFor(userById(user.id), config.demoMode) });
   });
 
   app.post("/api/change-password", requireJson, requireUser, async (req, res) => {
@@ -365,20 +376,23 @@ export async function createApp(config) {
   });
 
   await ensureOwner(db, config);
+  if (config.demoMode) await seedDemo(db);
   app.locals.db = db;
   app.locals.mail = mail;
   return app;
 }
 
-function bannerFor(user) {
+function bannerFor(user, demoMode) {
+  const demo = demoMode ? "Demo, test data only. " : "";
   if (user.role === "contractor") {
-    return `Signed in as ${user.name}, contractor. Open jobs from other buildings are not loaded yet.`;
+    return demo + `Signed in as ${user.name}, contractor. Open jobs from other buildings are not loaded yet.`;
   }
   if (user.role === "platform_owner") {
-    return "Signed in as the platform owner. Buildings belong to manager accounts, not to this one.";
+    return demo + "Signed in as the platform owner. Buildings belong to manager accounts, not to this one.";
   }
   const place = user.role === "property_manager" ? "Properties" : "Buildings";
-  return `Signed in as ${user.name}, ${publicUser(user).roleLabel}. ${place} and jobs are stored for your organisation only. Stripe is not taking payments yet.`;
+  const pay = demoMode ? "Payments are simulated. No card is charged." : "Stripe is not taking payments yet.";
+  return demo + `Signed in as ${user.name}, ${publicUser(user).roleLabel}. ${place} and jobs are stored for your organisation only. ${pay}`;
 }
 
 async function ensureOwner(db, config) {

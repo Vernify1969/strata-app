@@ -1,0 +1,17 @@
+# Render Blueprint for a shareable demo. This file has no secrets.
+# The free web service sleeps when nobody is using it. The first open after that takes about a minute.
+services:
+  - type: web
+    name: strata-app
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: app
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: DEMO_MODE
+        value: "1"
+      - key: NODE_VERSION
+        value: "22"
