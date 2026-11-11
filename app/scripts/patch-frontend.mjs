@@ -61,7 +61,7 @@ swap(
 
 swap(
   ".hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); }",
-  ".hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); overflow-wrap: break-word; }\n.hero p { overflow-wrap: break-word; }\n.auth-panel { width: 100%; margin: 0; }\n.auth-panel .card { max-width: 720px; }\n.signed-as { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }\n.demo-pair { display: grid; gap: 12px; }\n@media (min-width: 640px) { .demo-pair { grid-template-columns: 1fr 1fr; } }\n.demo-account { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--field); }\n.demo-account h2 { font-size: 1.05rem; }\n.rail .sign-out-tab { color: var(--ink); font-weight: 700; margin-top: 8px; }\n.header-sign-out { width: auto; flex: none; min-height: 36px; padding: 0 10px; font-size: 0.85rem; }\n@media (min-width: 900px) { .header-sign-out { display: none; } }\n@media (max-width: 899px) { .topbar:has(.signed-as) .brand > span:last-child { display: none; } .signed-label { display: none; } .topbar .roles { display: none; } }",
+  ".hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); overflow-wrap: break-word; }\n.hero p { overflow-wrap: break-word; }\n.auth-panel { width: 100%; margin: 0; }\n.auth-panel .card { max-width: 720px; }\n.signed-as { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }\n.role-pill { flex: none; }\n.demo-pair { display: grid; gap: 12px; }\n@media (min-width: 640px) { .demo-pair { grid-template-columns: 1fr 1fr; } }\n.demo-account { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--field); }\n.demo-account h2 { font-size: 1.05rem; }\n.rail .sign-out-tab { color: var(--ink); font-weight: 700; margin-top: 8px; }\n.header-sign-out { width: auto; flex: none; min-height: 36px; padding: 0 10px; font-size: 0.85rem; }\n@media (min-width: 900px) { .header-sign-out { display: none; } }\n@media (max-width: 899px) { .topbar:has(.signed-as) .brand > span:last-child { display: none; } .signed-label { display: none; } .topbar .roles { display: none; } .topbar { flex-wrap: wrap; row-gap: 6px; } .role-pill { flex: 1 0 100%; justify-content: flex-start; } }",
   "hero wrapping"
 );
 
@@ -96,6 +96,12 @@ swap(
 );
 
 swap(
+  'roleBtn("building", "Building manager") + roleBtn("oc", "OC manager") + roleBtn("property", "Property manager")',
+  'roleBtn("building", "Building manager") + roleBtn("oc", "Owners Corporation manager") + roleBtn("property", "Property manager")',
+  "profile role names"
+);
+
+swap(
   '["buildings", "Buildings", 0],',
   '["buildings", state.manager.role === "property" ? "Properties" : "Buildings", 0],',
   "properties tab"
@@ -113,7 +119,7 @@ swap(
     } else if (detail) {
       bar = '<button class="back-btn" type="button" data-act="back" aria-label="Back">' + icon("back") + " Back</button><h1 class=\\"top-title\\">" + esc(state.title || "Back") + "</h1>";
     } else if (state.account) {
-      bar = brandMark() + '<p class="signed-as"><span class="signed-label">Signed in as </span>' + esc(state.account.name) + '</p><div class="spacer"></div><div class="roles"><span class="pill pill-muted">' + esc(state.account.roleLabel) + "</span></div>";
+      bar = brandMark() + '<p class="signed-as"><span class="signed-label">Signed in as </span>' + esc(state.account.name) + '</p><span class="pill pill-muted role-pill">' + esc(state.account.roleLabel) + '</span><div class="spacer"></div>';
     } else {
       bar = brandMark() + '<div class="section-label">' + esc(section || "Strata App") + '</div><div class="spacer"></div><div class="roles" role="group" aria-label="Choose who you are"><button type="button" data-act="role" data-role="manager" aria-pressed="' + (state.role === "manager" ? "true" : "false") + '">Manager</button><button type="button" data-act="role" data-role="contractor" aria-pressed="' + (state.role === "contractor" ? "true" : "false") + '">Contractor</button></div>';
     }`,
@@ -168,7 +174,7 @@ swap(
       return '<div class="welcome-layout"><section class="hero"><p class="eyebrow">Strata App</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. Strata App does not.</p></section><div class="stack">' +
         '<button class="btn btn-primary" type="button" data-act="auth-goto" data-screen="register">Create an account</button>' +
         '<button class="btn btn-secondary" type="button" data-act="auth-goto" data-screen="signin">Sign in</button>' +
-        (state.demo ? '<div class="card stack"><p><strong>Two demo accounts. Pick one.</strong></p><div class="demo-pair"><div class="demo-account"><h2>Manager</h2><p><strong>Mina Costa</strong></p><p class="small">mina.costa@harbour.example</p><p class="small">Password Harbour1</p></div><div class="demo-account"><h2>Contractor</h2><p><strong>Sam Okonkwo</strong></p><p class="small">sam@plumbing.example</p><p class="small">Password Pipes123</p></div></div><p class="small">A new account shows its confirmation link on this screen. No email is sent. Sample building: Harbour View Apartments. The Lift 1 report page is /r/demo-lift-1.</p></div>' : "") +
+        (state.demo ? '<div class="card stack"><p><strong>Four demo accounts. Pick one.</strong></p><div class="demo-pair"><div class="demo-account"><h2>Building manager</h2><p><strong>Mina Costa</strong></p><p class="small">mina.costa@harbour.example</p><p class="small">Password Harbour1</p><p class="small">Harbour View Apartments</p></div><div class="demo-account"><h2>Owners Corporation manager</h2><p><strong>Helen Tran</strong></p><p class="small">helen.tran@riverside.example</p><p class="small">Password Riverside1</p><p class="small">Riverside Court</p></div><div class="demo-account"><h2>Property manager</h2><p><strong>Leo Park</strong></p><p class="small">leo.park@southbanklets.example</p><p class="small">Password Lettings1</p><p class="small">12 Clarendon Street rental</p></div><div class="demo-account"><h2>Contractor</h2><p><strong>Sam Okonkwo</strong></p><p class="small">sam@plumbing.example</p><p class="small">Password Pipes123</p></div></div><p class="small">A new account shows its confirmation link on this screen. No email is sent. The Lift 1 report page is /r/demo-lift-1.</p></div>' : "") +
         '<div class="card stack"><p>Building managers and OC managers look after apartment buildings and common property. Property managers look after private rental properties. Contractors do the work. An account is one of these, not more than one.</p><p class="small muted">The terms and privacy summary are a draft for a solicitor to review.</p><button class="btn btn-ghost" type="button" data-act="auth-goto" data-screen="terms">Read the terms and privacy summary</button></div></div></div>';
     }
     if (state.screen === "terms") {
@@ -208,7 +214,7 @@ swap(
         '<button class="btn btn-primary" type="button" data-act="auth-reset">Update password</button></div></div>';
     }
     const roles = a.kind === "manager"
-      ? '<span class="field">Your role</span><div class="row" role="group" aria-label="Your role">' + roleBtn("building_manager", "Building manager") + roleBtn("oc_manager", "OC manager") + roleBtn("property_manager", "Property manager") + '</div><p class="small muted">These are different roles. The account is one or the other.</p>'
+      ? '<span class="field">Your role</span><div class="row" role="group" aria-label="Your role">' + roleBtn("building_manager", "Building manager") + roleBtn("oc_manager", "Owners Corporation manager") + roleBtn("property_manager", "Property manager") + '</div><p class="small muted">These are different roles. The account is one or the other. A building manager and an Owners Corporation manager can switch with each other. A property manager cannot.</p>'
       : "";
     return '<div class="stack auth-panel"><h1>Create an account</h1><div class="card stack">' +
       '<span class="field">I am a</span><div class="row" role="group" aria-label="Account kind">' + kindBtn("manager", "Manager") + kindBtn("contractor", "Contractor") + "</div>" +

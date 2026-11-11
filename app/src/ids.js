@@ -52,7 +52,7 @@ export function publicUser(row) {
   const side = row.role === "contractor" ? "contractor" : "manager";
   const roleLabel = {
     building_manager: "Building manager",
-    oc_manager: "OC manager",
+    oc_manager: "Owners Corporation manager",
     property_manager: "Property manager",
     contractor: "Contractor",
     platform_owner: "Platform owner"

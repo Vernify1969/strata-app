@@ -15,6 +15,18 @@ export const DEMO_CONTRACTOR = {
   name: "Sam Okonkwo"
 };
 
+export const DEMO_OC_MANAGER = {
+  email: "helen.tran@riverside.example",
+  password: "Riverside1",
+  name: "Helen Tran"
+};
+
+export const DEMO_PROPERTY_MANAGER = {
+  email: "leo.park@southbanklets.example",
+  password: "Lettings1",
+  name: "Leo Park"
+};
+
 export const DEMO_QR_TOKEN = "demo-lift-1";
 
 function nextWeekday() {
@@ -33,22 +45,33 @@ export async function seedDemo(db) {
   const now = new Date().toISOString();
   const managerOrg = newId();
   const contractorOrg = newId();
+  const ocOrg = newId();
+  const propertyOrg = newId();
   const managerId = newId();
   const contractorId = newId();
+  const ocId = newId();
+  const propertyId = newId();
   const buildingId = newId();
+  const ocBuildingId = newId();
+  const rentalId = newId();
   const openJobId = newId();
   const quotedJobId = newId();
   const quoteId = newId();
   const placeId = newId();
   const centre = centreOf("3000");
+  const southbank = centreOf("3006");
   const visit = nextWeekday();
   const managerHash = await hashPassword(DEMO_MANAGER.password);
   const contractorHash = await hashPassword(DEMO_CONTRACTOR.password);
+  const ocHash = await hashPassword(DEMO_OC_MANAGER.password);
+  const propertyHash = await hashPassword(DEMO_PROPERTY_MANAGER.password);
 
   db.exec("BEGIN");
   try {
     db.prepare("INSERT INTO organisations (id, name, world, created_at) VALUES (?, 'Harbour View OC', 'common', ?)").run(managerOrg, now);
     db.prepare("INSERT INTO organisations (id, name, world, created_at) VALUES (?, 'Sam Plumbing', 'contractor', ?)").run(contractorOrg, now);
+    db.prepare("INSERT INTO organisations (id, name, world, created_at) VALUES (?, 'Riverside Owners Corporation', 'common', ?)").run(ocOrg, now);
+    db.prepare("INSERT INTO organisations (id, name, world, created_at) VALUES (?, 'Southbank Lettings', 'private', ?)").run(propertyOrg, now);
     db.prepare(`INSERT INTO users (id, organisation_id, email, password_hash, role, name, mobile, business_name, abn, payment_method, consent, email_verified_at, created_at)
       VALUES (?, ?, ?, ?, 'building_manager', ?, '0418000111', 'Harbour View OC', '51824753556', 'card', 1, ?, ?)`).run(
       managerId, managerOrg, DEMO_MANAGER.email, managerHash, DEMO_MANAGER.name, now, now
@@ -57,11 +80,29 @@ export async function seedDemo(db) {
       VALUES (?, ?, ?, ?, 'contractor', ?, '0400111222', 'Sam Plumbing', '51824753556', '', 1, ?, '3000', '["plumbing"]', 1, ?)`).run(
       contractorId, contractorOrg, DEMO_CONTRACTOR.email, contractorHash, DEMO_CONTRACTOR.name, now, now
     );
+    db.prepare(`INSERT INTO users (id, organisation_id, email, password_hash, role, name, mobile, business_name, abn, payment_method, consent, email_verified_at, created_at)
+      VALUES (?, ?, ?, ?, 'oc_manager', ?, '0418222333', 'Riverside Owners Corporation', '51824753556', 'card', 1, ?, ?)`).run(
+      ocId, ocOrg, DEMO_OC_MANAGER.email, ocHash, DEMO_OC_MANAGER.name, now, now
+    );
+    db.prepare(`INSERT INTO users (id, organisation_id, email, password_hash, role, name, mobile, business_name, abn, payment_method, consent, email_verified_at, created_at)
+      VALUES (?, ?, ?, ?, 'property_manager', ?, '0418333444', 'Southbank Lettings', '51824753556', 'bank', 1, ?, ?)`).run(
+      propertyId, propertyOrg, DEMO_PROPERTY_MANAGER.email, propertyHash, DEMO_PROPERTY_MANAGER.name, now, now
+    );
     db.prepare(`INSERT INTO buildings (id, organisation_id, world, name, street_number, street, suburb, postcode, lat, lng, oc_plan, tiers_confirmed, created_at)
       VALUES (?, ?, 'common', 'Harbour View Apartments', '42', 'Collins Street', 'Melbourne', '3000', ?, ?, 'PS 41288', 1, ?)`).run(
       buildingId, managerOrg, centre ? centre.lat : null, centre ? centre.lng : null, now
     );
     db.prepare("INSERT INTO building_assignments (user_id, building_id) VALUES (?, ?)").run(managerId, buildingId);
+    db.prepare(`INSERT INTO buildings (id, organisation_id, world, name, street_number, street, suburb, postcode, lat, lng, oc_plan, tiers_confirmed, created_at)
+      VALUES (?, ?, 'common', 'Riverside Court', '18', 'Flinders Lane', 'Melbourne', '3000', ?, ?, 'PS 22041', 1, ?)`).run(
+      ocBuildingId, ocOrg, centre ? centre.lat : null, centre ? centre.lng : null, now
+    );
+    db.prepare("INSERT INTO building_assignments (user_id, building_id) VALUES (?, ?)").run(ocId, ocBuildingId);
+    db.prepare(`INSERT INTO buildings (id, organisation_id, world, name, street_number, street, suburb, postcode, lat, lng, quotes_wanted, created_at)
+      VALUES (?, ?, 'private', '12 Clarendon Street rental', '12', 'Clarendon Street', 'Southbank', '3006', ?, ?, 1, ?)`).run(
+      rentalId, propertyOrg, southbank ? southbank.lat : null, southbank ? southbank.lng : null, now
+    );
+    db.prepare("INSERT INTO building_assignments (user_id, building_id) VALUES (?, ?)").run(propertyId, rentalId);
     const payload = JSON.stringify({ safety: ["no", "no", "no", "no", "no", "no", "no"], photos: 0, date: visit, phone: "0418000111" });
     db.prepare(`INSERT INTO jobs (id, organisation_id, building_id, created_by, title, area, trade_id, instructions, urgency, quote_deadline, payload, created_at)
       VALUES (?, ?, ?, ?, 'Dripping lobby tap', 'Level 2 lobby tap', 'plumbing', 'The lobby mixer drips all day.', 'standard', ?, ?, ?)`).run(
