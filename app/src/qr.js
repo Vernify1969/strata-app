@@ -257,7 +257,7 @@ function escapeHtml(value) {
 function page(title, body) {
   return `<!DOCTYPE html><html lang="en-AU"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title>
 <style>body{margin:0;min-height:100vh;font:18px/1.45 system-ui,sans-serif;background:#F6F8FB;color:#0F172A}main{width:min(720px,100%);margin:0 auto;padding:28px 20px;box-sizing:border-box}h1,p,label{overflow-wrap:break-word}h1{font-size:1.6rem}button,.btn{min-height:48px;width:100%;border:0;border-radius:14px;background:#1D4ED8;color:#fff;font:inherit;font-weight:700}label{display:block;font-weight:700;margin:14px 0 6px}input,textarea,select{width:100%;min-height:48px;border:1.5px solid #E2E8F0;border-radius:12px;padding:10px;font:inherit;box-sizing:border-box}textarea{min-height:96px}.warn{background:#FFF1F2;color:#9F1239;padding:12px;border-radius:14px}</style></head>
-<body><main><p class="warn"><strong>If anyone is in danger, call 000.</strong> Strata App is not an emergency service.</p><h1>${escapeHtml(title)}</h1>${body}</main></body></html>`;
+<body><main><p class="warn"><strong>If anyone is in danger, call 000.</strong> TaskSpeck Strata is not an emergency service.</p><h1>${escapeHtml(title)}</h1>${body}</main></body></html>`;
 }
 
 function formHtml(place, a, b) {

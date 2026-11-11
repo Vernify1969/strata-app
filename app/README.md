@@ -1,4 +1,4 @@
-# Strata App server
+# TaskSpeck Strata server
 
 This folder is the real app. It uses the same front end as the page at the root of the repository (the blue layout, Plus Jakarta Sans, the New request bar, and the notices and comments panel). The root `index.html` is left as it is, so GitHub Pages can keep serving that file on its own. This server serves its own copy, with accounts wired in.
 

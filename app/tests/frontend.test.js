@@ -17,7 +17,7 @@ test("the server serves the existing front end and the account script", async ()
     assert.match(html, /Two demo accounts/);
     assert.match(html, /<h2>Manager<\/h2>/);
     assert.match(html, /<h2>Contractor<\/h2>/);
-    assert.match(html, /Strata App does not hold the money/);
+    assert.match(html, /TaskSpeck Strata does not hold the money/);
     const wire = await fetch(server.base + "/wire.js");
     assert.equal(wire.status, 200);
     assert.match(await wire.text(), /\/api\/register/);
