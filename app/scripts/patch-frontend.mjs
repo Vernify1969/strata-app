@@ -312,6 +312,47 @@ swap(
   "buildings heading"
 );
 
+swap(
+  'field("Approval limit without committee", "number", "building." + b.id + ".limit", b.limit) +',
+  '(state.manager.role === "property" ? field("Quotes you usually want", "number", "building." + b.id + ".quotesWanted", b.quotesWanted || 1) : field("Budget 1, up to $", "number", "building." + b.id + ".tier1", b.tier1 != null ? b.tier1 : b.limit) + field("Quotes for budget 1", "number", "building." + b.id + ".q1", b.q1 || 1) + field("Budget 2, up to $", "number", "building." + b.id + ".tier2", b.tier2 != null ? b.tier2 : 4999) + field("Quotes for budget 2", "number", "building." + b.id + ".q2", b.q2 || 2) + field("Budget 3, up to $", "number", "building." + b.id + ".tier3", b.tier3 != null ? b.tier3 : 30000) + field("Quotes for budget 3", "number", "building." + b.id + ".q3", b.q3 || 3)) +',
+  "three budgets"
+);
+
+swap(
+  `'<label class="field">Suburb<select data-field="new.suburb">' + opts + "</select></label>" +
+      field("OC or plan number", "text", "new.oc", n.oc) +
+      field("Approval limit without committee", "number", "new.limit", n.limit) +`,
+  `field("Suburb", "text", "new.suburb", n.suburb) +
+      field("Postcode", "text", "new.postcode", n.postcode || "") +
+      field(state.manager.role === "property" ? "Property type" : "OC or plan number", "text", "new.oc", n.oc) +`,
+  "postcode entry"
+);
+
+swap(
+  "const outside = s && !inRadius(s.lat, s.lng);",
+  "const outside = state.owner.postcodes ? (n.postcode && state.owner.postcodes.indexOf(String(n.postcode)) === -1) : (s && !inRadius(s.lat, s.lng));",
+  "postcode coverage"
+);
+
+swap(
+  'state.newBuilding = { name: "", number: "", street: "", suburb: "Balwyn", oc: "", limit: 4999 };',
+  'state.newBuilding = { name: "", number: "", street: "", suburb: "", postcode: "", oc: "", limit: 4999 };',
+  "blank building"
+);
+
+swap(
+  `      if (key === "weekends") b.weekends = !!value;
+      else if (key === "limit" || key === "captureM") b[key] = Number(value);
+      else b[key] = value;
+      return true;`,
+  `      if (key === "weekends") b.weekends = !!value;
+      else if (key === "limit" || key === "captureM" || key === "tier1" || key === "tier2" || key === "tier3" || key === "q1" || key === "q2" || key === "q3" || key === "quotesWanted") b[key] = Number(value);
+      else b[key] = value;
+      if (state.remote && window.StrataWire) window.StrataWire.scheduleBuilding(id);
+      return true;`,
+  "save building fields"
+);
+
 const out = path.resolve(here, "../public/index.html");
 fs.writeFileSync(out, html);
 console.log("wrote", out, "bytes", html.length);

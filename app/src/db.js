@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { STARTING_POSTCODES } from "./area.js";
+import { VICTORIA_HOLIDAYS } from "./holidays.js";
 
 export function openDatabase(file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -90,6 +92,76 @@ function migrate(db) {
       );
     `);
     db.exec("PRAGMA user_version = 1");
+  }
+  if (userVersion(db) < 2) {
+    db.exec(`
+      CREATE TABLE regions (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        time_zone TEXT NOT NULL
+      );
+      CREATE TABLE public_holidays (
+        region_id TEXT NOT NULL REFERENCES regions(id),
+        day TEXT NOT NULL,
+        name TEXT NOT NULL,
+        PRIMARY KEY (region_id, day)
+      );
+      CREATE TABLE service_postcodes (
+        postcode TEXT PRIMARY KEY
+      );
+      CREATE TABLE buildings (
+        id TEXT PRIMARY KEY,
+        organisation_id TEXT NOT NULL REFERENCES organisations(id),
+        world TEXT NOT NULL CHECK (world IN ('common', 'private')),
+        name TEXT NOT NULL,
+        street_number TEXT NOT NULL,
+        street TEXT NOT NULL,
+        suburb TEXT NOT NULL,
+        postcode TEXT NOT NULL,
+        lat REAL,
+        lng REAL,
+        oc_plan TEXT NOT NULL DEFAULT '',
+        quotes_wanted INTEGER NOT NULL DEFAULT 1,
+        tier1_cents INTEGER NOT NULL DEFAULT 99900,
+        tier1_quotes INTEGER NOT NULL DEFAULT 1,
+        tier2_cents INTEGER NOT NULL DEFAULT 499900,
+        tier2_quotes INTEGER NOT NULL DEFAULT 2,
+        tier3_cents INTEGER NOT NULL DEFAULT 3000000,
+        tier3_quotes INTEGER NOT NULL DEFAULT 3,
+        tiers_confirmed INTEGER NOT NULL DEFAULT 0,
+        open_time TEXT NOT NULL DEFAULT '08:00',
+        close_time TEXT NOT NULL DEFAULT '17:00',
+        weekends INTEGER NOT NULL DEFAULT 0,
+        access_note TEXT NOT NULL DEFAULT '',
+        capture_m INTEGER NOT NULL DEFAULT 150,
+        archived INTEGER NOT NULL DEFAULT 0,
+        region_id TEXT NOT NULL DEFAULT 'AU-VIC',
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX buildings_org ON buildings(organisation_id);
+      CREATE TABLE building_assignments (
+        user_id TEXT NOT NULL REFERENCES users(id),
+        building_id TEXT NOT NULL REFERENCES buildings(id),
+        PRIMARY KEY (user_id, building_id)
+      );
+      CREATE TABLE waiting_places (
+        id TEXT PRIMARY KEY,
+        organisation_id TEXT NOT NULL REFERENCES organisations(id),
+        user_id TEXT NOT NULL REFERENCES users(id),
+        name TEXT NOT NULL,
+        street_number TEXT NOT NULL,
+        street TEXT NOT NULL,
+        suburb TEXT NOT NULL,
+        postcode TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+    db.prepare("INSERT INTO regions (id, name, time_zone) VALUES ('AU-VIC', 'Victoria', 'Australia/Melbourne')").run();
+    const holiday = db.prepare("INSERT INTO public_holidays (region_id, day, name) VALUES ('AU-VIC', ?, ?)");
+    for (const [day, name] of VICTORIA_HOLIDAYS) holiday.run(day, name);
+    const postcode = db.prepare("INSERT INTO service_postcodes (postcode) VALUES (?)");
+    for (const code of STARTING_POSTCODES) postcode.run(code);
+    db.exec("PRAGMA user_version = 2");
   }
 }
 

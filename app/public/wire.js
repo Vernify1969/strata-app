@@ -23,21 +23,6 @@
     const me = state.account;
     if (!me) return;
     state.role = me.role === "contractor" ? "contractor" : "manager";
-    if (me.role === "property_manager") {
-      state.buildings = [];
-      state.jobs = [];
-      state.quotes = [];
-      state.waiting = [];
-      state.account.banner = "Signed in as " + me.name + ", property manager. This account is for private properties only, so the sample apartment buildings are not loaded.";
-      return;
-    }
-    if (me.role === "platform_owner") {
-      state.buildings = [];
-      state.jobs = [];
-      state.quotes = [];
-      state.account.banner = "Signed in as the platform owner. These settings are not shown to managers or contractors.";
-      return;
-    }
     if (me.role === "contractor") {
       const person = state.contractors.find(item => item.id === "c-sam");
       if (person) person.name = me.name;
@@ -52,6 +37,58 @@
     state.manager.abn = me.abn || "";
     state.manager.consent = !!me.consent;
     state.manager.payment = me.payment || "";
+  }
+
+  function toClientBuilding(item) {
+    return {
+      id: item.id,
+      name: item.name,
+      streetNumber: item.streetNumber,
+      street: item.street,
+      suburb: item.suburb,
+      postcode: item.postcode,
+      lat: item.lat == null ? -37.8136 : item.lat,
+      lng: item.lng == null ? 144.9631 : item.lng,
+      oc: item.oc || "",
+      ocAbn: "",
+      limit: item.limit,
+      tier1: item.tier1,
+      q1: item.q1,
+      tier2: item.tier2,
+      q2: item.q2,
+      tier3: item.tier3,
+      q3: item.q3,
+      quotesWanted: item.quotesWanted,
+      open: item.open,
+      close: item.close,
+      weekends: !!item.weekends,
+      access: item.access || "",
+      captureM: item.captureM || 150,
+      sample: false
+    };
+  }
+
+  async function loadBuildings() {
+    const state = hooks().state;
+    if (!state.account || state.account.role === "contractor" || state.account.role === "platform_owner") return;
+    const res = await call("GET", "/api/buildings");
+    if (!res.ok) return;
+    state.buildings = (res.json.buildings || []).map(toClientBuilding);
+    state.waiting = (res.json.waiting || []).map(item => ({
+      id: item.id,
+      name: item.name,
+      suburb: item.suburb,
+      postcode: item.postcode,
+      streetNumber: "",
+      street: "",
+      lat: item.lat == null ? 0 : item.lat,
+      lng: item.lng == null ? 0 : item.lng
+    }));
+  }
+
+  async function loadArea() {
+    const res = await call("GET", "/api/area");
+    if (res.ok) hooks().state.owner.postcodes = res.json.postcodes || [];
   }
 
   async function loadNotes() {
@@ -76,6 +113,7 @@
   window.StrataWire = {
     hooks: null,
     saveTimer: 0,
+    buildingTimer: 0,
     async boot(api) {
       this.hooks = api;
       const params = new URLSearchParams(location.search);
@@ -101,8 +139,23 @@
       }
       api.state.account = res.json.user;
       api.state.account.banner = res.json.banner;
-      api.seed();
-      applyAccount();
+      if (res.json.user.role === "contractor") {
+        api.seed();
+        applyAccount();
+      } else if (res.json.user.role === "platform_owner") {
+        api.state.buildings = [];
+        api.state.jobs = [];
+        api.state.quotes = [];
+        api.state.contractors = [];
+        applyAccount();
+      } else {
+        api.state.jobs = [];
+        api.state.quotes = [];
+        api.state.contractors = [];
+        applyAccount();
+        await loadArea();
+        await loadBuildings();
+      }
       await loadNotes();
       if (["welcome", "signin", "register", "verify", "forgot", "reset", "checkmail", "terms"].indexOf(api.state.screen) !== -1) {
         api.state.screen = "home";
@@ -141,6 +194,7 @@
       if (act === "privacy-request") { this.privacy(t.dataset.kind); return true; }
       if (act === "set-manager-role" && state.remote) { this.setRole(t.dataset.value); return true; }
       if (act === "add-note" && state.remote) { this.addNote(); return true; }
+      if ((act === "save-building" || act === "join-wait") && state.remote) { this.saveBuilding(); return true; }
       if (act === "owner" && state.account && state.account.role !== "platform_owner") {
         api.toast("Only the platform owner can open these settings.");
         return true;
@@ -246,6 +300,53 @@
       auth.confirm = "";
       api.toast(res.json.message);
       api.state.screen = "profile";
+      api.state.title = "";
+      api.render();
+    },
+    scheduleBuilding(id) {
+      const self = this;
+      clearTimeout(this.buildingTimer);
+      this.buildingTimer = setTimeout(function () { self.saveBuildingFields(id); }, 500);
+    },
+    async saveBuildingFields(id) {
+      const api = hooks();
+      const building = api.state.buildings.find(item => item.id === id);
+      if (!building) return;
+      const body = {
+        open: building.open,
+        close: building.close,
+        weekends: !!building.weekends,
+        access: building.access,
+        captureM: building.captureM
+      };
+      if (api.state.manager.role === "property") body.quotesWanted = Number(building.quotesWanted || 1);
+      else {
+        body.tier1 = building.tier1 != null ? building.tier1 : building.limit;
+        body.tier2 = building.tier2;
+        body.tier3 = building.tier3;
+        body.q1 = building.q1;
+        body.q2 = building.q2;
+        body.q3 = building.q3;
+      }
+      const res = await call("PATCH", "/api/buildings/" + id, body);
+      if (!res.ok) api.toast((res.json && res.json.error) || "The building was not updated.");
+    },
+    async saveBuilding() {
+      const api = hooks();
+      const place = api.state.newBuilding || {};
+      const res = await call("POST", "/api/buildings", {
+        name: place.name,
+        streetNumber: place.number,
+        street: place.street,
+        suburb: place.suburb,
+        postcode: place.postcode,
+        ocPlan: place.oc
+      });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The building was not saved."); return; }
+      api.toast(res.json.waiting ? res.json.message : (api.state.manager.role === "property" ? "Property saved." : "Building saved."));
+      await loadBuildings();
+      api.state.history = [];
+      api.state.screen = "buildings";
       api.state.title = "";
       api.render();
     },

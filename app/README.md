@@ -6,7 +6,7 @@ This folder is the real app. It uses the same front end as the page at the root 
 
 People create an account, confirm their email, and sign in. The role is stored on the server. A building manager and an OC manager can switch with each other. A property manager stays a property manager. A contractor stays a contractor. The old Manager / Contractor switch is not shown once someone is signed in, because one account is one role.
 
-Buildings, jobs and payments are not stored on the server yet. After sign-in, a building or OC manager still sees the sample buildings and jobs so the existing screens can be used. A property manager does not see those sample apartment buildings. Notices and comments are saved for that organisation only.
+Buildings and properties are stored on the server. A person only sees the buildings assigned to their own account, and never another organisation's. A postcode outside the served list goes on a waiting list instead of becoming a building. Common property and private property are kept apart. Jobs and payments are not stored on the server yet. Notices and comments are saved for that organisation only.
 
 ## How to run it
 
@@ -42,4 +42,6 @@ npm test
 - Hosting for this server. GitHub Pages can only serve the static file at the root. It cannot run accounts.
 - A platform-owner sign-in, if you want one, with `OWNER_EMAIL` and `OWNER_PASSWORD`. Leave them empty until you choose them.
 
-Stripe is not connected in this stage. Live card payments are not switched on.
+Stripe is not connected yet. Live card payments are not switched on.
+
+The postcodes we serve start as 39 Melbourne postcodes within about 12 km of Flinders Street Station, taken from approximate centres. The platform owner can replace that list. Check it against a postcode map before launch. Victorian public holidays for 2026 and 2027 are stored for later deadlines and must be checked against the Victorian Government list.
