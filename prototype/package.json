@@ -1,0 +1,9 @@
+{
+  "name": "taskspeck-strata-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Automated checks for the TaskSpeck Strata prototype (one HTML file, tested in jsdom).",
+  "scripts": { "test": "node tests/run-all.js" },
+  "devDependencies": { "jsdom": "^30.1.3" },
+  "engines": { "node": ">=18" }
+}
