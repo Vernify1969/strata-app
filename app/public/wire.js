@@ -100,7 +100,7 @@
     }, job, {
       evidence: job.evidence || { before: [], after: [], fix1: [], fix2: [] },
       challenges: job.challenges || [],
-      timeline: (job.timeline || []).map(event => ({ t: event.t, x: event.who + ": " + event.x }))
+      timeline: (job.timeline || []).map(event => ({ at: Date.parse(event.t) || Date.now(), text: (event.who ? event.who + ": " : "") + (event.x || "") }))
     }));
     state.quotes = res.json.quotes || [];
     const people = res.json.contractors || [];
@@ -459,9 +459,11 @@
       if (!res.ok) { api.toast((res.json && res.json.error) || "The quote was not approved."); return; }
       await loadJobs();
       api.toast(res.json.stage === "approved" ? "Approved. The payment before the start is not paid yet." : "Approved. Nothing is paid before the work. Stripe has not been asked for money.");
+      const booked = api.state.jobs.find(item => item.id === quote.jobId);
       api.state.history = [];
       api.state.screen = "job";
       api.state.ctx = { id: quote.jobId };
+      api.state.title = booked ? booked.title : "Job";
       api.render();
     },
     async saveBuilding() {

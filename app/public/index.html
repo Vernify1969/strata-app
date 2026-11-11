@@ -2152,7 +2152,7 @@ const PHOTOS = {
       "<p>Approval limit: " + money(q.price) + " of " + moneyShort(p.limit) + (q.price > p.limit ? " · Needs committee approval" : " · Inside the limit") + "</p>" +
       "<p>Included:</p><ul class=\"clean\">" + q.scope.map(s => "<li>" + esc(s) + "</li>").join("") + "</ul>" +
       '<p class="summary-card">You pay the approved quote. No hidden fees. Your money is held until the job is done.</p>' +
-      '<label class="check"><input type="checkbox" data-field="approve.consent"' + (state.approveConsent ? " checked" : "") + "> <span>I agree to prepay this quote. Strata App holds the money until the job is complete.</span></label>" +
+      '<label class="check"><input type="checkbox" data-field="approve.consent"' + (state.approveConsent ? " checked" : "") + "> <span>I agree to pay this through Stripe. Stripe holds the money. Strata App does not.</span></label>" +
       (over ? '<p role="alert">Needs committee approval before you can continue.</p>' : "") +
       '<button class="btn btn-primary" type="button" data-act="approve-continue" data-id="' + q.id + '"' + ((!state.approveConsent || over) ? " disabled" : "") + ">Approve and continue to payment</button></div>";
   }

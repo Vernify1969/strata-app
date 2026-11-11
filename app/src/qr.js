@@ -285,7 +285,7 @@ form.addEventListener("submit", async (event) => {
   const body = { token: ${JSON.stringify(place.token)}, description: form.description.value, kind: form.kind.value, name: form.name.value, contact: form.contact.value, emergency: form.emergency.checked, consent: form.consent.checked, website: form.website.value, botA: ${a}, botB: ${b}, botAnswer: Number(form.bot.value), idempotencyKey: key };
   const res = await fetch("/api/public/reports", { method: "POST", headers: { "content-type": "application/json", "x-requested-with": "StrataApp" }, body: JSON.stringify(body) });
   const json = await res.json();
-  document.getElementById("done").textContent = json.message || json.error || ("Reference " + (json.reference || ""));
+  document.getElementById("done").textContent = (json.reference ? "Reference " + json.reference + ". " : "") + (json.message || json.error || "");
 });
 </script>`;
 }

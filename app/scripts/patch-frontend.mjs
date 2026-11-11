@@ -404,6 +404,12 @@ swap(
   "deposit click"
 );
 
+swap(
+  "I agree to prepay this quote. Strata App holds the money until the job is complete.",
+  "I agree to pay this through Stripe. Stripe holds the money. Strata App does not.",
+  "approve consent"
+);
+
 const out = path.resolve(here, "../public/index.html");
 fs.writeFileSync(out, html);
 console.log("wrote", out, "bytes", html.length);
