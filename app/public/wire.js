@@ -86,6 +86,39 @@
     }));
   }
 
+  async function loadJobs() {
+    const state = hooks().state;
+    const res = await call("GET", "/api/jobs");
+    if (!res.ok) return;
+    state.jobs = (res.json.jobs || []).map(job => Object.assign({
+      photos: [], video: null, safetyNote: "", parking: "", parkingNote: "", siteRules: "",
+      timeMode: "morning", exactTime: "", flexible: false, deadline: "", materials: "contractor",
+      insurance: 20, swms: false, notice: "", lift: "", reference: "", otherTrade: "",
+      safetyOnSite: [null, null, null, null, null], contractorAlert: false, alertSeen: false,
+      paidAt: null, payMethod: null, releasedAt: null, reviewStartedAt: null, farDemo: false,
+      arrival: null, eta: null, arrivalAt: null, arrivalDistance: null, arrivalConfirmed: false
+    }, job, {
+      evidence: job.evidence || { before: [], after: [], fix1: [], fix2: [] },
+      challenges: job.challenges || [],
+      timeline: (job.timeline || []).map(event => ({ t: event.t, x: event.who + ": " + event.x }))
+    }));
+    state.quotes = res.json.quotes || [];
+    const people = res.json.contractors || [];
+    if (state.account && state.account.role === "contractor") {
+      state.meId = state.account.id;
+      if (!people.some(person => person.id === state.account.id)) {
+        people.push({
+          id: state.account.id, name: state.account.name, trades: state.myTrades || ["plumbing"],
+          years: 1, gst: true, abn: state.account.abn || "", licence: "To be checked",
+          licenceUntil: "2099-01-01", insuranceUntil: "2099-01-01", cover: 20,
+          description: state.account.businessName || "", consentPublic: true, bankLast4: "0000",
+          guideDone: false, sample: false, basePostcode: state.basePostcode || ""
+        });
+      }
+    }
+    state.contractors = people;
+  }
+
   async function loadArea() {
     const res = await call("GET", "/api/area");
     if (res.ok) hooks().state.owner.postcodes = res.json.postcodes || [];
@@ -155,7 +188,9 @@
         applyAccount();
         await loadArea();
         await loadBuildings();
+        await loadJobs();
       }
+      if (res.json.user.role === "contractor") await loadJobs();
       await loadNotes();
       if (["welcome", "signin", "register", "verify", "forgot", "reset", "checkmail", "terms"].indexOf(api.state.screen) !== -1) {
         api.state.screen = "home";
@@ -330,6 +365,68 @@
       }
       const res = await call("PATCH", "/api/buildings/" + id, body);
       if (!res.ok) api.toast((res.json && res.json.error) || "The building was not updated.");
+    },
+    async postDraft() {
+      const api = hooks();
+      const draft = api.state.draft;
+      const res = await call("POST", "/api/jobs", {
+        buildingId: draft.buildingId,
+        title: draft.title,
+        area: draft.area,
+        tradeId: draft.tradeId,
+        instructions: draft.instructions,
+        urgency: draft.urgency,
+        deadline: draft.date,
+        safety: draft.safety,
+        photoCount: (draft.photos || []).length,
+        date: draft.date,
+        ownerApproval: !!draft.ownerApproval
+      });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The request was not sent."); return; }
+      api.state.draft = null;
+      await loadJobs();
+      api.state.history = [];
+      api.state.screen = "job";
+      api.state.ctx = { id: res.json.job.id };
+      api.state.title = res.json.job.title;
+      api.toast("Request posted.");
+      api.render();
+    },
+    async sendOffer(jobId) {
+      const api = hooks();
+      const offer = api.state.offer || {};
+      const person = api.state.contractors.find(item => item.id === api.state.meId) || {};
+      const trades = person.trades && person.trades.length ? person.trades : ["plumbing"];
+      const postcode = person.basePostcode || api.state.basePostcode || "";
+      if (!/^\d{4}$/.test(postcode)) { api.toast("Add the postcode you work from on your profile."); return; }
+      await call("PATCH", "/api/me/work", { trades: trades, basePostcode: postcode, gst: person.gst !== false });
+      const scope = String(offer.scope || "").split(/\n/).map(line => line.trim()).filter(Boolean);
+      const res = await call("POST", "/api/jobs/" + jobId + "/quotes", {
+        price: Number(offer.price),
+        scope: scope,
+        date: offer.date,
+        time: offer.time || "09:00",
+        duration: offer.duration || "2h",
+        note: offer.note || "",
+        depositType: offer.depositType || "none"
+      });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The offer was not sent."); return; }
+      await loadJobs();
+      api.toast("Offer sent.");
+      api.render();
+    },
+    async doApprove(quoteId) {
+      const api = hooks();
+      const quote = api.state.quotes.find(item => item.id === quoteId);
+      if (!quote) return;
+      const res = await call("POST", "/api/jobs/" + quote.jobId + "/approve", { quoteId: quoteId });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The quote was not approved."); return; }
+      await loadJobs();
+      api.toast(res.json.stage === "approved" ? "Approved. The payment before the start is not paid yet." : "Approved. Nothing is paid before the work. Stripe has not been asked for money.");
+      api.state.history = [];
+      api.state.screen = "job";
+      api.state.ctx = { id: quote.jobId };
+      api.render();
     },
     async saveBuilding() {
       const api = hooks();

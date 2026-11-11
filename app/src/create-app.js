@@ -9,6 +9,7 @@ import {
   normalEmail, publicUser, readCookie, sessionCookie
 } from "./ids.js";
 import { registerBuildingRoutes } from "./buildings.js";
+import { registerJobRoutes } from "./jobs.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -330,6 +331,7 @@ export async function createApp(config) {
   });
 
   registerBuildingRoutes(app, { db, sendError, requireUser, requireJson });
+  registerJobRoutes(app, { db, sendError, requireUser, requireJson });
 
   app.get("/api/owner/settings", requireUser, (req, res) => {
     if (req.user.role !== "platform_owner") return sendError(res, 403, "Only the platform owner can open these settings.");
@@ -367,7 +369,7 @@ function bannerFor(user) {
     return "Signed in as the platform owner. Buildings belong to manager accounts, not to this one.";
   }
   const place = user.role === "property_manager" ? "Properties" : "Buildings";
-  return `Signed in as ${user.name}, ${publicUser(user).roleLabel}. ${place} are stored for your organisation only. Jobs are not stored on the server yet.`;
+  return `Signed in as ${user.name}, ${publicUser(user).roleLabel}. ${place} and jobs are stored for your organisation only. Stripe is not taking payments yet.`;
 }
 
 async function ensureOwner(db, config) {
