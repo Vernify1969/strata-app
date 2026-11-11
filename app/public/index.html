@@ -1684,7 +1684,7 @@ const PHOTOS = {
         "<p>" + esc(b.streetNumber + " " + b.street + ", " + b.suburb + " VIC") + "</p>" +
         '<p class="small">OC or plan ' + esc(b.oc) + " · " + kmText(km) + " from the CBD</p>" +
         (outside ? '<p class="notice notice-bad">We do not cover this area yet. It is ' + kmText(km) + " from Flinders Street Station.</p>" : "") +
-        field("Approval limit without committee", "number", "building." + b.id + ".limit", b.limit) +
+        (state.manager.role === "property" ? field("Quotes you usually want", "number", "building." + b.id + ".quotesWanted", b.quotesWanted || 1) : field("Budget 1, up to $", "number", "building." + b.id + ".tier1", b.tier1 != null ? b.tier1 : b.limit) + field("Quotes for budget 1", "number", "building." + b.id + ".q1", b.q1 || 1) + field("Budget 2, up to $", "number", "building." + b.id + ".tier2", b.tier2 != null ? b.tier2 : 4999) + field("Quotes for budget 2", "number", "building." + b.id + ".q2", b.q2 || 2) + field("Budget 3, up to $", "number", "building." + b.id + ".tier3", b.tier3 != null ? b.tier3 : 30000) + field("Quotes for budget 3", "number", "building." + b.id + ".q3", b.q3 || 3)) +
         '<div class="row">' + field("Opening time", "time", "building." + b.id + ".open", b.open) + field("Closing time", "time", "building." + b.id + ".close", b.close) + "</div>" +
         '<p class="small">' + esc(daysLabel(b.weekends) + ", " + prettyHours(b.open, b.close)) + "</p>" +
         '<label class="check"><input type="checkbox" data-field="building.' + b.id + '.weekends"' + (b.weekends ? " checked" : "") + "> <span>Contractors can work weekends</span></label>" +
@@ -1702,15 +1702,15 @@ const PHOTOS = {
     const n = state.newBuilding;
     const s = suburbByName(n.suburb);
     const km = s ? kmFromCbd(s.lat, s.lng) : 0;
-    const outside = s && !inRadius(s.lat, s.lng);
+    const outside = state.owner.postcodes ? (n.postcode && state.owner.postcodes.indexOf(String(n.postcode)) === -1) : (s && !inRadius(s.lat, s.lng));
     const opts = SUBURBS.map(x => '<option value="' + esc(x.name) + '"' + (x.name === n.suburb ? " selected" : "") + ">" + esc(x.name) + "</option>").join("");
     return '<div class="stack"><div class="card stack">' +
       field("Building name", "text", "new.name", n.name) +
       field("Street number", "text", "new.number", n.number) +
       field("Street", "text", "new.street", n.street) +
-      '<label class="field">Suburb<select data-field="new.suburb">' + opts + "</select></label>" +
-      field("OC or plan number", "text", "new.oc", n.oc) +
-      field("Approval limit without committee", "number", "new.limit", n.limit) +
+      field("Suburb", "text", "new.suburb", n.suburb) +
+      field("Postcode", "text", "new.postcode", n.postcode || "") +
+      field(state.manager.role === "property" ? "Property type" : "OC or plan number", "text", "new.oc", n.oc) +
       (outside ? '<div class="notice notice-bad" role="alert"><strong>We do not cover this area yet</strong><p>' + esc(n.suburb) + " is " + kmText(km) + ' from Flinders Street Station.</p><button class="btn btn-secondary" type="button" data-act="join-wait">Join the waiting list</button></div>' : "") +
       (outside ? "" : '<button class="btn btn-primary" type="button" data-act="save-building">Save building</button>') +
       "</div></div>";
@@ -2674,8 +2674,9 @@ const PHOTOS = {
       const [, id, key] = field.split(".");
       const b = building(id); if (!b) return false;
       if (key === "weekends") b.weekends = !!value;
-      else if (key === "limit" || key === "captureM") b[key] = Number(value);
+      else if (key === "limit" || key === "captureM" || key === "tier1" || key === "tier2" || key === "tier3" || key === "q1" || key === "q2" || key === "q3" || key === "quotesWanted") b[key] = Number(value);
       else b[key] = value;
+      if (state.remote && window.StrataWire) window.StrataWire.scheduleBuilding(id);
       return true;
     }
     if (field.indexOf("owner.") === 0) {
@@ -2768,7 +2769,7 @@ const PHOTOS = {
     if (act === "new-request") { startRequest({ tradeId: t.dataset.trade || "plumbing" }); return; }
     if (act === "owner") { push("owner", {}, "Owner settings"); return; }
     if (act === "add-building") {
-      state.newBuilding = { name: "", number: "", street: "", suburb: "Balwyn", oc: "", limit: 4999 };
+      state.newBuilding = { name: "", number: "", street: "", suburb: "", postcode: "", oc: "", limit: 4999 };
       push("building-new", {}, "Add a building");
       return;
     }

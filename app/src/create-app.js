@@ -8,6 +8,7 @@ import {
   abnOk, clearSessionCookie, emailOk, hashToken, mobileOk, newId, newToken,
   normalEmail, publicUser, readCookie, sessionCookie
 } from "./ids.js";
+import { registerBuildingRoutes } from "./buildings.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -328,6 +329,8 @@ export async function createApp(config) {
     res.status(201).json({ note: { id, author_name: req.user.name, body, created_at: now } });
   });
 
+  registerBuildingRoutes(app, { db, sendError, requireUser, requireJson });
+
   app.get("/api/owner/settings", requireUser, (req, res) => {
     if (req.user.role !== "platform_owner") return sendError(res, 403, "Only the platform owner can open these settings.");
     audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "owner.settings_viewed", subjectType: "owner", subjectId: req.user.id, detail: {} });
@@ -357,7 +360,14 @@ export async function createApp(config) {
 }
 
 function bannerFor(user) {
-  return `Signed in as ${user.name}, ${publicUser(user).roleLabel}. Buildings and jobs on this screen are still the sample set, until the server stores them. Your account is kept on the server.`;
+  if (user.role === "contractor") {
+    return `Signed in as ${user.name}, contractor. Open jobs from other buildings are not loaded yet.`;
+  }
+  if (user.role === "platform_owner") {
+    return "Signed in as the platform owner. Buildings belong to manager accounts, not to this one.";
+  }
+  const place = user.role === "property_manager" ? "Properties" : "Buildings";
+  return `Signed in as ${user.name}, ${publicUser(user).roleLabel}. ${place} are stored for your organisation only. Jobs are not stored on the server yet.`;
 }
 
 async function ensureOwner(db, config) {
