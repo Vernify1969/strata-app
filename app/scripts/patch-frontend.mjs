@@ -61,7 +61,7 @@ swap(
 
 swap(
   ".hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); }",
-  ".hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); overflow-wrap: break-word; }\n.hero p { overflow-wrap: break-word; }\n.auth-panel { width: 100%; margin: 0; }\n.auth-panel .card { max-width: 720px; }\n.signed-as { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }\n@media (max-width: 899px) { .topbar:has(.signed-as) .brand > span:last-child { display: none; } .signed-label { display: none; } .topbar .roles { display: none; } }",
+  ".hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); overflow-wrap: break-word; }\n.hero p { overflow-wrap: break-word; }\n.auth-panel { width: 100%; margin: 0; }\n.auth-panel .card { max-width: 720px; }\n.signed-as { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }\n.demo-pair { display: grid; gap: 12px; }\n@media (min-width: 640px) { .demo-pair { grid-template-columns: 1fr 1fr; } }\n.demo-account { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--field); }\n.demo-account h2 { font-size: 1.05rem; }\n.rail .sign-out-tab { color: var(--ink); font-weight: 700; margin-top: 8px; }\n.header-sign-out { width: auto; flex: none; min-height: 36px; padding: 0 10px; font-size: 0.85rem; }\n@media (min-width: 900px) { .header-sign-out { display: none; } }\n@media (max-width: 899px) { .topbar:has(.signed-as) .brand > span:last-child { display: none; } .signed-label { display: none; } .topbar .roles { display: none; } }",
   "hero wrapping"
 );
 
@@ -130,11 +130,13 @@ swap(
   `    const emergencyBtn = onAuth || state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
     const demoBanner = state.demo ? '<p class="samplebar">Demo, test data only. Payments are simulated and QR sheets cannot be printed.</p>' : "";
     const sample = demoBanner + (onAuth ? "" : '<p class="samplebar">' + (state.account ? esc(state.account.banner || "Signed in.") : "Sample data. The people, buildings and jobs are fictional.") + "</p>");
-    const rail = onAuth ? "" : '<aside class="rail">' + brandMark() + tabsHtml("rail") + "</aside>";
+    const menuSignOut = state.account ? '<button class="tab sign-out-tab" type="button" data-act="sign-out" aria-label="Sign out of this device"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg><span class="tab-label">Sign out</span></button>' : "";
+    const headerSignOut = state.account ? '<button class="btn btn-secondary header-sign-out" type="button" data-act="sign-out">Sign out</button>' : "";
+    const rail = onAuth ? "" : '<aside class="rail">' + brandMark() + tabsHtml("rail") + menuSignOut + "</aside>";
     const nav = onAuth ? "" : '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>";
     return '<div class="shell" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
       rail +
-      '<div class="workspace"><header class="topbar">' + bar + (detail && !onAuth ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + themeBtn + emergencyBtn + "</div></header>" + sample +
+      '<div class="workspace"><header class="topbar">' + bar + (detail && !onAuth ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + themeBtn + headerSignOut + emergencyBtn + "</div></header>" + sample +
       '<main class="main" id="main"><div class="stage"><div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>' + screenHtml() + "</div></main></div></div>" +
       nav;`,
   "shell chrome"
@@ -166,7 +168,7 @@ swap(
       return '<div class="welcome-layout"><section class="hero"><p class="eyebrow">Strata App</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. Strata App does not.</p></section><div class="stack">' +
         '<button class="btn btn-primary" type="button" data-act="auth-goto" data-screen="register">Create an account</button>' +
         '<button class="btn btn-secondary" type="button" data-act="auth-goto" data-screen="signin">Sign in</button>' +
-        (state.demo ? '<div class="card stack"><p><strong>Demo, test data only.</strong> Sign in as the manager mina.costa@harbour.example, password Harbour1. Or the contractor sam@plumbing.example, password Pipes123. A new account shows its confirmation link on this screen. No email is sent.</p><p class="small">Sample building: Harbour View Apartments. The Lift 1 report page is /r/demo-lift-1.</p></div>' : "") +
+        (state.demo ? '<div class="card stack"><p><strong>Two demo accounts. Pick one.</strong></p><div class="demo-pair"><div class="demo-account"><h2>Manager</h2><p><strong>Mina Costa</strong></p><p class="small">mina.costa@harbour.example</p><p class="small">Password Harbour1</p></div><div class="demo-account"><h2>Contractor</h2><p><strong>Sam Okonkwo</strong></p><p class="small">sam@plumbing.example</p><p class="small">Password Pipes123</p></div></div><p class="small">A new account shows its confirmation link on this screen. No email is sent. Sample building: Harbour View Apartments. The Lift 1 report page is /r/demo-lift-1.</p></div>' : "") +
         '<div class="card stack"><p>Building managers and OC managers look after apartment buildings and common property. Property managers look after private rental properties. Contractors do the work. An account is one of these, not more than one.</p><p class="small muted">The terms and privacy summary are a draft for a solicitor to review.</p><button class="btn btn-ghost" type="button" data-act="auth-goto" data-screen="terms">Read the terms and privacy summary</button></div></div></div>';
     }
     if (state.screen === "terms") {
