@@ -10,6 +10,7 @@ import {
 } from "./ids.js";
 import { registerBuildingRoutes } from "./buildings.js";
 import { registerJobRoutes } from "./jobs.js";
+import { handleStripeWebhook, registerPaymentRoutes } from "./payments.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -26,6 +27,9 @@ export async function createApp(config) {
   const mail = createMailer(config);
   const app = express();
   app.disable("x-powered-by");
+  app.post("/api/stripe/webhook", express.raw({ type: "*/*", limit: "1mb" }), (req, res) => {
+    handleStripeWebhook(req, res, { db, config });
+  });
   app.use(express.json({ limit: "1mb" }));
   app.use((req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
@@ -332,6 +336,7 @@ export async function createApp(config) {
 
   registerBuildingRoutes(app, { db, sendError, requireUser, requireJson });
   registerJobRoutes(app, { db, sendError, requireUser, requireJson });
+  registerPaymentRoutes(app, { db, config, sendError, requireUser, requireJson });
 
   app.get("/api/owner/settings", requireUser, (req, res) => {
     if (req.user.role !== "platform_owner") return sendError(res, 403, "Only the platform owner can open these settings.");

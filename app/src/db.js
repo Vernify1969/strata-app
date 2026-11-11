@@ -228,6 +228,26 @@ function migrate(db) {
     `);
     db.exec("PRAGMA user_version = 3");
   }
+  if (userVersion(db) < 4) {
+    db.exec(`
+      ALTER TABLE users ADD COLUMN stripe_account_id TEXT NOT NULL DEFAULT '';
+      CREATE TABLE payments (
+        id TEXT PRIMARY KEY,
+        job_id TEXT NOT NULL,
+        organisation_id TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL,
+        fee_cents INTEGER NOT NULL,
+        net_cents INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        idempotency_key TEXT NOT NULL UNIQUE,
+        provider_ref TEXT NOT NULL,
+        holder TEXT NOT NULL,
+        failure_reason TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+    `);
+    db.exec("PRAGMA user_version = 4");
+  }
 }
 
 export function audit(db, event) {

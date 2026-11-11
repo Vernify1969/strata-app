@@ -3038,7 +3038,7 @@ const PHOTOS = {
     render();
   }
   function doPay(jobId) {
-    if (state.remote) { toast("Stripe is not connected yet. Nothing has been marked paid."); return; }
+    if (state.remote && window.StrataWire) return window.StrataWire.pay(jobId);
     const job = jobById(jobId);
     if (!state.payMethod) { toast("Choose bank transfer or card."); return; }
     job.stage = "paid";

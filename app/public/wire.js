@@ -415,6 +415,14 @@
       api.toast("Offer sent.");
       api.render();
     },
+    async pay(jobId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/payments", { idempotencyKey: "pay-" + jobId });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The payment was not started."); return; }
+      api.toast(res.json.paid ? "Stripe has confirmed the payment." : "Stripe is holding this request. It is not paid until Stripe confirms it.");
+      await loadJobs();
+      api.render();
+    },
     async doApprove(quoteId) {
       const api = hooks();
       const quote = api.state.quotes.find(item => item.id === quoteId);

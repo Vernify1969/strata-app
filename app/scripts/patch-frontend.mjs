@@ -357,7 +357,7 @@ swap(
 );
 swap(
   "  function doPay(jobId) {",
-  "  function doPay(jobId) {\n    if (state.remote) { toast(\"Stripe is not connected yet. Nothing has been marked paid.\"); return; }",
+  "  function doPay(jobId) {\n    if (state.remote && window.StrataWire) return window.StrataWire.pay(jobId);",
   "block fake pay"
 );
 swap(
