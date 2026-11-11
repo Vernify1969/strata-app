@@ -306,6 +306,52 @@ function migrate(db) {
     `);
     db.exec("PRAGMA user_version = 6");
   }
+  if (userVersion(db) < 7) {
+    db.exec(`
+      ALTER TABLE payments ADD COLUMN released_at TEXT NOT NULL DEFAULT '';
+      ALTER TABLE payments ADD COLUMN kind TEXT NOT NULL DEFAULT 'full';
+      ALTER TABLE payments ADD COLUMN urgent_fee_cents INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE payments ADD COLUMN transfer_ref TEXT NOT NULL DEFAULT '';
+      CREATE TABLE platform_settings (
+        id TEXT PRIMARY KEY,
+        commission_percent INTEGER NOT NULL,
+        urgent_fee_cents INTEGER NOT NULL,
+        apartment_fee_cents INTEGER NOT NULL,
+        apartment_fee_enabled INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE contractor_documents (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        kind TEXT NOT NULL,
+        stored_name TEXT NOT NULL,
+        original_name TEXT NOT NULL,
+        mime TEXT NOT NULL,
+        declared INTEGER NOT NULL,
+        declared_at TEXT NOT NULL,
+        expiry_on TEXT NOT NULL,
+        licence_number TEXT NOT NULL DEFAULT '',
+        suggested_expiry TEXT NOT NULL DEFAULT '',
+        suggested_number TEXT NOT NULL DEFAULT '',
+        suggested_kind TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE document_alerts (
+        document_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        days_before INTEGER NOT NULL,
+        sent_at TEXT NOT NULL,
+        PRIMARY KEY (document_id, user_id, days_before)
+      );
+      CREATE TABLE notifications (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        read_at TEXT
+      );
+    `);
+    db.exec("PRAGMA user_version = 7");
+  }
 }
 
 export function audit(db, event) {
