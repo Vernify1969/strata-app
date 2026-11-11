@@ -11,6 +11,7 @@ import {
 import { registerBuildingRoutes } from "./buildings.js";
 import { registerJobRoutes } from "./jobs.js";
 import { handleStripeWebhook, registerPaymentRoutes } from "./payments.js";
+import { registerQrRoutes } from "./qr.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -337,6 +338,7 @@ export async function createApp(config) {
   registerBuildingRoutes(app, { db, sendError, requireUser, requireJson });
   registerJobRoutes(app, { db, sendError, requireUser, requireJson });
   registerPaymentRoutes(app, { db, config, sendError, requireUser, requireJson });
+  registerQrRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
 
   app.get("/api/owner/settings", requireUser, (req, res) => {
     if (req.user.role !== "platform_owner") return sendError(res, 403, "Only the platform owner can open these settings.");

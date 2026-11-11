@@ -25,9 +25,10 @@ export async function startApp(overrides = {}) {
   const server = http.createServer(app);
   await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
   const { port } = server.address();
-  config.publicBaseUrl = `http://127.0.0.1:${port}`;
+  const listenBase = `http://127.0.0.1:${port}`;
+  if (!overrides.publicBaseUrl) config.publicBaseUrl = listenBase;
   return {
-    base: config.publicBaseUrl,
+    base: listenBase,
     config,
     app,
     async close() {

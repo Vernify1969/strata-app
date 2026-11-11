@@ -248,6 +248,53 @@ function migrate(db) {
     `);
     db.exec("PRAGMA user_version = 4");
   }
+  if (userVersion(db) < 5) {
+    db.exec(`
+      ALTER TABLE buildings ADD COLUMN emergency_emails TEXT NOT NULL DEFAULT '';
+      CREATE TABLE places (
+        id TEXT PRIMARY KEY,
+        building_id TEXT NOT NULL REFERENCES buildings(id),
+        organisation_id TEXT NOT NULL REFERENCES organisations(id),
+        kind TEXT NOT NULL,
+        name TEXT NOT NULL,
+        level TEXT NOT NULL DEFAULT '',
+        active INTEGER NOT NULL DEFAULT 1,
+        token TEXT NOT NULL UNIQUE,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE reports (
+        id TEXT PRIMARY KEY,
+        building_id TEXT NOT NULL,
+        organisation_id TEXT NOT NULL,
+        place_id TEXT NOT NULL,
+        reference TEXT NOT NULL UNIQUE,
+        kind TEXT NOT NULL,
+        description TEXT NOT NULL,
+        emergency INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'NEW',
+        reporter_name TEXT NOT NULL DEFAULT '',
+        reporter_contact TEXT NOT NULL DEFAULT '',
+        idempotency_key TEXT,
+        job_id TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX reports_idem ON reports(idempotency_key) WHERE idempotency_key IS NOT NULL;
+      CREATE TABLE report_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        report_id TEXT NOT NULL,
+        at TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        body TEXT NOT NULL
+      );
+      CREATE TABLE report_photos (
+        id TEXT PRIMARY KEY,
+        report_id TEXT NOT NULL,
+        stored_name TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+    db.exec("PRAGMA user_version = 5");
+  }
 }
 
 export function audit(db, event) {
