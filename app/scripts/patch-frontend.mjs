@@ -22,11 +22,11 @@ swap(
   }`,
   `  .shell {
     display: grid; grid-template-columns: 248px minmax(0, 1fr);
-    width: min(1440px, 100%);
-    margin-inline: auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
     min-height: 100vh;
     background: var(--bg);
-    box-shadow: 0 0 0 1px var(--line), 0 24px 60px rgba(15, 23, 42, 0.06);
   }
   .shell[data-screen="welcome"],
   .shell[data-screen="signin"],
@@ -35,13 +35,33 @@ swap(
   .shell[data-screen="forgot"],
   .shell[data-screen="reset"],
   .shell[data-screen="terms"] { grid-template-columns: minmax(0, 1fr); }
-  .workspace { min-width: 0; }`,
+  .workspace { min-width: 0; width: 100%; }
+  .welcome-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr); gap: 28px; width: 100%; align-items: stretch; }
+  .welcome-layout .hero { min-height: 280px; display: flex; flex-direction: column; justify-content: center; }`,
   "desktop content column"
 );
 
 swap(
+  "  body { background: #E4ECF6; }",
+  "  body { background: var(--bg); }",
+  "full-bleed background"
+);
+
+swap(
+  ".home-layout { display: block; }",
+  ".home-layout { display: block; }\n.diary { scroll-margin-top: 96px; }",
+  "diary scroll"
+);
+
+swap(
+  "  .main { padding: 32px 32px 56px; max-width: none; width: auto; }",
+  "  .main { padding: 32px 32px 56px; max-width: none; width: 100%; }",
+  "full-width main"
+);
+
+swap(
   ".hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); }",
-  ".hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); overflow-wrap: break-word; }\n.hero p { overflow-wrap: break-word; }\n.auth-panel { width: min(760px, 100%); margin-inline: auto; }\n.signed-as { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }\n@media (max-width: 899px) { .topbar:has(.signed-as) .brand > span:last-child { display: none; } .signed-label { display: none; } .topbar .roles { display: none; } }",
+  ".hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); overflow-wrap: break-word; }\n.hero p { overflow-wrap: break-word; }\n.auth-panel { width: 100%; margin: 0; }\n.auth-panel .card { max-width: 720px; }\n.signed-as { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }\n@media (max-width: 899px) { .topbar:has(.signed-as) .brand > span:last-child { display: none; } .signed-label { display: none; } .topbar .roles { display: none; } }",
   "hero wrapping"
 );
 
@@ -143,11 +163,11 @@ swap(
     const kindBtn = (id, label) => '<button class="chip" type="button" data-act="auth-kind" data-kind="' + id + '" aria-pressed="' + (a.kind === id ? "true" : "false") + '">' + label + "</button>";
     const roleBtn = (id, label) => '<button class="chip" type="button" data-act="auth-role" data-role="' + id + '" aria-pressed="' + (a.role === id ? "true" : "false") + '">' + label + "</button>";
     if (state.screen === "welcome") {
-      return '<div class="stack auth-panel"><section class="hero"><p class="eyebrow">Strata App</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. Strata App does not.</p></section>' +
+      return '<div class="welcome-layout"><section class="hero"><p class="eyebrow">Strata App</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. Strata App does not.</p></section><div class="stack">' +
         '<button class="btn btn-primary" type="button" data-act="auth-goto" data-screen="register">Create an account</button>' +
         '<button class="btn btn-secondary" type="button" data-act="auth-goto" data-screen="signin">Sign in</button>' +
         (state.demo ? '<div class="card stack"><p><strong>Demo, test data only.</strong> Sign in as the manager mina.costa@harbour.example, password Harbour1. Or the contractor sam@plumbing.example, password Pipes123. A new account shows its confirmation link on this screen. No email is sent.</p><p class="small">Sample building: Harbour View Apartments. The Lift 1 report page is /r/demo-lift-1.</p></div>' : "") +
-        '<div class="card stack"><p>Building managers and OC managers look after apartment buildings and common property. Property managers look after private rental properties. Contractors do the work. An account is one of these, not more than one.</p><p class="small muted">The terms and privacy summary are a draft for a solicitor to review.</p><button class="btn btn-ghost" type="button" data-act="auth-goto" data-screen="terms">Read the terms and privacy summary</button></div></div>';
+        '<div class="card stack"><p>Building managers and OC managers look after apartment buildings and common property. Property managers look after private rental properties. Contractors do the work. An account is one of these, not more than one.</p><p class="small muted">The terms and privacy summary are a draft for a solicitor to review.</p><button class="btn btn-ghost" type="button" data-act="auth-goto" data-screen="terms">Read the terms and privacy summary</button></div></div></div>';
     }
     if (state.screen === "terms") {
       return '<div class="stack auth-panel"><div class="card stack"><h1>Terms and privacy summary</h1><p class="demo">Draft for a solicitor to review</p>' +
@@ -309,7 +329,7 @@ swap(
 
 swap(
   ".home-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }",
-  ".home-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }\n  .diary .day { min-height: 36px; min-width: 0; padding: 2px; font-size: 13px; }\n  .diary .cal-card { padding: 10px; }\n  .diary .icon-btn { min-height: 36px; padding: 0 8px; }",
+  ".home-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }\n  .diary { scroll-margin-top: 88px; }\n  .diary .day { min-height: 36px; min-width: 0; padding: 2px; font-size: 13px; }\n  .diary .cal-card { padding: 10px; }\n  .diary .icon-btn { min-height: 36px; padding: 0 8px; }",
   "notices column"
 );
 

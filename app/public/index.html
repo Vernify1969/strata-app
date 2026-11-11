@@ -218,6 +218,7 @@ button.notice {
 .more-row .chip { width: 100%; height: 100%; white-space: normal; text-align: center; line-height: 1.25; justify-content: center; padding: 8px 12px; }
 .more-row .chip:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .home-layout { display: block; }
+.diary { scroll-margin-top: 96px; }
 .diary-card { display: flex; flex-direction: column; gap: 12px; }
 .diary h2 { font-size: 1.25rem; line-height: 1.25; }
 .diary .between { align-items: center; }
@@ -228,6 +229,7 @@ button.notice {
 .diary-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0; }
 @media (min-width: 1280px) {
   .home-layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }
+  .diary { scroll-margin-top: 88px; }
   .diary .day { min-height: 36px; min-width: 0; padding: 2px; font-size: 13px; }
   .diary .cal-card { padding: 10px; }
   .diary .icon-btn { min-height: 36px; padding: 0 8px; }
@@ -356,14 +358,14 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   .quote-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (min-width: 900px) {
-  body { background: #E4ECF6; }
+  body { background: var(--bg); }
   .shell {
     display: grid; grid-template-columns: 248px minmax(0, 1fr);
-    width: min(1440px, 100%);
-    margin-inline: auto;
+    width: 100%;
+    max-width: none;
+    margin: 0;
     min-height: 100vh;
     background: var(--bg);
-    box-shadow: 0 0 0 1px var(--line), 0 24px 60px rgba(15, 23, 42, 0.06);
   }
   .shell[data-screen="welcome"],
   .shell[data-screen="signin"],
@@ -372,7 +374,9 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   .shell[data-screen="forgot"],
   .shell[data-screen="reset"],
   .shell[data-screen="terms"] { grid-template-columns: minmax(0, 1fr); }
-  .workspace { min-width: 0; }
+  .workspace { min-width: 0; width: 100%; }
+  .welcome-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr); gap: 28px; width: 100%; align-items: stretch; }
+  .welcome-layout .hero { min-height: 280px; display: flex; flex-direction: column; justify-content: center; }
   .rail {
     display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh;
     padding: 22px 14px; border-right: 1px solid var(--line); background: var(--surface);
@@ -386,7 +390,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   .rail button.tab[aria-current="page"] { background: var(--accent-bg); }
   .rail button.tab .badge { position: static; margin-left: auto; }
   .tabbar { display: none; }
-  .main { padding: 32px 32px 56px; max-width: none; width: auto; }
+  .main { padding: 32px 32px 56px; max-width: none; width: 100%; }
   .section-label { display: block; }
   .toast { bottom: 24px; }
   .trade-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -414,7 +418,8 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
 .hero h1, .hero p, .hero .lead { color: #fff; }
 .hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); overflow-wrap: break-word; }
 .hero p { overflow-wrap: break-word; }
-.auth-panel { width: min(760px, 100%); margin-inline: auto; }
+.auth-panel { width: 100%; margin: 0; }
+.auth-panel .card { max-width: 720px; }
 .signed-as { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 @media (max-width: 899px) { .topbar:has(.signed-as) .brand > span:last-child { display: none; } .signed-label { display: none; } .topbar .roles { display: none; } }
 .eyebrow { margin: 0 0 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #DBEAFE; }
@@ -1397,11 +1402,11 @@ const PHOTOS = {
     const kindBtn = (id, label) => '<button class="chip" type="button" data-act="auth-kind" data-kind="' + id + '" aria-pressed="' + (a.kind === id ? "true" : "false") + '">' + label + "</button>";
     const roleBtn = (id, label) => '<button class="chip" type="button" data-act="auth-role" data-role="' + id + '" aria-pressed="' + (a.role === id ? "true" : "false") + '">' + label + "</button>";
     if (state.screen === "welcome") {
-      return '<div class="stack auth-panel"><section class="hero"><p class="eyebrow">Strata App</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. Strata App does not.</p></section>' +
+      return '<div class="welcome-layout"><section class="hero"><p class="eyebrow">Strata App</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. Strata App does not.</p></section><div class="stack">' +
         '<button class="btn btn-primary" type="button" data-act="auth-goto" data-screen="register">Create an account</button>' +
         '<button class="btn btn-secondary" type="button" data-act="auth-goto" data-screen="signin">Sign in</button>' +
         (state.demo ? '<div class="card stack"><p><strong>Demo, test data only.</strong> Sign in as the manager mina.costa@harbour.example, password Harbour1. Or the contractor sam@plumbing.example, password Pipes123. A new account shows its confirmation link on this screen. No email is sent.</p><p class="small">Sample building: Harbour View Apartments. The Lift 1 report page is /r/demo-lift-1.</p></div>' : "") +
-        '<div class="card stack"><p>Building managers and OC managers look after apartment buildings and common property. Property managers look after private rental properties. Contractors do the work. An account is one of these, not more than one.</p><p class="small muted">The terms and privacy summary are a draft for a solicitor to review.</p><button class="btn btn-ghost" type="button" data-act="auth-goto" data-screen="terms">Read the terms and privacy summary</button></div></div>';
+        '<div class="card stack"><p>Building managers and OC managers look after apartment buildings and common property. Property managers look after private rental properties. Contractors do the work. An account is one of these, not more than one.</p><p class="small muted">The terms and privacy summary are a draft for a solicitor to review.</p><button class="btn btn-ghost" type="button" data-act="auth-goto" data-screen="terms">Read the terms and privacy summary</button></div></div></div>';
     }
     if (state.screen === "terms") {
       return '<div class="stack auth-panel"><div class="card stack"><h1>Terms and privacy summary</h1><p class="demo">Draft for a solicitor to review</p>' +
