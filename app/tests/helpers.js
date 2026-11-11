@@ -4,7 +4,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { createApp } from "../src/create-app.js";
 
-export async function startApp() {
+export async function startApp(overrides = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "strata-"));
   const config = {
     root: dir,
@@ -18,7 +18,8 @@ export async function startApp() {
     owner: { email: "", password: "", name: "" },
     stripeSecretKey: "",
     stripePublishableKey: "",
-    stripeWebhookSecret: ""
+    stripeWebhookSecret: "",
+    ...overrides
   };
   const app = await createApp(config);
   const server = http.createServer(app);
