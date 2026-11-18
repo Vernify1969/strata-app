@@ -148,6 +148,25 @@ export async function seedDemo(db) {
     addNote.run(newId(), managerOrg, managerId, DEMO_MANAGER.name, "Handover: the leak in unit 12 is with the plumber. Sam Okonkwo is due back in the morning.", today, now);
     addNote.run(newId(), managerOrg, managerId, DEMO_MANAGER.name, "The plant-room key was returned to the concierge.", yesterday, now);
     addNote.run(newId(), managerOrg, managerId, DEMO_MANAGER.name, "Plumber coming that morning for the lobby tap.", visit, now);
+    db.prepare(`INSERT INTO reports (id, building_id, organisation_id, place_id, reference, kind, description, status, reporter_name, reporter_contact, unit_number, created_at)
+      VALUES (?, ?, ?, ?, 'R-DEMO-1', 'lift', 'The lift door stays open on the ground floor.', 'NEW', 'Rita Resident', 'rita@example.com', '12', ?)`).run(newId(), buildingId, managerOrg, placeId, now);
+    db.prepare(`INSERT INTO payments (id, job_id, organisation_id, amount_cents, fee_cents, net_cents, status, idempotency_key, provider_ref, holder, created_at, kind, transfer_ref)
+      VALUES ('pay-demo-held', ?, ?, 22000, 3300, 18700, 'succeeded', 'demo-held', 'pi_demo_held', 'stripe', ?, 'deposit', '')`).run(openJobId, managerOrg, now);
+    db.prepare(`INSERT INTO payments (id, job_id, organisation_id, amount_cents, fee_cents, net_cents, status, idempotency_key, provider_ref, holder, created_at, kind, released_at, transfer_ref)
+      VALUES ('pay-demo-released', ?, ?, 18000, 2700, 15300, 'succeeded', 'demo-released', 'pi_demo_released', 'stripe', ?, 'full', ?, 'tr_demo_released')`).run(openJobId, managerOrg, now, now);
+    const expiry = new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10);
+    db.prepare(`INSERT INTO contractor_documents (id, user_id, kind, stored_name, original_name, mime, declared, declared_at, expiry_on, licence_number, suggested_expiry, suggested_number, suggested_kind, created_at)
+      VALUES (?, ?, 'insurance', 'demo-policy.pdf', 'policy.pdf', 'application/pdf', 1, ?, ?, 'POL-DEMO', ?, 'POL-DEMO', 'insurance', ?)`).run(newId(), contractorId, now, expiry, expiry, now);
+    db.prepare(`INSERT INTO job_messages (id, job_id, contractor_user_id, author_user_id, body, created_at)
+      VALUES (?, ?, ?, ?, 'I can come tomorrow morning for the garden tap.', ?)`).run(newId(), quotedJobId, contractorId, contractorId, now);
+    db.prepare(`INSERT INTO ai_uses (id, user_id, helper, model, demo, month, input_tokens, output_tokens, cost_cents, subject_type, subject_id, created_at)
+      VALUES ('ai-demo', ?, 'next-step', '', 1, ?, 0, 0, 0, 'job', ?, ?)`).run(managerId, now.slice(0, 7), openJobId, now);
+    db.prepare(`INSERT INTO mail_log (id, to_email, subject, body, status, error, created_at)
+      VALUES ('mail-demo', ?, 'Welcome to the demo', 'This sample notice is stored so the admin mail log has a row.', 'stored', '', ?)`).run(DEMO_MANAGER.email, now);
+    db.prepare(`INSERT INTO email_drafts (id, to_user_id, to_email, subject, body, status, created_at)
+      VALUES ('draft-demo', ?, ?, 'About the lobby tap', 'A draft the owner can confirm before it is sent.', 'draft', ?)`).run(contractorId, DEMO_CONTRACTOR.email, now);
+    db.prepare(`INSERT INTO admin_notes (id, subject_type, subject_id, body, actor_id, created_at)
+      VALUES ('note-demo', 'user', ?, 'Sample note: Sam is the plumber for Harbour View.', ?, ?)`).run(contractorId, ownerId, now);
     db.exec("COMMIT");
   } catch (err) {
     db.exec("ROLLBACK");
