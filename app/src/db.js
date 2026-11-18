@@ -1,10 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { openPostgres } from "./pg-sync.js";
 import { STARTING_POSTCODES } from "./area.js";
 import { holidaysForDatabase } from "./holidays.js";
 
 export function openDatabase(file) {
+  if (process.env.DATABASE_URL) return openPostgres(process.env.DATABASE_URL);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
   db.exec("PRAGMA foreign_keys = ON");
@@ -377,6 +379,14 @@ function migrate(db) {
       ALTER TABLE payments ADD COLUMN funds_confirmed_at TEXT NOT NULL DEFAULT '';
     `);
     db.exec("PRAGMA user_version = 10");
+  }
+  if (userVersion(db) < 11) {
+    db.exec(`
+      ALTER TABLE payments ADD COLUMN authorize_expires_at TEXT NOT NULL DEFAULT '';
+      ALTER TABLE payments ADD COLUMN captured_at TEXT NOT NULL DEFAULT '';
+      ALTER TABLE payments ADD COLUMN capture_requested_at TEXT NOT NULL DEFAULT '';
+    `);
+    db.exec("PRAGMA user_version = 11");
   }
 }
 

@@ -4,6 +4,7 @@ import path from "node:path";
 import { audit } from "./db.js";
 import { newId } from "./ids.js";
 import { securityGateOpen } from "./security-gate.js";
+import { saveObject } from "./storage.js";
 
 const KINDS = ["plumbing", "electrical", "lift", "doors", "cleaning", "rubbish", "fire", "aircon", "roof", "other", "unsure"];
 const recent = [];
@@ -71,7 +72,9 @@ export function registerQrRoutes(app, { db, config, mail, sendError, requireUser
       id, place.building_id, place.organisation_id, place.id, reference, kind, description.slice(0, 2000),
       emergency ? 1 : 0, String(req.body?.name || "").slice(0, 200), contact.slice(0, 200), unit, key || null, now
     );
-    stored.forEach((bytes, index) => writePrivatePhoto(config, id + "-" + index + ".img", bytes));
+    for (let index = 0; index < stored.length; index += 1) {
+      await saveObject(config, "photo", id + "-" + index + ".img", stored[index], "image/jpeg");
+    }
     addReportEvent(db, id, "Reporter", "Report received.");
     if (confirmTo) await sendConfirmation(mail, confirmTo, place, reference);
     if (emergency) await sendUrgent(db, mail, place, id, reference);

@@ -1,5 +1,5 @@
 import { sendDueAlerts } from "./documents.js";
-import { moneySettings, releaseJobPayments } from "./payments.js";
+import { captureExpiringHolds, moneySettings, releaseJobPayments } from "./payments.js";
 
 const THREE_HOURS = 3 * 60 * 60 * 1000;
 
@@ -75,7 +75,8 @@ export async function runMaintenance(db, mail, config, now = new Date()) {
   const alerts = await sendDueAlerts(db, mail, todayIn("Australia/Melbourne", now));
   const released = await releaseExpiredReviews(db, config, now);
   const deposits = await watchDeposits(db, mail, config, now);
-  return { alerts, released, deposits };
+  const captures = await captureExpiringHolds(db, config, now);
+  return { alerts, released, deposits, captures };
 }
 
 export function startMaintenance({ db, mail, config }) {

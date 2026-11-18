@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { readObject, saveObject } from "./storage.js";
 import { audit } from "./db.js";
 import { newId } from "./ids.js";
 
@@ -107,7 +108,7 @@ export function registerDocumentRoutes(app, { db, config, mail, sendError, requi
     const number = String(req.body?.licenceNumber || suggestions.suggestedNumber || "").slice(0, 40);
     const id = newId();
     const stored = id + TYPES[mime];
-    fs.writeFileSync(path.join(documentsPath, stored), bytes);
+    await saveObject(config, "document", stored, bytes, mime);
     const now = new Date().toISOString();
     db.prepare(`INSERT INTO contractor_documents
       (id, user_id, kind, stored_name, original_name, mime, declared, declared_at, expiry_on, licence_number, suggested_expiry, suggested_number, suggested_kind, created_at)
@@ -132,14 +133,14 @@ export function registerDocumentRoutes(app, { db, config, mail, sendError, requi
     res.json({ documents, badge: "Documents checked (self-declared)" });
   });
 
-  app.get("/api/documents/:id/file", requireUser, (req, res) => {
+  app.get("/api/documents/:id/file", requireUser, async (req, res) => {
     const row = db.prepare("SELECT * FROM contractor_documents WHERE id = ?").get(req.params.id);
     if (!row || !canView(db, req.user, row.user_id)) return sendError(res, 403, "You cannot open that document.");
-    const file = path.join(documentsPath, row.stored_name);
-    if (!fs.existsSync(file)) return sendError(res, 404, "That file is missing.");
+    const bytes = await readObject(config, "document", row.stored_name);
+    if (!bytes) return sendError(res, 404, "That file is missing.");
     res.setHeader("Content-Type", row.mime);
     res.setHeader("Content-Disposition", "inline; filename=\"" + row.original_name.replace(/"/g, "") + "\"");
-    res.send(fs.readFileSync(file));
+    res.send(bytes);
   });
 
   app.get("/api/notifications", requireUser, (req, res) => {

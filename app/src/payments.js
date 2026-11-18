@@ -1,4 +1,3 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { audit } from "./db.js";
 import { newId } from "./ids.js";
 import { feeOfCents } from "./rules.js";
@@ -86,9 +85,10 @@ export function registerPaymentRoutes(app, { db, config, sendError, requireUser,
       providerRef = intent.id;
     }
     const status = simulated ? "succeeded" : "requires_payment";
-    db.prepare(`INSERT INTO payments (id, job_id, organisation_id, amount_cents, fee_cents, net_cents, status, idempotency_key, provider_ref, holder, created_at, kind, urgent_fee_cents)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'stripe', ?, ?, ?)`).run(
-      id, job.id, job.organisation_id, amount, fee, net, status, key, providerRef, now, kind, urgent
+    const authorizeExpires = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+    db.prepare(`INSERT INTO payments (id, job_id, organisation_id, amount_cents, fee_cents, net_cents, status, idempotency_key, provider_ref, holder, created_at, kind, urgent_fee_cents, authorize_expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'stripe', ?, ?, ?, ?)`).run(
+      id, job.id, job.organisation_id, amount, fee, net, status, key, providerRef, now, kind, urgent, authorizeExpires
     );
     if (simulated && job.needs_prepay && job.stage === "approved") {
       db.prepare("UPDATE jobs SET stage = 'paid' WHERE id = ?").run(job.id);
@@ -109,7 +109,10 @@ export function registerPaymentRoutes(app, { db, config, sendError, requireUser,
     if (!job) return sendError(res, 404, "That job is not on your account.");
     if (job.stage !== "accepted") return sendError(res, 400, "The contractor is not paid until you mark the job complete.");
     const held = await releaseJobPayments(db, config, job);
-    if (!held.length) return sendError(res, 400, "There is no held payment to release.");
+    if (!held.length) {
+      const waiting = db.prepare("SELECT 1 AS ok FROM payments WHERE job_id = ? AND status IN ('requires_payment', 'requires_capture') AND released_at = ''").get(job.id);
+      return sendError(res, 400, waiting ? "Stripe has not confirmed the capture yet. The contractor is not paid." : "There is no held payment to release.");
+    }
     db.prepare("UPDATE jobs SET stage = 'released' WHERE id = ?").run(job.id);
     audit(db, { actorId: req.user.id, organisationId: job.organisation_id, action: "payment.released", subjectType: "job", subjectId: job.id, detail: { count: held.length } });
     res.json({ released: true, payments: held.map(row => publicPayment(db.prepare("SELECT * FROM payments WHERE id = ?").get(row.id))) });
@@ -139,7 +142,32 @@ export function registerPaymentRoutes(app, { db, config, sendError, requireUser,
 
 }
 
+const DAY_MS = 24 * 3600 * 1000;
+
+export function holdAction(payment, nowMs = Date.now()) {
+  if (!payment || payment.released_at || payment.status === "succeeded" || payment.status === "failed") return "none";
+  const expires = Date.parse(payment.authorize_expires_at || "");
+  if (!Number.isFinite(expires)) return "none";
+  if (expires - nowMs <= DAY_MS) return "capture";
+  return "none";
+}
+
+export async function requestCapture(db, config, payment) {
+  if (!payment || payment.status === "succeeded" || payment.status === "failed" || payment.capture_requested_at) return;
+  db.prepare("UPDATE payments SET capture_requested_at = ? WHERE id = ?").run(new Date().toISOString(), payment.id);
+  if (typeof config.capturePayment === "function") {
+    await config.capturePayment(payment);
+    return;
+  }
+  if (!config.stripeSecretKey || !String(payment.provider_ref || "").startsWith("pi_")) return;
+  const Stripe = (await import("stripe")).default;
+  const stripe = new Stripe(config.stripeSecretKey);
+  await stripe.paymentIntents.capture(payment.provider_ref);
+}
+
 export async function releaseJobPayments(db, config, job) {
+  const waiting = db.prepare("SELECT * FROM payments WHERE job_id = ? AND status IN ('requires_payment', 'requires_capture') AND released_at = ''").all(job.id);
+  for (const payment of waiting) await requestCapture(db, config, payment);
   const held = db.prepare("SELECT * FROM payments WHERE job_id = ? AND status = 'succeeded' AND released_at = ''").all(job.id);
   if (!held.length) return [];
   const contractor = db.prepare("SELECT stripe_account_id FROM users WHERE id = ?").get(job.contractor_user_id);
@@ -163,52 +191,72 @@ export async function releaseJobPayments(db, config, job) {
   return held;
 }
 
-export async function handleStripeWebhook(req, res, { db, config }) {
-  let event = {};
-  try {
-    const text = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : JSON.stringify(req.body || {});
-    event = JSON.parse(text || "{}");
-  } catch {
-    res.status(400).json({ error: "The payment notice could not be read." });
-    return;
+export async function captureExpiringHolds(db, config, now = new Date()) {
+  const rows = db.prepare(`SELECT * FROM payments
+    WHERE status IN ('requires_payment', 'requires_capture') AND released_at = '' AND authorize_expires_at != ''`).all();
+  let count = 0;
+  for (const payment of rows) {
+    if (holdAction(payment, now.getTime()) !== "capture") continue;
+    await requestCapture(db, config, payment);
+    count += 1;
   }
-  const secret = config.stripeWebhookSecret || "test-webhook";
-  const canonical = [event.id, event.type, event.paymentId, event.status].join("|");
-  const given = String(req.get("x-strata-signature") || "");
-  const expected = createHmac("sha256", secret).update(canonical).digest("hex");
-  const a = Buffer.from(given);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+  return count;
+}
+
+export async function handleStripeWebhook(req, res, { db, config }) {
+  const secret = config.stripeWebhookSecret || "";
+  if (!secret) {
+    console.warn("Stripe webhook rejected: STRIPE_WEBHOOK_SECRET is not set.");
     res.status(400).json({ error: "The payment notice could not be verified." });
     return;
   }
-  const payment = db.prepare("SELECT * FROM payments WHERE id = ?").get(event.paymentId);
+  if (liveKeyProblem(config.stripeSecretKey, config.stripePublishableKey)) {
+    res.status(400).json({ error: "Live Stripe keys are refused." });
+    return;
+  }
+  const Stripe = (await import("stripe")).default;
+  const stripe = new Stripe(config.stripeSecretKey || "sk_test_webhook_only");
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, req.get("stripe-signature") || "", secret);
+  } catch {
+    res.status(400).json({ error: "The payment notice could not be verified." });
+    return;
+  }
+  const intent = event.data?.object || {};
+  const paymentId = intent.metadata?.paymentId || "";
+  const payment = db.prepare("SELECT * FROM payments WHERE id = ?").get(paymentId);
   if (!payment) {
     res.status(404).json({ error: "That payment is not known." });
     return;
   }
-  if (event.type === "payment_failed") {
-    db.prepare("UPDATE payments SET status = 'failed', failure_reason = ? WHERE id = ?").run(String(event.reason || "The card was declined."), payment.id);
-    } else if (event.type === "payment_succeeded") {
-      db.prepare("UPDATE payments SET status = 'succeeded', funds_confirmed_at = ?, provider_ref = COALESCE(?, provider_ref) WHERE id = ?").run(
-        new Date().toISOString(), event.providerRef ? String(event.providerRef) : null, payment.id
-      );
-      const job = db.prepare("SELECT * FROM jobs WHERE id = ?").get(payment.job_id);
-      if (job && job.needs_prepay && job.stage === "approved") {
-        db.prepare("UPDATE jobs SET stage = 'paid' WHERE id = ?").run(job.id);
+  if (event.type === "payment_intent.payment_failed") {
+    db.prepare("UPDATE payments SET status = 'failed', failure_reason = ? WHERE id = ?").run(
+      String(intent.last_payment_error?.message || "The card was declined."), payment.id
+    );
+  } else if (event.type === "payment_intent.amount_capturable_updated" && Number(intent.amount_capturable || 0) > 0) {
+    db.prepare("UPDATE payments SET status = 'requires_capture', provider_ref = ? WHERE id = ?").run(String(intent.id || payment.provider_ref), payment.id);
+  } else if (event.type === "payment_intent.succeeded") {
+    const confirmedAt = new Date().toISOString();
+    db.prepare("UPDATE payments SET status = 'succeeded', captured_at = ?, funds_confirmed_at = ?, provider_ref = ? WHERE id = ?").run(
+      confirmedAt, confirmedAt, String(intent.id || payment.provider_ref), payment.id
+    );
+    const job = db.prepare("SELECT * FROM jobs WHERE id = ?").get(payment.job_id);
+    if (job && job.needs_prepay && job.stage === "approved") {
+      db.prepare("UPDATE jobs SET stage = 'paid' WHERE id = ?").run(job.id);
+    }
+    if (!payment.funds_confirmed_at && job?.contractor_user_id && config.mail) {
+      const contractor = db.prepare("SELECT email FROM users WHERE id = ?").get(job.contractor_user_id);
+      if (contractor?.email) {
+        await config.mail.send({
+          to: contractor.email,
+          subject: "Funds secured by Stripe",
+          text: "Funds secured by Stripe – OK to start.\n\nThe deposit for \"" + job.title + "\" is held. You can start the work."
+        });
       }
-      if (!payment.funds_confirmed_at && job?.contractor_user_id && config.mail) {
-        const contractor = db.prepare("SELECT email, name FROM users WHERE id = ?").get(job.contractor_user_id);
-        if (contractor?.email) {
-          await config.mail.send({
-            to: contractor.email,
-            subject: "Funds secured by Stripe",
-            text: "Funds secured by Stripe – OK to start.\n\nThe deposit for \"" + job.title + "\" is held. You can start the work."
-          });
-        }
-      }
-    } else {
-    res.status(400).json({ error: "That payment notice is not used." });
+    }
+  } else {
+    res.json({ ok: true, ignored: true });
     return;
   }
   audit(db, { actorId: null, organisationId: payment.organisation_id, action: "payment.event", subjectType: "payment", subjectId: payment.id, detail: { type: event.type } });
