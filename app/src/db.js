@@ -478,6 +478,66 @@ function migrate(db) {
     `);
     db.exec("PRAGMA user_version = 17");
   }
+  ensureAdminSchema(db);
+  if (userVersion(db) < 18) db.exec("PRAGMA user_version = 18");
+}
+
+function tableExists(db, name) {
+  return !!db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?").get(name);
+}
+
+function columnExists(db, table, column) {
+  return db.prepare(`PRAGMA table_info(${table})`).all().some(row => row.name === column);
+}
+
+function ensureAdminSchema(db) {
+  if (!columnExists(db, "platform_settings", "reminder_check_hours")) {
+    db.exec("ALTER TABLE platform_settings ADD COLUMN reminder_check_hours INTEGER NOT NULL DEFAULT 3");
+  }
+  if (tableExists(db, "mail_log")) return;
+  db.exec(`
+    CREATE TABLE mail_log (
+      id TEXT PRIMARY KEY,
+      to_email TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      status TEXT NOT NULL,
+      error TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE admin_notes (
+      id TEXT PRIMARY KEY,
+      subject_type TEXT NOT NULL,
+      subject_id TEXT NOT NULL,
+      body TEXT NOT NULL,
+      actor_id TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE email_templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE email_drafts (
+      id TEXT PRIMARY KEY,
+      to_user_id TEXT NOT NULL DEFAULT '',
+      to_email TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      created_at TEXT NOT NULL,
+      sent_at TEXT NOT NULL DEFAULT ''
+    );
+  `);
+  const now = new Date().toISOString();
+  const template = db.prepare("INSERT INTO email_templates (id, name, subject, body, updated_at) VALUES (?, ?, ?, ?, ?)");
+  template.run("verify", "Confirm email", "Confirm your TaskSpeck Strata email", "Confirm your email for TaskSpeck Strata by opening this link within 24 hours:\n{{link}}\n\nIf you did not create an account, ignore this email.", now);
+  template.run("reset", "Password reset", "Reset your TaskSpeck Strata password", "Reset your TaskSpeck Strata password by opening this link within 1 hour:\n{{link}}\n\nIf you did not ask for this, ignore this email.", now);
+  template.run("document-expiry", "Document expiry", "A document is close to expiry", "{{name}}'s {{kind}} {{when}}. The badge stays Documents checked (self-declared).", now);
+  template.run("deposit-reminder", "Deposit reminder", "The deposit is still unpaid", "The deposit for \"{{title}}\" is still unpaid. Pay it before {{due}} or the approval will lapse. No fee has been charged.", now);
+  template.run("deposit-lapsed", "Deposit lapsed", "The approval has lapsed", "The manager did not pay the deposit for \"{{title}}\" in time. You are free. No fee was charged and no money moved.", now);
 }
 
 export function audit(db, event) {

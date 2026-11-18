@@ -19,6 +19,7 @@ export function moneySettings(db, config = {}) {
       assistantGreeting: row.assistant_greeting || "Hi, I'm {name}, your AI assistant. How can I help you today?",
       assistantTone: row.assistant_tone || "friendly",
       webSearchEnabled: row.web_search_enabled == null ? true : row.web_search_enabled === 1,
+      reminderCheckHours: row.reminder_check_hours == null ? 3 : Number(row.reminder_check_hours),
       minCoverCents: row.min_cover_cents == null ? 2000000000 : Number(row.min_cover_cents)
     };
   }
@@ -35,6 +36,7 @@ export function moneySettings(db, config = {}) {
     assistantGreeting: config.assistantGreeting || "Hi, I'm {name}, your AI assistant. How can I help you today?",
     assistantTone: config.assistantTone || "friendly",
     webSearchEnabled: config.webSearchEnabled !== false,
+    reminderCheckHours: Number(config.reminderCheckHours ?? 3),
     minCoverCents: Number(config.minCoverCents ?? 2000000000)
   };
 }

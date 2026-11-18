@@ -3,6 +3,7 @@ import path from "node:path";
 import { readObject, saveObject } from "./storage.js";
 import { audit } from "./db.js";
 import { newId } from "./ids.js";
+import { applyTemplate } from "./mail.js";
 
 const MAX_BYTES = 8 * 1024 * 1024;
 const TYPES = {
@@ -172,8 +173,9 @@ export async function sendDueAlerts(db, mail, today) {
         const already = db.prepare("SELECT 1 FROM document_alerts WHERE document_id = ? AND user_id = ? AND days_before = ?").get(doc.id, person.id, days);
         if (already) continue;
         const when = days === 0 ? `has expired (${doc.expiry_on})` : `expires on ${doc.expiry_on} (${left} days left). This is the ${days}-day reminder`;
-        const body = `${doc.name}'s ${doc.kind} ${when}. The badge stays Documents checked (self-declared).`;
-        await mail.send({ to: person.email, subject: days === 0 ? "A document has expired" : "A document is close to expiry", text: body });
+        const note = applyTemplate(db, "document-expiry", days === 0 ? "A document has expired" : "A document is close to expiry", `${doc.name}'s ${doc.kind} ${when}. The badge stays Documents checked (self-declared).`, { name: doc.name, kind: doc.kind, when });
+        const body = note.text;
+        await mail.send({ to: person.email, subject: note.subject, text: body });
         db.prepare("INSERT INTO notifications (id, user_id, body, created_at) VALUES (?, ?, ?, ?)").run(newId(), person.id, body, new Date().toISOString());
         db.prepare("INSERT INTO document_alerts (document_id, user_id, days_before, sent_at) VALUES (?, ?, ?, ?)").run(doc.id, person.id, days, new Date().toISOString());
         sent += 1;

@@ -38,10 +38,10 @@ export async function startApp(overrides = {}) {
 }
 
 export function client(base) {
-  let cookie = "";
+  const jar = new Map();
   return async function api(method, urlPath, body) {
     const headers = { "x-requested-with": "StrataApp" };
-    if (cookie) headers.cookie = cookie;
+    if (jar.size) headers.cookie = [...jar.entries()].map(([name, value]) => `${name}=${value}`).join("; ");
     let payload;
     if (body !== undefined) {
       headers["content-type"] = "application/json";
@@ -51,8 +51,12 @@ export function client(base) {
     const setCookies = typeof res.headers.getSetCookie === "function" ? res.headers.getSetCookie() : [];
     for (const item of setCookies) {
       const pair = item.split(";")[0];
-      if (pair.startsWith("strata_session=")) cookie = pair;
-      if (pair === "strata_session=") cookie = "";
+      const eq = pair.indexOf("=");
+      if (eq < 1) continue;
+      const name = pair.slice(0, eq);
+      const value = pair.slice(eq + 1);
+      if (!value || /Max-Age=0/i.test(item)) jar.delete(name);
+      else jar.set(name, value);
     }
     const text = await res.text();
     let json = null;

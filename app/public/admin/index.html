@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin console · TaskSpeck Strata</title>
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <a class="brand" href="#/dashboard">TaskSpeck <span>Admin</span></a>
+      <nav id="nav" aria-label="Admin sections"></nav>
+    </aside>
+    <div class="main">
+      <header class="top">
+        <button class="menu" type="button" id="menu">Menu</button>
+        <form id="search-form" role="search">
+          <input id="search" type="search" placeholder="Search users, buildings, jobs, email" aria-label="Search the admin console">
+        </form>
+        <a class="quiet" href="/">Back to the app</a>
+      </header>
+      <div id="results" class="results" hidden></div>
+      <main id="screen"></main>
+    </div>
+  </div>
+  <script src="/admin/admin.js"></script>
+</body>
+</html>

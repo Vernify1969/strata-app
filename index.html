@@ -1495,7 +1495,7 @@ const PHOTOS = {
     const primary = '<div class="home-primary stack"><section class="hero' + heroPhoto + '><p class="eyebrow">For managers</p><h1>What do you need?</h1><p>Describe the job. A licensed contractor can make an offer.</p></section>' +
       '<p class="small">Ask Chloe with the chat button. Drafts only.</p>' +
       '<button class="btn btn-primary request-bar" type="button" data-act="new-request">New request</button>' +
-      (state.account && state.account.role === "platform_owner" ? '<button class="btn btn-secondary" type="button" data-act="open-office">Back office</button>' : "") +
+      (state.account && state.account.role === "platform_owner" ? '<button class="btn btn-secondary" type="button" data-act="open-office">Back office</button><a class="btn btn-secondary" href="/admin">Admin console</a>' : "") +
       (state.manager.role === "property" ? "" : '<button class="btn btn-secondary" type="button" data-act="open-reports">Resident reports</button>') +
       stats +
       '<div class="dash">' + noticeProfile() + "</div>" +

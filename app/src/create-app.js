@@ -2,7 +2,7 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { openDatabase, audit } from "./db.js";
-import { createMailer } from "./mail.js";
+import { applyTemplate, createMailer } from "./mail.js";
 import { hashPassword, verifyPassword, passwordProblem, dummyPasswordHash } from "./passwords.js";
 import {
   abnOk, clearSessionCookie, emailOk, hashToken, mobileOk, newId, newToken,
@@ -17,6 +17,7 @@ import { registerAssistantRoutes } from "./assistant.js";
 import { cleanAssistantName, registerChloeRoutes } from "./chloe.js";
 import { registerOwnerOffice } from "./owner-office.js";
 import { seedDemo } from "./demo-seed.js";
+import { registerAdminRoutes } from "./admin.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -110,7 +111,7 @@ export async function createApp(config) {
       WHERE users.email = ?`).get(normalEmail(email));
   }
 
-  function currentUser(req) {
+  function sessionUser(req) {
     const token = readCookie(req, "strata_session");
     if (!token) return null;
     const row = db.prepare(`SELECT sessions.user_id, sessions.expires_at FROM sessions WHERE token_hash = ?`).get(hashToken(token));
@@ -125,10 +126,26 @@ export async function createApp(config) {
     return user;
   }
 
+  function currentUser(req) {
+    const user = sessionUser(req);
+    if (!user) return null;
+    const viewId = readCookie(req, "strata_view");
+    if (viewId && user.role === "platform_owner" && !String(req.path || "").startsWith("/api/admin")) {
+      const target = userById(viewId);
+      if (target && !target.suspended && target.role !== "platform_owner") {
+        return { ...target, viewOnly: true, actorId: user.id };
+      }
+    }
+    return user;
+  }
+
   function requireUser(req, res, next) {
     const user = currentUser(req);
     if (!user) return sendError(res, 401, "Sign in to continue.");
     req.user = user;
+    if (user.viewOnly && req.method !== "GET" && req.method !== "HEAD" && req.path !== "/api/logout") {
+      return sendError(res, 403, "You are viewing this account. This view cannot change anything.");
+    }
     next();
   }
 
@@ -175,11 +192,12 @@ export async function createApp(config) {
     const link = purpose === "verify"
       ? `${config.publicBaseUrl}/api/verify-email?token=${encodeURIComponent(token)}`
       : `${config.publicBaseUrl}/reset?token=${encodeURIComponent(token)}`;
-    const subject = purpose === "verify" ? "Confirm your TaskSpeck Strata email" : "Reset your TaskSpeck Strata password";
-    const text = purpose === "verify"
+    const fallbackSubject = purpose === "verify" ? "Confirm your TaskSpeck Strata email" : "Reset your TaskSpeck Strata password";
+    const fallbackText = purpose === "verify"
       ? `Confirm your email for TaskSpeck Strata by opening this link within 24 hours:\n${link}\n\nIf you did not create an account, ignore this email.`
       : `Reset your TaskSpeck Strata password by opening this link within 1 hour:\n${link}\n\nIf you did not ask for this, ignore this email.`;
-    const delivery = await mail.send({ to: user.email, subject, text });
+    const note = applyTemplate(db, purpose === "verify" ? "verify" : "reset", fallbackSubject, fallbackText, { link, name: user.name });
+    const delivery = await mail.send({ to: user.email, subject: note.subject, text: note.text });
     return { ...delivery, link };
   }
 
@@ -327,9 +345,12 @@ export async function createApp(config) {
   });
 
   app.get("/api/me", requireUser, (req, res) => {
+    const viewing = !!req.user.viewOnly;
     res.json({
-      user: publicUser(req.user),
-      banner: bannerFor(req.user, config.demoMode),
+      user: { ...publicUser(req.user), viewingAs: viewing },
+      banner: viewing
+        ? `Viewing as ${req.user.name}. This view cannot change anything.`
+        : bannerFor(req.user, config.demoMode),
       preferences: storedPreferences(req.user.preferences),
       devices: deviceList(req, req.user)
     });
@@ -474,6 +495,11 @@ export async function createApp(config) {
   registerChloeRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerAssistantRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerOwnerOffice(app, { db, mail, sendError, requireUser, requireJson, sendToken });
+  registerAdminRoutes(app, { db, mail, config, sendError, requireJson, sendToken, sessionUser });
+  mail.setRecorder((message) => {
+    db.prepare(`INSERT INTO mail_log (id, to_email, subject, body, status, error, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
+      .run(newId(), message.to || "", message.subject || "", message.text || "", message.sent ? "sent" : "stored", message.error || "", message.at);
+  });
 
   app.get("/api/owner/settings", requireUser, (req, res) => {
     if (req.user.role !== "platform_owner") return sendError(res, 403, "Only the platform owner can open these settings.");
@@ -534,6 +560,9 @@ export async function createApp(config) {
   });
 
   const publicDir = path.join(here, "..", "public");
+  app.get(["/admin", "/admin/"], (_req, res) => {
+    res.sendFile(path.join(publicDir, "admin", "index.html"));
+  });
   app.use(express.static(publicDir, { index: "index.html", etag: false }));
   app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api/")) return next();

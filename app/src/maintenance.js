@@ -1,7 +1,6 @@
 import { sendDueAlerts } from "./documents.js";
+import { applyTemplate } from "./mail.js";
 import { captureExpiringHolds, moneySettings, releaseJobPayments } from "./payments.js";
-
-const THREE_HOURS = 3 * 60 * 60 * 1000;
 
 function todayIn(timeZone, now) {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
@@ -41,11 +40,8 @@ export async function watchDeposits(db, mail, config, now = new Date()) {
     if (!job.deposit_reminded_at && now.getTime() >= halfway && now.getTime() < due) {
       const manager = db.prepare("SELECT email FROM users WHERE id = ?").get(job.created_by);
       if (manager?.email) {
-        await mail.send({
-          to: manager.email,
-          subject: "The deposit is still unpaid",
-          text: `The deposit for "${job.title}" is still unpaid. Pay it before ${job.deposit_due_at} or the approval will lapse. No fee has been charged.`
-        });
+        const note = applyTemplate(db, "deposit-reminder", "The deposit is still unpaid", `The deposit for "${job.title}" is still unpaid. Pay it before ${job.deposit_due_at} or the approval will lapse. No fee has been charged.`, { title: job.title, due: job.deposit_due_at });
+        await mail.send({ to: manager.email, subject: note.subject, text: note.text });
       }
       db.prepare("UPDATE jobs SET deposit_reminded_at = ? WHERE id = ?").run(now.toISOString(), job.id);
       reminded += 1;
@@ -59,11 +55,8 @@ export async function watchDeposits(db, mail, config, now = new Date()) {
         job.id, now.toISOString(), "TaskSpeck Strata", "The deposit was not paid in time. The approval has lapsed. No fee was charged."
       );
       if (contractor?.email) {
-        await mail.send({
-          to: contractor.email,
-          subject: "The approval has lapsed",
-          text: `The manager did not pay the deposit for "${job.title}" in time. You are free. No fee was charged and no money moved.`
-        });
+        const note = applyTemplate(db, "deposit-lapsed", "The approval has lapsed", `The manager did not pay the deposit for "${job.title}" in time. You are free. No fee was charged and no money moved.`, { title: job.title });
+        await mail.send({ to: contractor.email, subject: note.subject, text: note.text });
       }
       lapsed += 1;
     }
@@ -86,7 +79,10 @@ export function startMaintenance({ db, mail, config }) {
     });
   };
   run();
-  const timer = setInterval(run, THREE_HOURS);
-  if (typeof timer.unref === "function") timer.unref();
-  return timer;
+  const arm = () => {
+    const hours = Math.min(168, Math.max(1, Number(moneySettings(db, config).reminderCheckHours || 3)));
+    const timer = setTimeout(() => { run(); arm(); }, hours * 60 * 60 * 1000);
+    if (typeof timer.unref === "function") timer.unref();
+  };
+  arm();
 }
