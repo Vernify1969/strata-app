@@ -32,6 +32,9 @@ test("a higher total needs the quotes for that budget, and fewer quotes need a r
   const emergency = approvalFor({ world: "common", role: "building_manager", urgency: "emergency", priceCents: 150000, emLimitCents: 200000, tiers, quoteCount: 1 });
   assert.equal(emergency.name, "Emergency approval");
   assert.equal(emergency.ok, true);
+  const blank = approvalFor({ world: "common", role: "building_manager", urgency: "standard", priceCents: 40000, tiers: [{ limitCents: 0, quotes: 0 }, { limitCents: 0, quotes: 0 }, { limitCents: 0, quotes: 0 }], quoteCount: 1 });
+  assert.equal(blank.notSet, true);
+  assert.equal(blank.ok, false);
 });
 
 test("an invoice above the approved total is not payable", () => {

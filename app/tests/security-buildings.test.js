@@ -47,10 +47,11 @@ test("a manager cannot read or change another organisation's building", async ()
     const created = await alex("POST", "/api/buildings", harbour);
     assert.equal(created.status, 201);
     assert.equal(created.json.building.world, "common");
-    assert.equal(created.json.building.tier1, 999);
-    assert.equal(created.json.building.q1, 1);
-    assert.equal(created.json.building.tier2, 4999);
-    assert.equal(created.json.building.q3, 3);
+    assert.equal(created.json.building.tiersConfirmed, false);
+    assert.equal(created.json.building.tier1, null);
+    assert.equal(created.json.building.q1, null);
+    assert.equal(created.json.building.tier3, null);
+    assert.equal(created.json.building.regionId, "AU-VIC");
     const stolen = await sam("GET", "/api/buildings/" + created.json.building.id);
     assert.equal(stolen.status, 404);
     const changed = await sam("PATCH", "/api/buildings/" + created.json.building.id, { name: "Taken over" });
@@ -106,7 +107,7 @@ test("coverage, worlds and budget rules are enforced on the server", async () =>
     const missingPlan = await api("POST", "/api/buildings", { ...harbour, ocPlan: "" });
     assert.equal(missingPlan.status, 400);
     const saved = await api("POST", "/api/buildings", harbour);
-    const badQuotes = await api("PATCH", "/api/buildings/" + saved.json.building.id, { q1: 2, q2: 1, q3: 3 });
+    const badQuotes = await api("PATCH", "/api/buildings/" + saved.json.building.id, { tier1: 1000, tier2: 5000, tier3: 20000, q1: 2, q2: 1, q3: 3 });
     assert.equal(badQuotes.status, 400);
     assert.match(badQuotes.json.error, /fewer quotes/);
     const kept = await api("PATCH", "/api/buildings/" + saved.json.building.id, { tier1: 1000, tier2: 5000, tier3: 20000, q1: 1, q2: 2, q3: 3, keepTiers: true });

@@ -90,7 +90,8 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
     const building = db.prepare("SELECT * FROM buildings WHERE id = ?").get(job.building_id);
     const depositType = String(req.body?.depositType || "none");
     if (!depositAllowed(depositType, building.dep_cap)) return sendError(res, 400, "That deposit is above what this building accepts.");
-    if (job.quote_deadline && job.quote_deadline < melbourneToday()) return sendError(res, 400, "The quote deadline has passed.");
+    const region = regionOf(db, building);
+    if (job.quote_deadline && job.quote_deadline < todayIn(region.timeZone)) return sendError(res, 400, "The quote deadline has passed.");
     const id = newId();
     db.prepare(`INSERT INTO quotes (id, job_id, contractor_user_id, price_cents, deposit_type, deposit_cents, start_date, start_time, duration, scope, note, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
@@ -124,7 +125,9 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
       ownerDecision: req.body?.ownerDecision
     });
     if (!decision.ok) {
-      const why = decision.notSet ? "Set the budgets before you approve." : (decision.missing[0] ? "Needs " + decision.missing[0] + "." : "More quotes are needed, or type the reason for using fewer.");
+      const why = decision.notSet
+        ? "Set all three budgets and the quotes needed for this building before you approve a quote."
+        : (decision.missing[0] ? "Needs " + decision.missing[0] + "." : "More quotes are needed, or type the reason for using fewer.");
       return sendError(res, 400, why);
     }
     const prepay = quote.deposit_type !== "none";
@@ -198,8 +201,10 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
   app.post("/api/jobs/:id/submit-work", requireJson, requireUser, (req, res) => {
     const job = visibleJob(db, req.user, req.params.id);
     if (!job || job.contractor_user_id !== req.user.id) return sendError(res, 403, "Only the booked contractor can hand in the work.");
-    const holidays = db.prepare("SELECT day FROM public_holidays WHERE region_id = 'AU-VIC'").all().map(row => row.day);
-    const end = reviewEndsAt(Date.now(), holidays);
+    const building = db.prepare("SELECT * FROM buildings WHERE id = ?").get(job.building_id);
+    const region = regionOf(db, building);
+    const holidays = db.prepare("SELECT day FROM public_holidays WHERE region_id = ?").all(region.id).map(row => row.day);
+    const end = reviewEndsAt(Date.now(), holidays, region.timeZone);
     const stage = job.stage === "fix1" ? "review1" : "review0";
     db.prepare("UPDATE jobs SET stage = ?, review_ends_at = ? WHERE id = ?").run(stage, end.at, job.id);
     addEvent(db, job.id, req.user.name, "Work submitted. The review stays open until " + end.at + (end.extended ? " because the 72 hours land on a weekend or public holiday." : "."));
@@ -238,8 +243,13 @@ function addEvent(db, jobId, actor, body) {
   db.prepare("INSERT INTO job_events (job_id, at, actor_name, body) VALUES (?, ?, ?, ?)").run(jobId, new Date().toISOString(), actor, body);
 }
 
-function melbourneToday() {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+function todayIn(timeZone) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+}
+
+function regionOf(db, building) {
+  const region = db.prepare("SELECT * FROM regions WHERE id = ?").get(building?.region_id || "AU-VIC");
+  return { id: region?.id || "AU-VIC", timeZone: region?.time_zone || "Australia/Melbourne" };
 }
 
 function workspace(db, user) {

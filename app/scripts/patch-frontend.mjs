@@ -455,7 +455,7 @@ swap(
 
 swap(
   'field("Approval limit without committee", "number", "building." + b.id + ".limit", b.limit) +',
-  '(state.manager.role === "property" ? field("Quotes you usually want", "number", "building." + b.id + ".quotesWanted", b.quotesWanted || 1) : field("Budget 1, up to $", "number", "building." + b.id + ".tier1", b.tier1 != null ? b.tier1 : b.limit) + field("Quotes for budget 1", "number", "building." + b.id + ".q1", b.q1 || 1) + field("Budget 2, up to $", "number", "building." + b.id + ".tier2", b.tier2 != null ? b.tier2 : 4999) + field("Quotes for budget 2", "number", "building." + b.id + ".q2", b.q2 || 2) + field("Budget 3, up to $", "number", "building." + b.id + ".tier3", b.tier3 != null ? b.tier3 : 30000) + field("Quotes for budget 3", "number", "building." + b.id + ".q3", b.q3 || 3)) +',
+  '(state.manager.role === "property" ? field("Quotes you usually want", "number", "building." + b.id + ".quotesWanted", b.quotesWanted || 1) : (b.tiersConfirmed ? "" : \'<p class="notice notice-warn">Set all three budgets and the quotes needed before a quote can be approved.</p>\') + field("Budget 1, up to $", "number", "building." + b.id + ".tier1", b.tier1 != null ? b.tier1 : "") + field("Quotes for budget 1", "number", "building." + b.id + ".q1", b.q1 != null ? b.q1 : "") + field("Budget 2, up to $", "number", "building." + b.id + ".tier2", b.tier2 != null ? b.tier2 : "") + field("Quotes for budget 2", "number", "building." + b.id + ".q2", b.q2 != null ? b.q2 : "") + field("Budget 3, up to $", "number", "building." + b.id + ".tier3", b.tier3 != null ? b.tier3 : "") + field("Quotes for budget 3", "number", "building." + b.id + ".q3", b.q3 != null ? b.q3 : "")) +',
   "three budgets"
 );
 
@@ -524,7 +524,8 @@ swap(
       else b[key] = value;
       return true;`,
   `      if (key === "weekends") b.weekends = !!value;
-      else if (key === "limit" || key === "captureM" || key === "tier1" || key === "tier2" || key === "tier3" || key === "q1" || key === "q2" || key === "q3" || key === "quotesWanted") b[key] = Number(value);
+      else if (key === "limit" || key === "captureM" || key === "quotesWanted") b[key] = Number(value);
+      else if (key === "tier1" || key === "tier2" || key === "tier3" || key === "q1" || key === "q2" || key === "q3") b[key] = value === "" ? "" : Number(value);
       else b[key] = value;
       if (state.remote && window.StrataWire) window.StrataWire.scheduleBuilding(id);
       return true;`,

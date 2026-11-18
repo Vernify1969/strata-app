@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { STARTING_POSTCODES } from "./area.js";
-import { VICTORIA_HOLIDAYS } from "./holidays.js";
+import { holidaysForDatabase } from "./holidays.js";
 
 export function openDatabase(file) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -158,7 +158,7 @@ function migrate(db) {
     `);
     db.prepare("INSERT INTO regions (id, name, time_zone) VALUES ('AU-VIC', 'Victoria', 'Australia/Melbourne')").run();
     const holiday = db.prepare("INSERT INTO public_holidays (region_id, day, name) VALUES ('AU-VIC', ?, ?)");
-    for (const [day, name] of VICTORIA_HOLIDAYS) holiday.run(day, name);
+    for (const row of holidaysForDatabase()) holiday.run(row.day, row.name);
     const postcode = db.prepare("INSERT INTO service_postcodes (postcode) VALUES (?)");
     for (const code of STARTING_POSTCODES) postcode.run(code);
     db.exec("PRAGMA user_version = 2");
@@ -357,6 +357,16 @@ function migrate(db) {
       ALTER TABLE reports ADD COLUMN unit_number TEXT NOT NULL DEFAULT '';
     `);
     db.exec("PRAGMA user_version = 8");
+  }
+  if (userVersion(db) < 9) {
+    const columns = db.prepare("PRAGMA table_info(public_holidays)").all();
+    if (!columns.some(column => column.name === "note")) {
+      db.exec("ALTER TABLE public_holidays ADD COLUMN note TEXT NOT NULL DEFAULT ''");
+    }
+    db.prepare("DELETE FROM public_holidays WHERE region_id = 'AU-VIC'").run();
+    const holiday = db.prepare("INSERT INTO public_holidays (region_id, day, name, note) VALUES ('AU-VIC', ?, ?, ?)");
+    for (const row of holidaysForDatabase()) holiday.run(row.day, row.name, row.note);
+    db.exec("PRAGMA user_version = 9");
   }
 }
 

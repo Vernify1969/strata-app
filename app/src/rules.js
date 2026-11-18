@@ -37,12 +37,11 @@ export function approvalFor(input) {
   }
   const tiers = input.tiers;
   const tiersReady = tiers && tiers.length === 3 && tiers.every(tier => tier.limitCents > 0 && tier.quotes >= 1);
+  if (!tiersReady) {
+    return { ok: false, tier: 0, name: "Budgets not set", need: 0, have, quotesOK: false, missing: [], notSet: true };
+  }
   if (emergency && input.emLimitCents > 0 && input.priceCents <= input.emLimitCents) {
     return { ok: have >= 1, tier: 0, name: "Emergency approval", need: 1, have, quotesOK: have >= 1, missing: [], notSet: false };
-  }
-  if (!tiersReady) {
-    if (emergency) return { ok: have >= 1, tier: 0, name: "Emergency approval", need: 1, have, quotesOK: have >= 1, missing: [], notSet: false };
-    return { ok: false, tier: 0, name: "Budgets not set", need: 0, have, quotesOK: false, missing: [], notSet: true };
   }
   const price = input.priceCents;
   const tier = price <= tiers[0].limitCents ? 1 : price <= tiers[1].limitCents ? 2 : price <= tiers[2].limitCents ? 3 : 4;

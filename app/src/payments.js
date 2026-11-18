@@ -104,26 +104,8 @@ export function registerPaymentRoutes(app, { db, config, sendError, requireUser,
       WHERE jobs.id = ? AND jobs.organisation_id = ? AND building_assignments.user_id = ?`).get(req.params.id, req.user.organisation_id, req.user.id);
     if (!job) return sendError(res, 404, "That job is not on your account.");
     if (job.stage !== "accepted") return sendError(res, 400, "The contractor is not paid until you mark the job complete.");
-    const held = db.prepare("SELECT * FROM payments WHERE job_id = ? AND status = 'succeeded' AND released_at = ''").all(job.id);
+    const held = await releaseJobPayments(db, config, job);
     if (!held.length) return sendError(res, 400, "There is no held payment to release.");
-    const contractor = db.prepare("SELECT stripe_account_id FROM users WHERE id = ?").get(job.contractor_user_id);
-    const now = new Date().toISOString();
-    for (const payment of held) {
-      let transferRef = "tr_test_" + payment.id;
-      if (config.stripeSecretKey && contractor?.stripe_account_id) {
-        const Stripe = (await import("stripe")).default;
-        const stripe = new Stripe(config.stripeSecretKey);
-        const transfer = await stripe.transfers.create({
-          amount: payment.net_cents,
-          currency: "aud",
-          destination: contractor.stripe_account_id,
-          transfer_group: job.id,
-          metadata: { paymentId: payment.id }
-        });
-        transferRef = transfer.id;
-      }
-      db.prepare("UPDATE payments SET released_at = ?, transfer_ref = ? WHERE id = ?").run(now, transferRef, payment.id);
-    }
     db.prepare("UPDATE jobs SET stage = 'released' WHERE id = ?").run(job.id);
     audit(db, { actorId: req.user.id, organisationId: job.organisation_id, action: "payment.released", subjectType: "job", subjectId: job.id, detail: { count: held.length } });
     res.json({ released: true, payments: held.map(row => publicPayment(db.prepare("SELECT * FROM payments WHERE id = ?").get(row.id))) });
@@ -151,6 +133,30 @@ export function registerPaymentRoutes(app, { db, config, sendError, requireUser,
     res.json({ accountId: account.id, url: link.url, simulated: false });
   });
 
+}
+
+export async function releaseJobPayments(db, config, job) {
+  const held = db.prepare("SELECT * FROM payments WHERE job_id = ? AND status = 'succeeded' AND released_at = ''").all(job.id);
+  if (!held.length) return [];
+  const contractor = db.prepare("SELECT stripe_account_id FROM users WHERE id = ?").get(job.contractor_user_id);
+  const now = new Date().toISOString();
+  for (const payment of held) {
+    let transferRef = "tr_test_" + payment.id;
+    if (config.stripeSecretKey && contractor?.stripe_account_id) {
+      const Stripe = (await import("stripe")).default;
+      const stripe = new Stripe(config.stripeSecretKey);
+      const transfer = await stripe.transfers.create({
+        amount: payment.net_cents,
+        currency: "aud",
+        destination: contractor.stripe_account_id,
+        transfer_group: job.id,
+        metadata: { paymentId: payment.id }
+      });
+      transferRef = transfer.id;
+    }
+    db.prepare("UPDATE payments SET released_at = ?, transfer_ref = ? WHERE id = ?").run(now, transferRef, payment.id);
+  }
+  return held;
 }
 
 export function handleStripeWebhook(req, res, { db, config }) {

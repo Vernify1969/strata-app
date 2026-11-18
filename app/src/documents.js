@@ -58,9 +58,23 @@ export function lookupVbaLicence() {
 }
 
 export function alertDay(expiry, today) {
-  const days = Math.round((Date.parse(expiry + "T00:00:00Z") - Date.parse(today + "T00:00:00Z")) / 86400000);
+  const days = daysUntil(expiry, today);
   if (days === 30 || days === 7 || days === 0) return days;
   return null;
+}
+
+export function dueAlertDays(expiry, today) {
+  const days = daysUntil(expiry, today);
+  if (!Number.isFinite(days)) return [];
+  const due = [];
+  if (days <= 30) due.push(30);
+  if (days <= 7) due.push(7);
+  if (days <= 0) due.push(0);
+  return due;
+}
+
+function daysUntil(expiry, today) {
+  return Math.round((Date.parse(expiry + "T00:00:00Z") - Date.parse(today + "T00:00:00Z")) / 86400000);
 }
 
 export function complianceBlock(db, userId, today) {
@@ -146,19 +160,23 @@ export async function sendDueAlerts(db, mail, today) {
   const docs = db.prepare("SELECT contractor_documents.*, users.email, users.name FROM contractor_documents JOIN users ON users.id = contractor_documents.user_id").all();
   let sent = 0;
   for (const doc of docs) {
-    const days = alertDay(doc.expiry_on, today);
-    if (days == null) continue;
+    if (!doc.expiry_on) continue;
+    const left = daysUntil(doc.expiry_on, today);
+    const due = dueAlertDays(doc.expiry_on, today);
+    if (!due.length) continue;
     const managers = managersFor(db, doc.user_id);
     const people = [{ id: doc.user_id, email: doc.email, audience: "contractor" }, ...managers];
-    for (const person of people) {
-      const already = db.prepare("SELECT 1 FROM document_alerts WHERE document_id = ? AND user_id = ? AND days_before = ?").get(doc.id, person.id, days);
-      if (already) continue;
-      const when = days === 0 ? "has expired" : `expires in ${days} days`;
-      const body = `${doc.name}'s ${doc.kind} ${when} (${doc.expiry_on}). The badge stays Documents checked (self-declared).`;
-      await mail.send({ to: person.email, subject: days === 0 ? "A document has expired" : "A document is close to expiry", text: body });
-      db.prepare("INSERT INTO notifications (id, user_id, body, created_at) VALUES (?, ?, ?, ?)").run(newId(), person.id, body, new Date().toISOString());
-      db.prepare("INSERT INTO document_alerts (document_id, user_id, days_before, sent_at) VALUES (?, ?, ?, ?)").run(doc.id, person.id, days, new Date().toISOString());
-      sent += 1;
+    for (const days of due) {
+      for (const person of people) {
+        const already = db.prepare("SELECT 1 FROM document_alerts WHERE document_id = ? AND user_id = ? AND days_before = ?").get(doc.id, person.id, days);
+        if (already) continue;
+        const when = days === 0 ? `has expired (${doc.expiry_on})` : `expires on ${doc.expiry_on} (${left} days left). This is the ${days}-day reminder`;
+        const body = `${doc.name}'s ${doc.kind} ${when}. The badge stays Documents checked (self-declared).`;
+        await mail.send({ to: person.email, subject: days === 0 ? "A document has expired" : "A document is close to expiry", text: body });
+        db.prepare("INSERT INTO notifications (id, user_id, body, created_at) VALUES (?, ?, ?, ?)").run(newId(), person.id, body, new Date().toISOString());
+        db.prepare("INSERT INTO document_alerts (document_id, user_id, days_before, sent_at) VALUES (?, ?, ?, ?)").run(doc.id, person.id, days, new Date().toISOString());
+        sent += 1;
+      }
     }
   }
   return sent;

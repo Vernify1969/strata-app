@@ -567,12 +567,16 @@
       };
       if (api.state.manager.role === "property") body.quotesWanted = Number(building.quotesWanted || 1);
       else {
-        body.tier1 = building.tier1 != null ? building.tier1 : building.limit;
-        body.tier2 = building.tier2;
-        body.tier3 = building.tier3;
-        body.q1 = building.q1;
-        body.q2 = building.q2;
-        body.q3 = building.q3;
+        const amounts = [building.tier1, building.tier2, building.tier3, building.q1, building.q2, building.q3];
+        if (amounts.every(value => value !== "" && value != null && Number(value) > 0)) {
+          body.tier1 = Number(building.tier1);
+          body.tier2 = Number(building.tier2);
+          body.tier3 = Number(building.tier3);
+          body.q1 = Number(building.q1);
+          body.q2 = Number(building.q2);
+          body.q3 = Number(building.q3);
+          body.keepTiers = true;
+        }
       }
       const res = await call("PATCH", "/api/buildings/" + id, body);
       if (!res.ok) api.toast((res.json && res.json.error) || "The building was not updated.");
