@@ -75,10 +75,14 @@ export async function createApp(config) {
   const mail = createMailer(config);
   const app = express();
   app.disable("x-powered-by");
+  app.set("trust proxy", 1);
   app.post("/api/stripe/webhook", express.raw({ type: "*/*", limit: "1mb" }), (req, res) => {
     handleStripeWebhook(req, res, { db, config });
   });
-  app.use(express.json({ limit: "1mb" }));
+  app.use((req, res, next) => {
+    const photos = req.method === "POST" && req.path === "/api/public/reports";
+    return express.json({ limit: photos ? "12mb" : "1mb" })(req, res, next);
+  });
   app.use((req, res, next) => {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "no-referrer");

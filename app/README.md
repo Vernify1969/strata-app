@@ -48,7 +48,7 @@ Stripe test payments can be started only after the security tests have passed. A
 
 The postcodes we serve start as 39 Melbourne postcodes within about 12 km of Flinders Street Station, taken from approximate centres. The platform owner can replace that list. Check it against a postcode map before launch. Victorian public holidays for 2026 and 2027 are stored for later deadlines and must be checked against the Victorian Government list.
 
-QR codes are web addresses with a random token. Printing a label sheet stays off until the security tests have passed and `PUBLIC_BASE_URL` is a permanent https address, not a temporary or localhost address. Urgent reports are emailed. They are not sent by text message. Demo mode keeps printing off even if those checks have passed.
+QR codes are web addresses with a random token. A manager can show a code on screen and download a PNG or an SVG. That download is not a printed label sheet. Printing a label sheet stays off until the security tests have passed and `PUBLIC_BASE_URL` is a permanent https address, not a temporary or localhost address. Urgent reports are emailed. They are not sent by text message. Demo mode keeps printing off even if those checks have passed.
 
 ## Share a link
 

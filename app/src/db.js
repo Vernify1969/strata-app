@@ -352,6 +352,12 @@ function migrate(db) {
     `);
     db.exec("PRAGMA user_version = 7");
   }
+  if (userVersion(db) < 8) {
+    db.exec(`
+      ALTER TABLE reports ADD COLUMN unit_number TEXT NOT NULL DEFAULT '';
+    `);
+    db.exec("PRAGMA user_version = 8");
+  }
 }
 
 export function audit(db, event) {
