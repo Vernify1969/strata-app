@@ -388,6 +388,27 @@ function migrate(db) {
     `);
     db.exec("PRAGMA user_version = 11");
   }
+  if (userVersion(db) < 12) {
+    db.exec(`
+      ALTER TABLE platform_settings ADD COLUMN ai_cap_cents INTEGER NOT NULL DEFAULT 500;
+      ALTER TABLE platform_settings ADD COLUMN min_cover_cents INTEGER NOT NULL DEFAULT 2000000000;
+      CREATE TABLE ai_uses (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        helper TEXT NOT NULL,
+        model TEXT NOT NULL,
+        demo INTEGER NOT NULL,
+        month TEXT NOT NULL,
+        input_tokens INTEGER NOT NULL,
+        output_tokens INTEGER NOT NULL,
+        cost_cents INTEGER NOT NULL,
+        subject_type TEXT NOT NULL DEFAULT '',
+        subject_id TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+    `);
+    db.exec("PRAGMA user_version = 12");
+  }
 }
 
 export function audit(db, event) {

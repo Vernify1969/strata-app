@@ -13,6 +13,7 @@ import { registerJobRoutes } from "./jobs.js";
 import { handleStripeWebhook, ensureMoneySettings, moneySettings, registerPaymentRoutes } from "./payments.js";
 import { registerDocumentRoutes } from "./documents.js";
 import { registerQrRoutes } from "./qr.js";
+import { registerAssistantRoutes } from "./assistant.js";
 import { seedDemo } from "./demo-seed.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -461,6 +462,7 @@ export async function createApp(config) {
   registerPaymentRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerDocumentRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
   registerQrRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
+  registerAssistantRoutes(app, { db, config, sendError, requireUser, requireJson });
 
   app.get("/api/owner/settings", requireUser, (req, res) => {
     if (req.user.role !== "platform_owner") return sendError(res, 403, "Only the platform owner can open these settings.");
@@ -476,6 +478,8 @@ export async function createApp(config) {
       apartmentFeeCharged: false,
       depositHours: settings.depositHours,
       urgentDepositHours: settings.urgentDepositHours,
+      aiCapCents: settings.aiCapCents,
+      minCoverCents: settings.minCoverCents,
       message: "These settings are stored for the platform owner only. The per-apartment fee is off, so nothing is charged. Managers and contractors cannot open this screen."
     });
   });
@@ -489,13 +493,17 @@ export async function createApp(config) {
     const enabled = req.body?.apartmentFeeEnabled == null ? current.apartmentFeeEnabled : !!req.body.apartmentFeeEnabled;
     const depositHours = req.body?.depositHours == null ? current.depositHours : Number(req.body.depositHours);
     const urgentDepositHours = req.body?.urgentDepositHours == null ? current.urgentDepositHours : Number(req.body.urgentDepositHours);
+    const aiCapCents = req.body?.aiCapCents == null ? current.aiCapCents : Number(req.body.aiCapCents);
+    const minCoverCents = req.body?.minCoverCents == null ? current.minCoverCents : Number(req.body.minCoverCents);
     if (!Number.isInteger(commission) || commission < 0 || commission > 30) return sendError(res, 400, "Commission is a whole number from 0 to 30.");
     if (!Number.isInteger(urgent) || urgent < 0) return sendError(res, 400, "The urgent fee is a number of cents.");
     if (!Number.isInteger(apartment) || apartment < 0) return sendError(res, 400, "The apartment fee is a number of cents.");
     if (!Number.isInteger(depositHours) || depositHours < 1 || depositHours > 168) return sendError(res, 400, "The deposit time is a whole number of hours from 1 to 168.");
     if (!Number.isInteger(urgentDepositHours) || urgentDepositHours < 1 || urgentDepositHours > 168) return sendError(res, 400, "The urgent deposit time is a whole number of hours from 1 to 168.");
-    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, apartment_fee_cents = ?, apartment_fee_enabled = ?, deposit_hours = ?, urgent_deposit_hours = ? WHERE id = 'main'`)
-      .run(commission, urgent, apartment, enabled ? 1 : 0, depositHours, urgentDepositHours);
+    if (!Number.isInteger(aiCapCents) || aiCapCents < 0 || aiCapCents > 100000) return sendError(res, 400, "The draft allowance is a whole number of cents.");
+    if (!Number.isInteger(minCoverCents) || minCoverCents < 0) return sendError(res, 400, "The cover minimum is a whole number of cents.");
+    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, apartment_fee_cents = ?, apartment_fee_enabled = ?, deposit_hours = ?, urgent_deposit_hours = ?, ai_cap_cents = ?, min_cover_cents = ? WHERE id = 'main'`)
+      .run(commission, urgent, apartment, enabled ? 1 : 0, depositHours, urgentDepositHours, aiCapCents, minCoverCents);
     res.json({ ...moneySettings(db, config), apartmentFeeCharged: false });
   });
 

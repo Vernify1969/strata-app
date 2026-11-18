@@ -12,7 +12,9 @@ export function moneySettings(db, config = {}) {
       apartmentFeeCents: row.apartment_fee_cents,
       apartmentFeeEnabled: row.apartment_fee_enabled === 1,
       depositHours: Number(row.deposit_hours || 48),
-      urgentDepositHours: Number(row.urgent_deposit_hours || 12)
+      urgentDepositHours: Number(row.urgent_deposit_hours || 12),
+      aiCapCents: row.ai_cap_cents == null ? 500 : Number(row.ai_cap_cents),
+      minCoverCents: row.min_cover_cents == null ? 2000000000 : Number(row.min_cover_cents)
     };
   }
   return {
@@ -21,7 +23,9 @@ export function moneySettings(db, config = {}) {
     apartmentFeeCents: Number(config.apartmentFeeCents ?? 0),
     apartmentFeeEnabled: !!config.apartmentFeeEnabled,
     depositHours: Number(config.depositHours ?? 48),
-    urgentDepositHours: Number(config.urgentDepositHours ?? 12)
+    urgentDepositHours: Number(config.urgentDepositHours ?? 12),
+    aiCapCents: Number(config.aiCapCents ?? 500),
+    minCoverCents: Number(config.minCoverCents ?? 2000000000)
   };
 }
 
