@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>
 :root {
   --bg: #F6F8FB;
@@ -284,8 +285,12 @@ textarea { min-height: 120px; resize: vertical; }
   content: ""; position: absolute; left: -20px; top: 7px; width: 7px; height: 7px; border-radius: 50%;
   background: var(--surface); box-shadow: 0 0 0 2px var(--brand);
 }
-.map-stage { position: relative; background: var(--map); border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
-.map-stage svg { width: 100%; height: auto; display: block; }
+.map-card { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+.live-map { height: 360px; width: 100%; background: var(--map); }
+.map-card.full { position: fixed; inset: 12px; z-index: 50; display: flex; flex-direction: column; }
+.map-card.full .live-map { height: auto; flex: 1; }
+.map-tools { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; }
+@media (max-width: 700px) { .live-map { height: 220px; } }
 .pin {
   position: absolute; width: 36px; height: 36px; margin: 0; padding: 0;
   border-radius: 50%; border: 2px solid #fff; transform: translate(-50%, -50%);
@@ -611,6 +616,7 @@ button.stat { cursor: pointer; }
 <a class="sr" href="#main">Skip to content</a>
 <div id="app"></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="/wire.js"></script>
 <script>
 (function () {
@@ -1140,6 +1146,10 @@ const PHOTOS = {
       c({ id: "c-nina", name: "Nina Brooks", trades: ["plumbing"], years: 7, gst: false, abn: "10000000029", licence: "Plumbing licence PL-11880", licenceUntil: yearOut, cover: 10, description: "Plumber for taps, drains and hot water in older blocks." }),
       c({ id: "c-theo", name: "Theo Marin", trades: ["plumbing", "aircon"], years: 20, gst: true, abn: "10000000030", licence: "Plumbing licence PL-640 and air conditioning RAC-4", licenceUntil: yearOut, description: "Plumber and air conditioning technician with a long apartment background." })
     ];
+    state.contractors.forEach((person, index) => {
+      person.lat = -37.8136 + ((index % 5) - 2) * 0.012;
+      person.lng = 144.9631 + (Math.floor(index / 5) - 1) * 0.018;
+    });
 
     function ownedJob(partial) {
       const b = partial.buildingId ? building(partial.buildingId) : null;
@@ -1256,6 +1266,34 @@ const PHOTOS = {
     }
     const offer = document.getElementById("offer-form");
     if (opts.scrollOffer && offer) offer.scrollIntoView({ block: "start" });
+    mountLiveMap();
+  }
+
+  function mountLiveMap() {
+    const el = document.getElementById("live-map");
+    if (!el || !window.L) return;
+    const points = JSON.parse(decodeURIComponent(el.dataset.points || "%5B%5D"));
+    if (el._leaflet_id && window.liveMap) {
+      window.liveMap.remove();
+    }
+    const map = L.map(el, { scrollWheelZoom: true }).setView([-37.8136, 144.9631], 13);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+    const bounds = [];
+    points.forEach(point => {
+      if (point.lat == null || point.lng == null) return;
+      const color = point.kind === "building" ? "#0E2A66" : point.kind === "contractor" ? "#0F766E" : "#1D4ED8";
+      const marker = L.circleMarker([point.lat, point.lng], { radius: 8, color: color, fillColor: color, fillOpacity: 0.9, weight: 2 }).addTo(map);
+      const popup = "<strong>" + String(point.title || "").replace(/[&<>]/g, "") + "</strong><br>" + String(point.detail || "").replace(/[&<>]/g, "") +
+        (point.kind === "job" ? '<br><button type="button" data-act="pin" data-id="' + point.id + '">Open</button>' : "");
+      marker.bindPopup(popup);
+      bounds.push([point.lat, point.lng]);
+    });
+    if (bounds.length) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 15 });
+    window.liveMap = map;
+    setTimeout(() => map.invalidateSize(), 0);
   }
 
   function goTab(screen) {
@@ -2476,48 +2514,35 @@ const PHOTOS = {
     return placed;
   }
   function mapHtml(list) {
-    const pins = list.map(job => {
-      const p = placeOf(job);
-      const pt = project(p.lat, p.lng);
-      return { job: job, x: pt.x, y: pt.y, booked: false };
-    });
+    const points = [];
+    const seenBuildings = {};
+    function addJob(job) {
+      const place = placeOf(job);
+      if (!place || place.lat == null || place.lng == null) return;
+      points.push({ kind: "job", id: job.id, lat: place.lat, lng: place.lng, title: job.title, detail: (place.suburb || "") + (place.street ? " · " + place.street : "") });
+      if (place.buildingId && !seenBuildings[place.buildingId]) {
+        seenBuildings[place.buildingId] = true;
+        points.push({ kind: "building", id: place.buildingId, lat: place.lat, lng: place.lng, title: place.buildingName || place.suburb, detail: ((place.streetNumber ? place.streetNumber + " " : "") + (place.street || "")).trim() });
+      }
+    }
+    list.forEach(addJob);
     if (state.find.showBooked) {
       state.jobs.forEach(job => {
         if (job.awardedTo !== state.meId) return;
         if (["paid", "onsite", "fix1", "fix2", "review0", "review1"].indexOf(job.stage) === -1) return;
-        const p = placeOf(job);
-        const pt = project(p.lat, p.lng);
-        pins.push({ job: job, x: pt.x, y: pt.y, booked: true });
+        addJob(job);
       });
     }
-    const laid = layoutPins(pins);
-    const rings = [2, 5, 8].map(km => {
-      const r = (150 / Math.max(8, state.owner.radiusKm)) * km;
-      return '<circle cx="180" cy="200" r="' + r + '" fill="none" stroke="var(--brand)" stroke-opacity="0.45"/>' +
-        '<text x="' + (180 + r + 2) + '" y="196" font-size="10" fill="var(--muted)">' + km + " km</text>";
-    }).join("");
-    const coverR = (150 / Math.max(8, state.owner.radiusKm)) * state.owner.radiusKm;
-    const svg = '<svg viewBox="0 0 360 400" role="img" aria-label="Illustrative map of open jobs around the Melbourne CBD">' +
-      '<rect width="360" height="400" fill="var(--map)"/>' +
-      [40, 80, 120, 160, 200, 240, 280, 320].map(v => '<line x1="' + v + '" y1="0" x2="' + v + '" y2="400" stroke="var(--grid)" stroke-width="1"/><line x1="0" y1="' + v + '" x2="360" y2="' + v + '" stroke="var(--grid)" stroke-width="1"/>').join("") +
-      '<path d="M0 250 C 70 230, 120 270, 180 246 S 280 220, 360 250" fill="none" stroke="var(--river)" stroke-width="14" stroke-linecap="round"/>' +
-      rings +
-      '<circle cx="180" cy="200" r="' + coverR + '" fill="none" stroke="var(--brand)" stroke-dasharray="4 4"/>' +
-      '<rect x="174" y="194" width="12" height="12" transform="rotate(45 180 200)" fill="var(--brand)"/>' +
-      '<text x="188" y="188" font-size="11" fill="var(--ink)">CBD</text></svg>';
-    const buttons = laid.map(p => {
-      const t = tradeById(p.job.tradeId);
-      const place = placeOf(p.job);
-      const label = t.name + " job, approximate area near " + place.suburb + (p.booked ? ", your booked job" : "") + (isEmergency(p.job) ? ", emergency" : "");
-      return '<button class="pin' + (isEmergency(p.job) ? " emergency" : "") + (p.booked ? " booked" : "") + '" type="button" style="left:' + (p.x / 360 * 100) + '%;top:' + (p.y / 400 * 100) + '%;--hue:' + t.hue + '" data-act="pin" data-id="' + p.job.id + '" aria-label="' + esc(label) + '"><span class="mini">' + icon(t.id) + "</span></button>";
-    }).join("");
+    (state.contractors || []).forEach(person => {
+      if (person.lat == null || person.lng == null) return;
+      points.push({ kind: "contractor", id: person.id, lat: person.lat, lng: person.lng, title: person.name, detail: (person.trades || []).join(", ") });
+    });
     let preview = "";
     if (state.find.previewId) {
       const job = jobById(state.find.previewId);
       if (job) preview = contractorCard(job);
     }
-    return '<div class="stack"><div class="map-stage">' + svg + buttons + '</div><p class="small">This is an illustrative map. The real app uses a live map. Pins show approximate areas only.</p>' +
-      '<button class="chip" type="button" data-act="show-booked" aria-pressed="' + (state.find.showBooked ? "true" : "false") + '">Show my booked jobs</button>' + preview + "</div>";
+    return '<div class="stack"><div class="map-card" id="live-map-card"><div id="live-map" class="live-map" role="region" aria-label="Map of Melbourne" data-points="' + encodeURIComponent(JSON.stringify(points)) + '"></div><div class="map-tools"><button class="chip" type="button" data-act="show-booked" aria-pressed="' + (state.find.showBooked ? "true" : "false") + '">Show my booked jobs</button><button class="chip" type="button" data-act="map-full">Full screen</button></div></div><p class="small">Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. Blue is a job, navy is a building, teal is a contractor.</p>' + preview + "</div>";
   }
 
   function ensureOffer(job) {
@@ -3052,6 +3077,12 @@ const PHOTOS = {
     if (act === "find-view") { state.find.view = t.dataset.v; render({ keepScroll: true }); return; }
     if (act === "toggle-filters") { state.find.filtersOpen = !state.find.filtersOpen; render({ keepScroll: true }); return; }
     if (act === "show-booked") { state.find.showBooked = !state.find.showBooked; render({ keepScroll: true }); return; }
+    if (act === "map-full") {
+      const card = document.getElementById("live-map-card");
+      if (card) card.classList.toggle("full");
+      if (window.liveMap) window.liveMap.invalidateSize();
+      return;
+    }
     if (act === "pin") { state.find.previewId = t.dataset.id; render({ keepScroll: true }); return; }
     if (act === "scroll-offer") { const el = document.getElementById("offer-form"); if (el) el.scrollIntoView({ block: "start" }); return; }
     if (act === "offer-date") {

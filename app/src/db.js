@@ -480,6 +480,17 @@ function migrate(db) {
   }
   ensureAdminSchema(db);
   if (userVersion(db) < 18) db.exec("PRAGMA user_version = 18");
+  if (!db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'geo_cache'").get()) {
+    db.exec(`
+      CREATE TABLE geo_cache (
+        key TEXT PRIMARY KEY,
+        lat REAL NOT NULL,
+        lng REAL NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+  }
+  if (userVersion(db) < 19) db.exec("PRAGMA user_version = 19");
 }
 
 function tableExists(db, name) {

@@ -1,5 +1,6 @@
 import { audit } from "./db.js";
 import { complianceBlock } from "./documents.js";
+import { centreOf } from "./area.js";
 import { abnOk, newId } from "./ids.js";
 import { moneySettings, requestCapture } from "./payments.js";
 import { approvalFor, depositAllowed, depositCents, hasContact, invoiceDecision, reviewEndsAt } from "./rules.js";
@@ -287,6 +288,7 @@ function clientJob(db, job, user, quotes = [], contractors = new Map()) {
     .filter(quote => user.role !== "contractor" || quote.contractor_user_id === user.id);
   for (const quote of rows) {
     const person = db.prepare("SELECT * FROM users WHERE id = ?").get(quote.contractor_user_id);
+    const home = centreOf(person.base_postcode || "");
     contractors.set(person.id, {
       id: person.id,
       name: person.name,
@@ -298,6 +300,9 @@ function clientJob(db, job, user, quotes = [], contractors = new Map()) {
       licenceUntil: "2099-01-01",
       insuranceUntil: "2099-01-01",
       description: person.business_name,
+      postcode: person.base_postcode || "",
+      lat: home ? home.lat : null,
+      lng: home ? home.lng : null,
       consentPublic: true,
       sample: false
     });
