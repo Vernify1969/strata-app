@@ -1,14 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createHmac } from "node:crypto";
-import { client, lastLink, startApp } from "./helpers.js";
 import fs from "node:fs";
 import path from "node:path";
+import Stripe from "stripe";
 import { alertDay, closeReader, fileIsSafe, readDocumentBytes } from "../src/documents.js";
+import { client, lastLink, startApp } from "./helpers.js";
 
-function signature(event) {
-  const canonical = [event.id, event.type, event.paymentId, event.status].join("|");
-  return createHmac("sha256", "test-webhook").update(canonical).digest("hex");
+const WEBHOOK_SECRET = "whsec_test_secret";
+
+function signedEvent(event) {
+  const payload = JSON.stringify(event);
+  const header = new Stripe("sk_test_webhook_only").webhooks.generateTestHeaderString({ payload, secret: WEBHOOK_SECRET });
+  return { payload, header };
 }
 
 async function signIn(api, server, details) {
@@ -45,7 +48,7 @@ async function openJob(server, urgency = "standard") {
 }
 
 test("held money is not released before the job is complete, and the commission stays", async () => {
-  const server = await startApp({ securityGate: true, commissionPercent: 10 });
+  const server = await startApp({ securityGate: true, commissionPercent: 10, stripeWebhookSecret: WEBHOOK_SECRET });
   try {
     const { manager, jobId } = await openJob(server);
     const quote = await (await (async () => {
@@ -66,11 +69,15 @@ test("held money is not released before the job is complete, and the commission 
     assert.equal(first.json.feeCents + first.json.netCents, first.json.amountCents);
     const early = await manager("POST", "/api/jobs/" + jobId + "/release", {});
     assert.equal(early.status, 400);
-    const event = { id: "evt_hold", type: "payment_succeeded", paymentId: first.json.id, status: "succeeded" };
+    const signed = signedEvent({
+      id: "evt_hold",
+      type: "payment_intent.succeeded",
+      data: { object: { id: "pi_hold", metadata: { paymentId: first.json.id }, status: "succeeded" } }
+    });
     const paid = await fetch(server.base + "/api/stripe/webhook", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-strata-signature": signature(event) },
-      body: JSON.stringify(event)
+      headers: { "content-type": "application/json", "stripe-signature": signed.header },
+      body: signed.payload
     });
     assert.equal((await paid.json()).status, "succeeded");
     const still = await manager("POST", "/api/jobs/" + jobId + "/release", {});

@@ -1,17 +1,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createHmac } from "node:crypto";
+import Stripe from "stripe";
 import { watchDeposits } from "../src/maintenance.js";
 import { client, lastLink, startApp } from "./helpers.js";
 
-function signature(event) {
-  const canonical = [event.id, event.type, event.paymentId, event.status].join("|");
-  return createHmac("sha256", "test-webhook").update(canonical).digest("hex");
+const WEBHOOK_SECRET = "whsec_test_secret";
+
+function signedEvent(event) {
+  const payload = JSON.stringify(event);
+  const header = new Stripe("sk_test_webhook_only").webhooks.generateTestHeaderString({ payload, secret: WEBHOOK_SECRET });
+  return { payload, header };
 }
 
 test("an unpaid deposit is reminded and then lapses, and funds show only after Stripe confirms", async () => {
   const server = await startApp({
     securityGate: true,
+    stripeWebhookSecret: WEBHOOK_SECRET,
     owner: { email: "owner@taskspeck.example", password: "Ownerpass1", name: "Nick Owner" }
   });
   const owner = client(server.base);
@@ -82,11 +86,15 @@ test("an unpaid deposit is reminded and then lapses, and funds show only after S
     assert.equal((await manager("POST", "/api/jobs/" + job.json.job.id + "/approve", { quoteId: againQuote.json.quoteId })).status, 200);
     const payment = await manager("POST", "/api/jobs/" + job.json.job.id + "/payments", { idempotencyKey: "deposit-proof-1" });
     assert.equal((await plumber("GET", "/api/jobs/" + job.json.job.id)).json.job.fundsStatus, "Waiting for deposit – do not start work");
-    const event = { id: "evt_funds", type: "payment_succeeded", paymentId: payment.json.id, status: "succeeded" };
+    const signed = signedEvent({
+      id: "evt_funds",
+      type: "payment_intent.succeeded",
+      data: { object: { id: "pi_funds", metadata: { paymentId: payment.json.id }, status: "succeeded" } }
+    });
     const confirmed = await fetch(server.base + "/api/stripe/webhook", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-strata-signature": signature(event) },
-      body: JSON.stringify(event)
+      headers: { "content-type": "application/json", "stripe-signature": signed.header },
+      body: signed.payload
     });
     assert.equal((await confirmed.json()).status, "succeeded");
     assert.equal((await plumber("GET", "/api/jobs/" + job.json.job.id)).json.job.fundsStatus, "Funds secured by Stripe – OK to start");

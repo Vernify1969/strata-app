@@ -54,6 +54,14 @@ export function loadConfig(overrides = {}) {
     urgentFeeCents: Number(process.env.URGENT_FEE_CENTS || 2500),
     apartmentFeeCents: Number(process.env.APARTMENT_FEE_CENTS || 0),
     apartmentFeeEnabled: process.env.APARTMENT_FEE_ENABLED === "1",
-    documentsPath: overrides.documentsPath || process.env.DOCUMENTS_PATH || path.join(root, "var", "documents")
+    documentsPath: overrides.documentsPath || process.env.DOCUMENTS_PATH || path.join(root, "var", "documents"),
+    databaseUrl: overrides.databaseUrl ?? process.env.DATABASE_URL ?? "",
+    s3: {
+      bucket: process.env.S3_BUCKET || "",
+      endpoint: process.env.S3_ENDPOINT || "",
+      region: process.env.S3_REGION || "auto",
+      accessKeyId: process.env.S3_ACCESS_KEY_ID || "",
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || ""
+    }
   };
 }

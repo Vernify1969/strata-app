@@ -1,7 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createHmac } from "node:crypto";
+import Stripe from "stripe";
 import { client, lastLink, startApp } from "./helpers.js";
+
+const WEBHOOK_SECRET = "whsec_test_secret";
+const stripe = new Stripe("sk_test_webhook_only");
+
+function signedEvent(event) {
+  const payload = JSON.stringify(event);
+  return {
+    payload,
+    header: stripe.webhooks.generateTestHeaderString({ payload, secret: WEBHOOK_SECRET })
+  };
+}
 
 async function signIn(api, server, details) {
   assert.equal((await api("POST", "/api/register", details)).status, 201);
@@ -36,11 +47,6 @@ async function bookedJob(server) {
   return { manager, jobId: job.json.job.id };
 }
 
-function signature(event) {
-  const canonical = [event.id, event.type, event.paymentId, event.status].join("|");
-  return createHmac("sha256", "test-webhook").update(canonical).digest("hex");
-}
-
 test("a payment cannot be created until the security tests pass, and a live key is refused", async () => {
   const server = await startApp({ securityGate: false });
   try {
@@ -62,7 +68,7 @@ test("a payment cannot be created until the security tests pass, and a live key 
 });
 
 test("money is marked paid only by a verified Stripe event, and a repeated request does not create a second charge", async () => {
-  const server = await startApp({ securityGate: true });
+  const server = await startApp({ securityGate: true, stripeWebhookSecret: WEBHOOK_SECRET });
   try {
     const { manager, jobId } = await bookedJob(server);
     const first = await manager("POST", "/api/jobs/" + jobId + "/payments", { idempotencyKey: "deposit-1" });
@@ -74,28 +80,36 @@ test("money is marked paid only by a verified Stripe event, and a repeated reque
     assert.equal(first.json.feeCents + first.json.netCents, first.json.amountCents);
     const again = await manager("POST", "/api/jobs/" + jobId + "/payments", { idempotencyKey: "deposit-1" });
     assert.equal(again.json.id, first.json.id);
-    const event = { id: "evt_1", type: "payment_succeeded", paymentId: first.json.id, status: "succeeded", providerRef: "pi_test_1" };
+    const event = {
+      id: "evt_1",
+      type: "payment_intent.succeeded",
+      data: { object: { id: "pi_test_1", metadata: { paymentId: first.json.id }, status: "succeeded" } }
+    };
+    const signed = signedEvent(event);
     const forged = await fetch(server.base + "/api/stripe/webhook", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-strata-signature": "nope" },
-      body: JSON.stringify(event)
+      headers: { "content-type": "application/json", "stripe-signature": "nope" },
+      body: signed.payload
     });
     assert.equal(forged.status, 400);
     const verified = await fetch(server.base + "/api/stripe/webhook", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-strata-signature": signature(event) },
-      body: JSON.stringify(event)
+      headers: { "content-type": "application/json", "stripe-signature": signed.header },
+      body: signed.payload
     });
     const body = await verified.json();
     assert.equal(verified.status, 200);
     assert.equal(body.status, "succeeded");
-    const failed = { id: "evt_2", type: "payment_failed", paymentId: first.json.id, status: "failed", reason: "The card was declined." };
     const second = await manager("POST", "/api/jobs/" + jobId + "/payments", { idempotencyKey: "deposit-2" });
-    const failEvent = { ...failed, paymentId: second.json.id };
+    const failSigned = signedEvent({
+      id: "evt_2",
+      type: "payment_intent.payment_failed",
+      data: { object: { id: "pi_test_2", metadata: { paymentId: second.json.id }, last_payment_error: { message: "The card was declined." } } }
+    });
     const fail = await fetch(server.base + "/api/stripe/webhook", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-strata-signature": signature(failEvent) },
-      body: JSON.stringify(failEvent)
+      headers: { "content-type": "application/json", "stripe-signature": failSigned.header },
+      body: failSigned.payload
     });
     assert.equal((await fail.json()).status, "failed");
     const booked = server.app.locals.db.prepare("SELECT stage FROM jobs WHERE id = ?").get(jobId);

@@ -1,7 +1,7 @@
 import { audit } from "./db.js";
 import { complianceBlock } from "./documents.js";
 import { abnOk, newId } from "./ids.js";
-import { moneySettings } from "./payments.js";
+import { moneySettings, requestCapture } from "./payments.js";
 import { approvalFor, depositAllowed, depositCents, hasContact, invoiceDecision, reviewEndsAt } from "./rules.js";
 
 // TODO(owner): refunds are not built. A cancellation before arrival should refund through Stripe once you decide the policy.
@@ -180,10 +180,12 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
     res.json({ ...decision, paid: false });
   });
 
-  app.post("/api/jobs/:id/accept", requireJson, requireUser, (req, res) => {
+  app.post("/api/jobs/:id/accept", requireJson, requireUser, async (req, res) => {
     const job = visibleJob(db, req.user, req.params.id);
     if (!job || job.organisation_id !== req.user.organisation_id) return sendError(res, 404, "That job is not on your account.");
     if (job.stage !== "review0" && job.stage !== "review1") return sendError(res, 400, "The work is not in review.");
+    const waiting = db.prepare("SELECT * FROM payments WHERE job_id = ? AND status IN ('requires_payment', 'requires_capture')").all(job.id);
+    for (const payment of waiting) await requestCapture(db, config, payment);
     db.prepare("UPDATE jobs SET stage = 'accepted' WHERE id = ?").run(job.id);
     addEvent(db, job.id, req.user.name, "The manager accepted the work. The final invoice follows. The money is not released by this button.");
     res.json({ stage: "accepted", paid: false });

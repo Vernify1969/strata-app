@@ -50,6 +50,34 @@ The postcodes we serve start as 39 Melbourne postcodes within about 12 km of Fli
 
 QR codes are web addresses with a random token. A manager can show a code on screen and download a PNG or an SVG. That download is not a printed label sheet. Printing a label sheet stays off until the security tests have passed and `PUBLIC_BASE_URL` is a permanent https address, not a temporary or localhost address. Urgent reports are emailed. They are not sent by text message. Demo mode keeps printing off even if those checks have passed.
 
+## Keeping the data when a server restarts
+
+The free Render web service forgets its disk when it sleeps or is replaced. Two optional stores keep the database and the uploaded files. Leave them unset on your own computer and for the demo. The app then keeps using the SQLite file and the local `var` folder. Nothing here creates a paid service for you.
+
+Database, only if you want it to survive a restart:
+
+1. In the Render dashboard, open this workspace and add a Postgres database. The smallest Render Postgres plan is a paid plan. Check the current price on Render’s pricing page before you confirm it. In 2026 the smallest database is roughly US$7 a month, and a busier one is more. Render’s prices change, so read the page on the day you buy.
+2. Copy the connection string Render shows. Put it in the environment as `DATABASE_URL`. Do not paste that value into git or into a pull request.
+3. Redeploy. The app creates its tables there. While `DATABASE_URL` is empty, it keeps using SQLite.
+
+Files, only if you want photos and documents to survive a restart:
+
+1. Create a Cloudflare R2 bucket. R2’s free allowance covers a small app (about 10 GB stored, and no fee for people downloading the files). Past that, storage is about US$0.015 per GB each month. Check Cloudflare’s R2 pricing page on the day you turn it on. You do not need a paid Render disk for the files.
+2. Create an R2 API token that can read and write that bucket.
+3. Set these environment variables, and leave them empty until you have the bucket. Do not put the real values in git:
+
+```
+S3_BUCKET
+S3_ENDPOINT
+S3_REGION
+S3_ACCESS_KEY_ID
+S3_SECRET_ACCESS_KEY
+```
+
+`S3_ENDPOINT` is the R2 S3 address Cloudflare shows for the bucket. `S3_REGION` can be `auto`.
+
+Stripe test mode still needs `STRIPE_SECRET_KEY` (a test key only) and `STRIPE_WEBHOOK_SECRET`. If the webhook secret is missing, payment notices are rejected and a warning is written to the log. There is no built-in stand-in secret.
+
 ## Share a link
 
 The file `render.yaml` at the root of the repository is a Render blueprint. It starts the free web service with `DEMO_MODE=1` and no secrets. The free service sleeps when nobody is using it, so the first open after that takes about a minute. The steps for creating the link are in the pull request that added this file. Pick the branch that contains `render.yaml`. It is not on `main` until that pull request is merged.
