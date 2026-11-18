@@ -77,7 +77,7 @@ export async function createApp(config) {
   app.disable("x-powered-by");
   app.set("trust proxy", 1);
   app.post("/api/stripe/webhook", express.raw({ type: "*/*", limit: "1mb" }), (req, res) => {
-    handleStripeWebhook(req, res, { db, config });
+    handleStripeWebhook(req, res, { db, config: { ...config, mail }, mail });
   });
   app.use((req, res, next) => {
     const photos = req.method === "POST" && req.path === "/api/public/reports";
@@ -474,6 +474,8 @@ export async function createApp(config) {
       apartmentFeeCents: settings.apartmentFeeCents,
       apartmentFeeEnabled: settings.apartmentFeeEnabled,
       apartmentFeeCharged: false,
+      depositHours: settings.depositHours,
+      urgentDepositHours: settings.urgentDepositHours,
       message: "These settings are stored for the platform owner only. The per-apartment fee is off, so nothing is charged. Managers and contractors cannot open this screen."
     });
   });
@@ -485,11 +487,15 @@ export async function createApp(config) {
     const urgent = req.body?.urgentFeeCents == null ? current.urgentFeeCents : Number(req.body.urgentFeeCents);
     const apartment = req.body?.apartmentFeeCents == null ? current.apartmentFeeCents : Number(req.body.apartmentFeeCents);
     const enabled = req.body?.apartmentFeeEnabled == null ? current.apartmentFeeEnabled : !!req.body.apartmentFeeEnabled;
+    const depositHours = req.body?.depositHours == null ? current.depositHours : Number(req.body.depositHours);
+    const urgentDepositHours = req.body?.urgentDepositHours == null ? current.urgentDepositHours : Number(req.body.urgentDepositHours);
     if (!Number.isInteger(commission) || commission < 0 || commission > 30) return sendError(res, 400, "Commission is a whole number from 0 to 30.");
     if (!Number.isInteger(urgent) || urgent < 0) return sendError(res, 400, "The urgent fee is a number of cents.");
     if (!Number.isInteger(apartment) || apartment < 0) return sendError(res, 400, "The apartment fee is a number of cents.");
-    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, apartment_fee_cents = ?, apartment_fee_enabled = ? WHERE id = 'main'`)
-      .run(commission, urgent, apartment, enabled ? 1 : 0);
+    if (!Number.isInteger(depositHours) || depositHours < 1 || depositHours > 168) return sendError(res, 400, "The deposit time is a whole number of hours from 1 to 168.");
+    if (!Number.isInteger(urgentDepositHours) || urgentDepositHours < 1 || urgentDepositHours > 168) return sendError(res, 400, "The urgent deposit time is a whole number of hours from 1 to 168.");
+    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, apartment_fee_cents = ?, apartment_fee_enabled = ?, deposit_hours = ?, urgent_deposit_hours = ? WHERE id = 'main'`)
+      .run(commission, urgent, apartment, enabled ? 1 : 0, depositHours, urgentDepositHours);
     res.json({ ...moneySettings(db, config), apartmentFeeCharged: false });
   });
 
