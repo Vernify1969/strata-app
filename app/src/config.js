@@ -62,6 +62,7 @@ export function loadConfig(overrides = {}) {
       region: process.env.S3_REGION || "auto",
       accessKeyId: process.env.S3_ACCESS_KEY_ID || "",
       secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || ""
-    }
+    },
+    anthropicApiKey: overrides.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY ?? ""
   };
 }

@@ -346,6 +346,8 @@
         return true;
       }
       if (act === "open-reports" && state.remote) { this.openReports(); return true; }
+      if (act === "open-assistant" && state.remote) { this.openAssistant(); return true; }
+      if (act === "ai-run" && state.remote) { this.runAssistant(t.dataset.helper); return true; }
       if (act === "create-code" && state.remote) { this.createCode(); return true; }
       if (act === "code-active" && state.remote) { this.setCodeActive(t.dataset.id, t.dataset.on === "1"); return true; }
       if (act === "code-replace" && state.remote) { this.replaceCode(t.dataset.id); return true; }
@@ -412,6 +414,44 @@
       api.toast(res.json.message);
       api.state.screen = "signin";
       history.replaceState(null, "", "/");
+      api.render();
+    },
+    async loadAiUsage() {
+      const res = await call("GET", "/api/ai/usage");
+      if (res.ok) hooks().state.aiUsage = res.json;
+    },
+    async openAssistant() {
+      const api = hooks();
+      const state = api.state;
+      await this.loadAiUsage();
+      if (state.screen !== "assistant") {
+        state.history.push({ screen: state.screen, ctx: Object.assign({}, state.ctx || {}), step: state.step, title: state.title });
+        state.screen = "assistant";
+        state.title = "Draft helper";
+      }
+      api.render();
+    },
+    async runAssistant(helper) {
+      const api = hooks();
+      const state = api.state;
+      const report = (state.residentReports || [])[0];
+      const job = state.ctx && state.ctx.id ? { id: state.ctx.id } : (state.jobs || [])[0];
+      const building = (state.buildings || []).find(item => item.id === state.preferredBuildingId) || (state.buildings || [])[0];
+      const body = {};
+      if (helper === "triage" || helper === "job-draft" || helper === "reply-draft") body.reportId = report && report.id;
+      if (helper === "quote-compare" || helper === "committee" || helper === "budget-warning") body.jobId = job && job.id;
+      if (helper === "reply-draft") body.audience = "resident";
+      if (helper === "handover") body.buildingId = building && building.id;
+      if (helper === "missing-info") {
+        body.title = (state.draft && state.draft.title) || "";
+        body.area = (state.draft && state.draft.area) || "";
+        body.instructions = (state.draft && state.draft.instructions) || "";
+      }
+      if (helper === "paperwork") body.documentId = state.aiDocumentId || "";
+      const res = await call("POST", "/api/ai/" + helper, body);
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The draft was not prepared."); return; }
+      state.aiResult = res.json;
+      await this.loadAiUsage();
       api.render();
     },
     async openReports() {

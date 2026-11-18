@@ -1498,6 +1498,7 @@ const PHOTOS = {
       owner: ownerScreen,
       "building-new": buildingNewScreen,
       reports: reportsScreen,
+      assistant: assistantScreen,
       emergency: emergencyScreen,
       guide: guideScreen,
       success: successScreen,
@@ -1588,6 +1589,7 @@ const PHOTOS = {
     const primary = '<div class="home-primary stack"><section class="hero' + heroPhoto + '><p class="eyebrow">For managers</p><h1>What do you need?</h1><p>Describe the job. A licensed contractor can make an offer.</p></section>' +
       '<button class="btn btn-primary request-bar" type="button" data-act="new-request">New request</button>' +
       (state.manager.role === "property" ? "" : '<button class="btn btn-secondary" type="button" data-act="open-reports">Resident reports</button>') +
+      '<button class="btn btn-secondary" type="button" data-act="open-assistant">Draft helper</button>' +
       stats +
       '<div class="dash">' + noticeProfile() + "</div>" +
       '<div class="trade-grid">' + tiles + "</div>" +
@@ -1716,6 +1718,37 @@ const PHOTOS = {
       '<p class="small">The fee stays at ' + esc(String(o.feePercent)) + "% until this is on. When it is on, the fee is that percentage plus 10% of the fee" + (o.gstOnFee ? " (now " + feePhrase() + ")" : " (15% would become 16.5%)") + ".</p>" +
       '<p class="small">On a ' + moneyShort(example) + " job the fee is " + money(fee) + ", the contractor receives " + money(receives(example)) + ", and the manager pays " + moneyShort(example) + ".</p>" +
       "<p class=\"small muted\">Stripe holds and moves the money. TaskSpeck Strata does not hold it. The fee is taken from the contractor only. Managers pay no fee. Refunds, disputes and unpaid-deposit expiry are not built yet.</p></div></div>";
+  }
+
+  function assistantScreen() {
+    const usage = state.aiUsage || { spentCents: 0, capCents: 500, demoAvailable: true, recent: [] };
+    const dollars = (cents) => "A$" + (Number(cents || 0) / 100).toFixed(2);
+    const banner = usage.demoAvailable
+      ? '<p class="notice notice-warn"><strong>Demo AI (sample answers).</strong> These are not from a live model. Every result is a draft.</p>'
+      : '<p class="notice notice-ok"><strong>Draft only.</strong> Nothing is approved, sent, booked, or paid until you confirm it.</p>';
+    const helpers = [
+      ["triage", "Triage a resident report"],
+      ["job-draft", "Job description from a report"],
+      ["quote-compare", "Compare quotes"],
+      ["committee", "Committee summary"],
+      ["next-step", "What is waiting"],
+      ["missing-info", "Check a job before posting"],
+      ["reply-draft", "Draft a reply"],
+      ["budget-warning", "Budget warning"],
+      ["handover", "Handover notes"],
+      ["paperwork", "Check licence or insurance"]
+    ];
+    const buttons = helpers.map(item => '<button class="btn btn-secondary" type="button" data-act="ai-run" data-helper="' + item[0] + '">' + item[1] + "</button>").join("");
+    const result = state.aiResult
+      ? '<article class="card stack"><p class="pill pill-muted">Draft</p><p><strong>' + esc(state.aiResult.mode || "Draft") + "</strong></p><p>" + esc(state.aiResult.label || "") + "</p><p>" + esc(state.aiResult.text || "") + "</p></article>"
+      : "";
+    const recent = (usage.recent || []).slice(0, 5).map(row => "<li>" + esc(row.helper) + (row.demo ? " · sample" : " · " + dollars(row.cost_cents)) + "</li>").join("");
+    return '<div class="stack"><h1>Draft helper</h1>' + banner +
+      "<p>Used " + dollars(usage.spentCents) + " of " + dollars(usage.capCents) + " this month. Sample answers are not counted.</p>" +
+      '<p class="small muted">Pick a helper. It uses the current building, report, or job when one is open. You send or approve nothing from this screen.</p>' +
+      buttons + result +
+      (recent ? "<h2>Recent drafts</h2><ul class=\"clean\">" + recent + "</ul>" : "") +
+      "</div>";
   }
 
   function reportStatusLabel(status) {
