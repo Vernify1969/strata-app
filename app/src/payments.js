@@ -11,14 +11,18 @@ export function moneySettings(db, config = {}) {
       commissionPercent: row.commission_percent,
       urgentFeeCents: row.urgent_fee_cents,
       apartmentFeeCents: row.apartment_fee_cents,
-      apartmentFeeEnabled: row.apartment_fee_enabled === 1
+      apartmentFeeEnabled: row.apartment_fee_enabled === 1,
+      depositHours: Number(row.deposit_hours || 48),
+      urgentDepositHours: Number(row.urgent_deposit_hours || 12)
     };
   }
   return {
     commissionPercent: Number(config.commissionPercent ?? 15),
     urgentFeeCents: Number(config.urgentFeeCents ?? 2500),
     apartmentFeeCents: Number(config.apartmentFeeCents ?? 0),
-    apartmentFeeEnabled: !!config.apartmentFeeEnabled
+    apartmentFeeEnabled: !!config.apartmentFeeEnabled,
+    depositHours: Number(config.depositHours ?? 48),
+    urgentDepositHours: Number(config.urgentDepositHours ?? 12)
   };
 }
 
@@ -159,7 +163,7 @@ export async function releaseJobPayments(db, config, job) {
   return held;
 }
 
-export function handleStripeWebhook(req, res, { db, config }) {
+export async function handleStripeWebhook(req, res, { db, config }) {
   let event = {};
   try {
     const text = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : JSON.stringify(req.body || {});
@@ -186,10 +190,22 @@ export function handleStripeWebhook(req, res, { db, config }) {
   if (event.type === "payment_failed") {
     db.prepare("UPDATE payments SET status = 'failed', failure_reason = ? WHERE id = ?").run(String(event.reason || "The card was declined."), payment.id);
     } else if (event.type === "payment_succeeded") {
-      db.prepare("UPDATE payments SET status = 'succeeded', provider_ref = COALESCE(?, provider_ref) WHERE id = ?").run(event.providerRef ? String(event.providerRef) : null, payment.id);
+      db.prepare("UPDATE payments SET status = 'succeeded', funds_confirmed_at = ?, provider_ref = COALESCE(?, provider_ref) WHERE id = ?").run(
+        new Date().toISOString(), event.providerRef ? String(event.providerRef) : null, payment.id
+      );
       const job = db.prepare("SELECT * FROM jobs WHERE id = ?").get(payment.job_id);
       if (job && job.needs_prepay && job.stage === "approved") {
         db.prepare("UPDATE jobs SET stage = 'paid' WHERE id = ?").run(job.id);
+      }
+      if (!payment.funds_confirmed_at && job?.contractor_user_id && config.mail) {
+        const contractor = db.prepare("SELECT email, name FROM users WHERE id = ?").get(job.contractor_user_id);
+        if (contractor?.email) {
+          await config.mail.send({
+            to: contractor.email,
+            subject: "Funds secured by Stripe",
+            text: "Funds secured by Stripe – OK to start.\n\nThe deposit for \"" + job.title + "\" is held. You can start the work."
+          });
+        }
       }
     } else {
     res.status(400).json({ error: "That payment notice is not used." });
