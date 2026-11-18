@@ -368,6 +368,16 @@ function migrate(db) {
     for (const row of holidaysForDatabase()) holiday.run(row.day, row.name, row.note);
     db.exec("PRAGMA user_version = 9");
   }
+  if (userVersion(db) < 10) {
+    db.exec(`
+      ALTER TABLE platform_settings ADD COLUMN deposit_hours INTEGER NOT NULL DEFAULT 48;
+      ALTER TABLE platform_settings ADD COLUMN urgent_deposit_hours INTEGER NOT NULL DEFAULT 12;
+      ALTER TABLE jobs ADD COLUMN deposit_due_at TEXT NOT NULL DEFAULT '';
+      ALTER TABLE jobs ADD COLUMN deposit_reminded_at TEXT NOT NULL DEFAULT '';
+      ALTER TABLE payments ADD COLUMN funds_confirmed_at TEXT NOT NULL DEFAULT '';
+    `);
+    db.exec("PRAGMA user_version = 10");
+  }
 }
 
 export function audit(db, event) {

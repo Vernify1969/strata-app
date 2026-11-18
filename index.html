@@ -2326,6 +2326,10 @@ const PHOTOS = {
     if (awarded && (job.stage === "review0" || job.stage === "review1")) work = '<div class="card"><h2>Waiting for the manager</h2><p>They have 48 hours to accept or challenge.</p></div>';
     if (awarded && job.stage === "released") work = releasedContractor(job);
     if (job.stage === "open") work = offerBlock(job);
+    if (awarded && job.fundsStatus) {
+      const ready = job.fundsStatus.indexOf("OK to start") !== -1;
+      work = '<div class="notice ' + (ready ? "notice-ok" : "notice-warn") + '"><strong>' + esc(job.fundsStatus) + "</strong></div>" + work;
+    }
     return '<div class="stack">' + top + work + '<button class="btn btn-secondary" type="button" data-act="open-evidence" data-id="' + job.id + '">View evidence record</button><div class="card">' + timelineHtml(job) + "</div></div>";
   }
   function requirementLines(job) {
