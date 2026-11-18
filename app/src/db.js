@@ -431,6 +431,53 @@ function migrate(db) {
     db.exec("ALTER TABLE platform_settings ADD COLUMN contractor_ai_cap_cents INTEGER NOT NULL DEFAULT 200");
     db.exec("PRAGMA user_version = 14");
   }
+  if (userVersion(db) < 17) {
+    db.exec(`
+      ALTER TABLE platform_settings ADD COLUMN assistant_name TEXT NOT NULL DEFAULT 'Chloe';
+      ALTER TABLE platform_settings ADD COLUMN assistant_greeting TEXT NOT NULL DEFAULT 'Hi, I''m {name}, your AI assistant. How can I help you today?';
+      ALTER TABLE platform_settings ADD COLUMN assistant_tone TEXT NOT NULL DEFAULT 'friendly';
+      ALTER TABLE platform_settings ADD COLUMN web_search_enabled INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE buildings ADD COLUMN building_use TEXT NOT NULL DEFAULT '';
+      ALTER TABLE buildings ADD COLUMN building_class TEXT NOT NULL DEFAULT '';
+      CREATE TABLE ai_memory (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        organisation_id TEXT NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE ai_feedback (
+        id TEXT PRIMARY KEY,
+        organisation_id TEXT NOT NULL,
+        user_id TEXT NOT NULL,
+        vote TEXT NOT NULL,
+        correction TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE regulation_sources (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        url TEXT NOT NULL,
+        section TEXT NOT NULL,
+        excerpt TEXT NOT NULL,
+        classes TEXT NOT NULL,
+        topics TEXT NOT NULL,
+        last_checked TEXT NOT NULL,
+        reviewed INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE building_duties (
+        id TEXT PRIMARY KEY,
+        building_id TEXT NOT NULL,
+        organisation_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        due_on TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+    `);
+    db.exec("PRAGMA user_version = 17");
+  }
 }
 
 export function audit(db, event) {

@@ -139,7 +139,7 @@ swap(
     const menuSignOut = state.account ? '<button class="tab sign-out-tab" type="button" data-act="sign-out" aria-label="Sign out of this device"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg><span class="tab-label">Sign out</span></button>' : "";
     const headerSignOut = state.account ? '<button class="btn btn-secondary header-sign-out" type="button" data-act="sign-out">Sign out</button>' : "";
     const rail = onAuth ? "" : '<aside class="rail">' + brandMark() + tabsHtml("rail") + menuSignOut + "</aside>";
-    const nav = onAuth ? "" : '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>";
+    const nav = onAuth ? "" : '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>" + chloeDock();
     return '<div class="shell" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
       rail +
       '<div class="workspace"><header class="topbar">' + bar + (detail && !onAuth ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + themeBtn + headerSignOut + emergencyBtn + "</div></header>" + sample +
@@ -254,6 +254,11 @@ swap(
       '<div class="card stack"><h2>Signed-in devices</h2><p class="small muted">Each device has its own sign-in. Signing out of this device leaves the others signed in.</p>' +
       devicesHtml() +
       '<button class="btn btn-secondary" type="button" data-act="sign-out-all">Sign out of all devices</button></div>' +
+      '<div class="card stack"><h2>Assistant</h2><p class="small">The name is 1 to 20 letters and spaces. Your choice overrides the owner default.</p>' +
+      field("Assistant name", "text", "assistant.name", (state.chloePersona && state.chloePersona.name) || "Chloe") +
+      '<div class="row"><button class="chip" type="button" data-act="assistant-tone" data-tone="friendly">Friendly</button><button class="chip" type="button" data-act="assistant-tone" data-tone="short">Short and direct</button></div>' +
+      '<button class="btn btn-secondary" type="button" data-act="save-assistant">Save assistant</button>' +
+      '<div id="memory-list"></div><button class="btn btn-ghost" type="button" data-act="load-memory">Show what Chloe remembers</button></div>' +
       (state.account && state.account.role === "platform_owner" ? '<button class="owner-link" type="button" data-act="owner">Owner settings</button>' : "") + "</div>";`,
   "account card"
 );

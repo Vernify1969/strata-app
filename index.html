@@ -331,6 +331,17 @@ textarea { min-height: 120px; resize: vertical; }
 }
 .tabbar button .ico { width: 18px; height: 18px; }
 .tabbar button[aria-current="page"] { color: var(--brand); }
+.chloe-fab { position: fixed; right: 18px; bottom: 78px; z-index: 40; width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--brand); color: #fff; font-weight: 700; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2); }
+.chloe-panel { position: fixed; right: 18px; bottom: 146px; z-index: 40; width: min(380px, calc(100vw - 24px)); max-height: min(560px, calc(100vh - 170px)); display: flex; flex-direction: column; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18); }
+.chloe-head, .chloe-log, .chloe-form { padding: 12px; }
+.chloe-log { overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.chloe-bubble { background: var(--bg); border-radius: 12px; padding: 8px 10px; }
+.chloe-bubble.mine { align-self: flex-end; background: color-mix(in srgb, var(--brand) 12%, var(--surface)); }
+.chloe-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+@media (max-width: 700px) {
+  .chloe-panel { left: 0; right: 0; top: 0; bottom: 0; width: auto; max-height: none; border-radius: 0; }
+  .chloe-fab { bottom: 76px; }
+}
 .rail button.tab[aria-current="page"] { color: var(--brand); }
 .badge {
   position: absolute; top: 6px; right: 8px; min-width: 16px; height: 16px; padding: 0 4px;
@@ -1296,7 +1307,6 @@ const PHOTOS = {
       const n = needsManagerCount();
       return [
         ["home", "Home", 0],
-        ["assistant", "AI Assistant", 0],
         ["jobs", "Jobs", n],
         ["calendar", "Calendar", 0],
         ["buildings", "Buildings", 0],
@@ -1306,7 +1316,6 @@ const PHOTOS = {
     }
     return [
       ["home", "Home", 0],
-      ["assistant", "AI Assistant", 0],
       ["find", "Find jobs", 0],
       ["offers", "My offers", 0],
       ["active", "Active", needsContractorCount()],
@@ -1343,6 +1352,24 @@ const PHOTOS = {
     const circ = 2 * Math.PI * r;
     const dash = Math.max(0, Math.min(1, ratio)) * circ;
     return '<svg class="ring ' + tone + '" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring-bg" cx="32" cy="32" r="26"></circle><circle class="ring-fg" cx="32" cy="32" r="26" stroke-dasharray="' + dash.toFixed(1) + " " + circ.toFixed(1) + '" transform="rotate(-90 32 32)"></circle></svg>';
+  }
+
+  function chloeDock() {
+    if (!state.account) return "";
+    const auth = ["welcome", "signin", "register", "checkmail", "forgot", "reset", "terms"].indexOf(state.screen) !== -1;
+    if (auth) return "";
+    const persona = state.chloePersona || { name: "Chloe", greeting: "Hi, I'm Chloe, your AI assistant. How can I help you today?", chips: [] };
+    const open = state.chloeOpen;
+    const log = (state.chloeLog || []).map(item => '<div class="chloe-bubble' + (item.mine ? " mine" : "") + '"><p>' + esc(item.text) + "</p>" +
+      (item.disclaimer ? '<p class="small">' + esc(item.disclaimer) + "</p>" : "") +
+      (item.citations && item.citations.length ? item.citations.map(cite => '<p class="small"><a href="' + esc(cite.url) + '">' + esc(cite.title) + "</a> · " + esc(cite.section) + "</p>").join("") : "") +
+      (item.mine ? "" : '<p><span class="pill pill-muted">Draft – check before using</span> <button type="button" class="btn btn-ghost" data-act="chloe-copy">Copy</button> <button type="button" class="btn btn-ghost" data-act="chloe-use">Use this</button> <button type="button" class="btn btn-ghost" data-act="chloe-vote" data-vote="up">Helpful</button> <button type="button" class="btn btn-ghost" data-act="chloe-vote" data-vote="down">Not helpful</button></p>') +
+      "</div>").join("");
+    const chips = (persona.chips || []).map(chip => '<button type="button" class="chip" data-act="chloe-chip">' + esc(chip) + "</button>").join("");
+    const panel = open ? '<section class="chloe-panel" aria-label="Chat with ' + esc(persona.name) + '"><div class="chloe-head"><strong>' + esc(persona.name) + '</strong> <button type="button" class="btn btn-ghost" data-act="chloe-new">New chat</button> <button type="button" class="btn btn-ghost" data-act="chloe-close">Close</button></div><div class="chloe-log">' +
+      (log || '<div class="chloe-bubble"><p>' + esc(persona.greeting) + '</p><div class="chloe-chips">' + chips + "</div></div>") +
+      '</div><form class="chloe-form"><input name="message" aria-label="Message" placeholder="Ask about your jobs or a Victorian rule"><button class="btn btn-primary" type="button" data-act="chloe-send">Send</button></form></section>' : "";
+    return panel + '<button class="chloe-fab" type="button" data-act="chloe-open" aria-label="Open chat with ' + esc(persona.name) + '">' + esc(persona.name.slice(0, 1)) + "</button>";
   }
 
   function shell() {
@@ -1385,7 +1412,6 @@ const PHOTOS = {
       owner: ownerScreen,
       "building-new": buildingNewScreen,
       reports: reportsScreen,
-      assistant: assistantScreen,
       office: officeScreen,
       emergency: emergencyScreen,
       guide: guideScreen,
@@ -1467,7 +1493,7 @@ const PHOTOS = {
       '<div class="stat">' + ring(heldRatio, "gold") + '<span><p class="stat-k">Money held</p><p class="stat-v">' + moneyShort(held) + '</p><p class="small">Held until the work is finished</p></span></div>' +
       "</div>";
     const primary = '<div class="home-primary stack"><section class="hero' + heroPhoto + '><p class="eyebrow">For managers</p><h1>What do you need?</h1><p>Describe the job. A licensed contractor can make an offer.</p></section>' +
-      assistantCard() +
+      '<p class="small">Ask Chloe with the chat button. Drafts only.</p>' +
       '<button class="btn btn-primary request-bar" type="button" data-act="new-request">New request</button>' +
       (state.account && state.account.role === "platform_owner" ? '<button class="btn btn-secondary" type="button" data-act="open-office">Back office</button>' : "") +
       (state.manager.role === "property" ? "" : '<button class="btn btn-secondary" type="button" data-act="open-reports">Resident reports</button>') +
@@ -1637,7 +1663,7 @@ const PHOTOS = {
     } else if (section === "ai") {
       const dollars = (cents) => "A$" + (Number(cents || 0) / 100).toFixed(2);
       const line = (row) => "<p>" + esc(row.name || row.email) + " · " + dollars(row.spentCents) + " of " + dollars(row.capCents) + "</p>";
-      body = "<div class=\"card stack\"><h2>AI Assistant</h2><p>Managers " + dollars(data.managerCapCents || data.capCents) + " · Contractors " + dollars(data.contractorCapCents || 200) + " · The platform owner has no monthly cap.</p><h3>Managers</h3>" + ((data.managers || []).map(line).join("") || "<p>No manager use yet.</p>") + "<h3>Contractors</h3>" + ((data.contractors || []).map(line).join("") || "<p>No contractor use yet.</p>") + "<p class=\"small\">Change the allowances in Owner settings.</p></div>";
+      body = "<div class=\"card stack\"><h2>AI Assistant</h2><p>Managers " + dollars(data.managerCapCents || data.capCents) + " · Contractors " + dollars(data.contractorCapCents || 200) + " · The platform owner has no monthly cap.</p><h3>Managers</h3>" + ((data.managers || []).map(line).join("") || "<p>No manager use yet.</p>") + "<h3>Contractors</h3>" + ((data.contractors || []).map(line).join("") || "<p>No contractor use yet.</p>") + "<p>Feedback, with no names: " + ((data.feedback && data.feedback.up) || 0) + " helpful, " + ((data.feedback && data.feedback.down) || 0) + " not helpful, " + ((data.feedback && data.feedback.corrections) || 0) + " corrections.</p><p class=\"small\">Web search is on unless you use the emergency stop. Chloe chooses when to search. Learning means saved notes, past jobs and feedback. The model is not retrained.</p><button class=\"btn btn-secondary\" type=\"button\" data-act=\"web-emergency\">Emergency: pause web search</button></div>";
     } else if (section === "settings" && data.holidays) {
       body = data.holidays.slice(0, 12).map(day => "<p>" + esc(day.day) + " " + esc(day.name) + (day.note ? " · " + esc(day.note) : "") + "</p>").join("");
     } else if (section === "audit" && data.events) {
@@ -2215,7 +2241,7 @@ const PHOTOS = {
     const list = sortFound(opens).slice(0, 6).map(contractorCard).join("");
     const emergencies = opens.some(isEmergency);
     return '<div class="stack"><section class="hero"><p class="eyebrow">For contractors</p><h1>Find work</h1><p class="hero-stat"><strong>' + opens.length + "</strong> open " + (opens.length === 1 ? "job" : "jobs") + "</p></section>" +
-      assistantCard() +
+      '<p class="small">Ask Chloe with the chat button. Drafts only.</p>' +
       (!c.guideDone ? '<button class="notice notice-warn" type="button" data-act="open-guide" style="text-align:left"><strong>Read the safety guide before you start work.</strong></button>' : "") +
       noticeNeeds(needsContractorCount(), "active") +
       (emergencies ? '<button class="notice notice-bad" type="button" data-act="tab" data-screen="find" style="text-align:left"><strong>An emergency job is open.</strong><span class="small">Contractors have been alerted. <span class="demo">Demo</span></span></button>' : "") +

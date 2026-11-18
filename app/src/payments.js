@@ -15,6 +15,10 @@ export function moneySettings(db, config = {}) {
       urgentDepositHours: Number(row.urgent_deposit_hours || 12),
       aiCapCents: row.ai_cap_cents == null ? 500 : Number(row.ai_cap_cents),
       contractorAiCapCents: row.contractor_ai_cap_cents == null ? 200 : Number(row.contractor_ai_cap_cents),
+      assistantName: row.assistant_name || "Chloe",
+      assistantGreeting: row.assistant_greeting || "Hi, I'm {name}, your AI assistant. How can I help you today?",
+      assistantTone: row.assistant_tone || "friendly",
+      webSearchEnabled: row.web_search_enabled == null ? true : row.web_search_enabled === 1,
       minCoverCents: row.min_cover_cents == null ? 2000000000 : Number(row.min_cover_cents)
     };
   }
@@ -27,6 +31,10 @@ export function moneySettings(db, config = {}) {
     urgentDepositHours: Number(config.urgentDepositHours ?? 12),
     aiCapCents: Number(config.aiCapCents ?? 500),
     contractorAiCapCents: Number(config.contractorAiCapCents ?? 200),
+    assistantName: config.assistantName || "Chloe",
+    assistantGreeting: config.assistantGreeting || "Hi, I'm {name}, your AI assistant. How can I help you today?",
+    assistantTone: config.assistantTone || "friendly",
+    webSearchEnabled: config.webSearchEnabled !== false,
     minCoverCents: Number(config.minCoverCents ?? 2000000000)
   };
 }

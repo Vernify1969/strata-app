@@ -14,6 +14,7 @@ import { handleStripeWebhook, ensureMoneySettings, moneySettings, registerPaymen
 import { registerDocumentRoutes } from "./documents.js";
 import { registerQrRoutes } from "./qr.js";
 import { registerAssistantRoutes } from "./assistant.js";
+import { cleanAssistantName, registerChloeRoutes } from "./chloe.js";
 import { registerOwnerOffice } from "./owner-office.js";
 import { seedDemo } from "./demo-seed.js";
 
@@ -365,7 +366,13 @@ export async function createApp(config) {
         .get(buildingId, req.user.organisation_id, req.user.id);
       if (!owned) return sendError(res, 400, "That building is not on this account.");
     }
-    const preferences = { buildingId, calYear, calMonth, noteYear, noteMonth, noteDay };
+    let kept = {};
+    try { kept = JSON.parse(req.user.preferences || "{}") || {}; } catch { kept = {}; }
+    const preferences = {
+      buildingId, calYear, calMonth, noteYear, noteMonth, noteDay,
+      assistantName: kept.assistantName || "",
+      assistantTone: kept.assistantTone || ""
+    };
     db.prepare("UPDATE users SET preferences = ? WHERE id = ?").run(JSON.stringify(preferences), req.user.id);
     res.json({ preferences });
   });
@@ -464,6 +471,7 @@ export async function createApp(config) {
   registerPaymentRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerDocumentRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
   registerQrRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
+  registerChloeRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerAssistantRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerOwnerOffice(app, { db, mail, sendError, requireUser, requireJson, sendToken });
 
@@ -484,6 +492,9 @@ export async function createApp(config) {
       aiCapCents: settings.aiCapCents,
       contractorAiCapCents: settings.contractorAiCapCents,
       ownerAiUncapped: true,
+      assistantName: settings.assistantName,
+      assistantGreeting: settings.assistantGreeting,
+      assistantTone: settings.assistantTone,
       minCoverCents: settings.minCoverCents,
       message: "These settings are stored for the platform owner only. The per-apartment fee is off, so nothing is charged. Managers and contractors cannot open this screen."
     });
@@ -501,6 +512,10 @@ export async function createApp(config) {
     const aiCapCents = req.body?.aiCapCents == null ? current.aiCapCents : Number(req.body.aiCapCents);
     const contractorAiCapCents = req.body?.contractorAiCapCents == null ? current.contractorAiCapCents : Number(req.body.contractorAiCapCents);
     const minCoverCents = req.body?.minCoverCents == null ? current.minCoverCents : Number(req.body.minCoverCents);
+    const assistantName = req.body?.assistantName == null ? current.assistantName : cleanAssistantName(req.body.assistantName);
+    const assistantGreeting = req.body?.assistantGreeting == null ? current.assistantGreeting : String(req.body.assistantGreeting).slice(0, 180);
+    const assistantTone = req.body?.assistantTone == null ? current.assistantTone : (req.body.assistantTone === "short" ? "short" : "friendly");
+    if (req.body?.assistantName != null && !assistantName) return sendError(res, 400, "The assistant name is 1 to 20 letters and spaces.");
     if (!Number.isInteger(commission) || commission < 0 || commission > 30) return sendError(res, 400, "Commission is a whole number from 0 to 30.");
     if (!Number.isInteger(urgent) || urgent < 0) return sendError(res, 400, "The urgent fee is a number of cents.");
     if (!Number.isInteger(apartment) || apartment < 0) return sendError(res, 400, "The apartment fee is a number of cents.");
@@ -509,8 +524,8 @@ export async function createApp(config) {
     if (!Number.isInteger(aiCapCents) || aiCapCents < 0 || aiCapCents > 100000) return sendError(res, 400, "The manager allowance is a whole number of cents.");
     if (!Number.isInteger(contractorAiCapCents) || contractorAiCapCents < 0 || contractorAiCapCents > 100000) return sendError(res, 400, "The contractor allowance is a whole number of cents.");
     if (!Number.isInteger(minCoverCents) || minCoverCents < 0) return sendError(res, 400, "The cover minimum is a whole number of cents.");
-    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, apartment_fee_cents = ?, apartment_fee_enabled = ?, deposit_hours = ?, urgent_deposit_hours = ?, ai_cap_cents = ?, contractor_ai_cap_cents = ?, min_cover_cents = ? WHERE id = 'main'`)
-      .run(commission, urgent, apartment, enabled ? 1 : 0, depositHours, urgentDepositHours, aiCapCents, contractorAiCapCents, minCoverCents);
+    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, apartment_fee_cents = ?, apartment_fee_enabled = ?, deposit_hours = ?, urgent_deposit_hours = ?, ai_cap_cents = ?, contractor_ai_cap_cents = ?, min_cover_cents = ?, assistant_name = ?, assistant_greeting = ?, assistant_tone = ? WHERE id = 'main'`)
+      .run(commission, urgent, apartment, enabled ? 1 : 0, depositHours, urgentDepositHours, aiCapCents, contractorAiCapCents, minCoverCents, assistantName, assistantGreeting, assistantTone);
     res.json({ ...moneySettings(db, config), apartmentFeeCharged: false });
   });
 

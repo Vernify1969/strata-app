@@ -249,9 +249,14 @@ export function registerOwnerOffice(app, { db, mail, sendError, requireUser, req
       spentCents: row.spent_cents,
       capCents: row.role === "contractor" ? settings.contractorAiCapCents : settings.aiCapCents
     });
+    const feedbackTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'ai_feedback'").get();
+    const feedback = feedbackTable
+      ? db.prepare("SELECT SUM(CASE WHEN vote = 'up' THEN 1 ELSE 0 END) AS up, SUM(CASE WHEN vote = 'down' THEN 1 ELSE 0 END) AS down, SUM(CASE WHEN correction != '' THEN 1 ELSE 0 END) AS corrections FROM ai_feedback").get()
+      : { up: 0, down: 0, corrections: 0 };
     res.json({
       available: true,
       month,
+      feedback: { up: feedback.up || 0, down: feedback.down || 0, corrections: feedback.corrections || 0 },
       capCents: settings.aiCapCents,
       managerCapCents: settings.aiCapCents,
       contractorCapCents: settings.contractorAiCapCents,

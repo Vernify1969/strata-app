@@ -346,8 +346,23 @@
         return true;
       }
       if (act === "open-reports" && state.remote) { this.openReports(); return true; }
-      if (act === "tab" && t.dataset.screen === "assistant" && state.remote) { this.openAssistant(); return true; }
-      if (act === "open-assistant" && state.remote) { this.openAssistant(); return true; }
+      if (act === "chloe-open" && state.remote) { this.openChloe(); return true; }
+      if (act === "chloe-close" && state.remote) { state.chloeOpen = false; hooks().render(); return true; }
+      if (act === "chloe-new" && state.remote) { state.chloeLog = []; hooks().render(); return true; }
+      if (act === "chloe-chip" && state.remote) { this.sendChloe(t.textContent); return true; }
+      if (act === "chloe-send" && state.remote) {
+        const form = t.closest("form");
+        const input = form && form.querySelector("input");
+        this.sendChloe(input && input.value);
+        return true;
+      }
+      if (act === "chloe-copy" && state.remote) { const last = (state.chloeLog || []).filter(item => !item.mine).pop(); if (last && navigator.clipboard) navigator.clipboard.writeText(last.text); return true; }
+      if (act === "chloe-use" && state.remote) { this.useChloe(); return true; }
+      if (act === "chloe-vote" && state.remote) { this.voteChloe(t.dataset.vote); return true; }
+      if (act === "save-assistant" && state.remote) { this.saveAssistant(); return true; }
+      if (act === "assistant-tone" && state.remote) { state.assistantTone = t.dataset.tone; return true; }
+      if (act === "load-memory" && state.remote) { this.loadMemory(); return true; }
+      if (act === "web-emergency" && state.remote) { this.pauseWebSearch(); return true; }
       if (act === "ai-run" && state.remote) { this.runAssistant(t.dataset.helper); return true; }
       if (act === "open-office" && state.remote) { this.openOffice(); return true; }
       if (act === "office-section" && state.remote) { this.officeSection(t.dataset.section); return true; }
@@ -427,6 +442,58 @@
       const res = await call("GET", "/api/ai/usage");
       if (res.ok) hooks().state.aiUsage = res.json;
     },
+    async openChloe() {
+      const api = hooks();
+      const res = await call("GET", "/api/ai/persona");
+      if (res.ok) api.state.chloePersona = res.json;
+      api.state.chloeOpen = true;
+      api.render();
+    },
+    async sendChloe(text) {
+      const api = hooks();
+      const message = String(text || "").trim();
+      if (!message) return;
+      const state = api.state;
+      state.chloeLog = state.chloeLog || [];
+      state.chloeLog.push({ mine: true, text: message });
+      const building = (state.buildings || [])[0];
+      const res = await call("POST", "/api/ai/chat", { message: message, buildingId: building && building.id });
+      if (!res.ok) state.chloeLog.push({ text: (res.json && res.json.error) || "Chloe could not answer." });
+      else state.chloeLog.push({ text: res.json.text, disclaimer: res.json.disclaimer, citations: res.json.citations, prefill: res.json.prefill });
+      state.chloeOpen = true;
+      api.render();
+    },
+    useChloe() {
+      const api = hooks();
+      const last = (api.state.chloeLog || []).filter(item => !item.mine).pop();
+      if (!last) return;
+      if (!api.state.draft) api.state.draft = {};
+      api.state.draft.instructions = last.text;
+      api.toast("Filled the draft. You still press the real button. Nothing was sent.");
+    },
+    async voteChloe(vote) {
+      await call("POST", "/api/ai/feedback", { vote: vote, correction: "" });
+      hooks().toast(vote === "up" ? "Marked helpful." : "Marked not helpful.");
+    },
+    async saveAssistant() {
+      const api = hooks();
+      const input = document.querySelector("[data-field='assistant.name']");
+      const res = await call("PATCH", "/api/me/assistant", { name: input ? input.value : "", tone: api.state.assistantTone || "friendly" });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "That name was not saved."); return; }
+      api.state.chloePersona = res.json;
+      api.toast("Saved " + res.json.name + ".");
+    },
+    async pauseWebSearch() {
+      if (!window.confirm("Pause web search? This is the emergency stop.")) return;
+      const reason = window.prompt("Reason") || "";
+      const res = await call("POST", "/api/owner/web-search", { enabled: false, confirm: true, reason: reason });
+      hooks().toast((res.json && (res.json.error || (res.json.emergency ? "Web search is paused." : "Saved."))) || "Done.");
+    },
+    async loadMemory() {
+      const res = await call("GET", "/api/ai/memory");
+      const box = document.getElementById("memory-list");
+      if (box && res.ok) box.textContent = (res.json.memory || []).map(item => item.body).join(" · ") || "Nothing saved.";
+    },
     async openAssistant() {
       const api = hooks();
       const state = api.state;
@@ -477,6 +544,7 @@
         places: "/api/owner/places",
         ai: "/api/owner/ai",
         settings: "/api/owner/holidays",
+        sources: "/api/owner/sources",
         audit: "/api/owner/audit"
       }[section] || "/api/owner/overview";
       const res = await call("GET", path);
