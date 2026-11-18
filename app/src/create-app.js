@@ -486,7 +486,7 @@ export async function createApp(config) {
     res.status(201).json({ note: { id, author_name: author, body, notice_on: noticeOn, created_at: now } });
   });
 
-  registerBuildingRoutes(app, { db, sendError, requireUser, requireJson });
+  registerBuildingRoutes(app, { db, config, sendError, requireUser, requireJson });
   ensureMoneySettings(db, config);
   registerJobRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerPaymentRoutes(app, { db, config, sendError, requireUser, requireJson });

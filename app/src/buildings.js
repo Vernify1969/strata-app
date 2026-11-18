@@ -1,10 +1,11 @@
 import { audit } from "./db.js";
 import { centreOf } from "./area.js";
+import { locateAddress, locatePostcode } from "./geo.js";
 import { newId } from "./ids.js";
 
 const MANAGER_WORLDS = { common: "common", private: "private" };
 
-export function registerBuildingRoutes(app, { db, sendError, requireUser, requireJson }) {
+export function registerBuildingRoutes(app, { db, config = {}, sendError, requireUser, requireJson }) {
   app.get("/api/area", requireUser, (_req, res) => {
     const postcodes = db.prepare("SELECT postcode FROM service_postcodes ORDER BY postcode").all().map(row => row.postcode);
     res.json({
@@ -29,6 +30,14 @@ export function registerBuildingRoutes(app, { db, sendError, requireUser, requir
       throw err;
     }
     res.json({ postcodes: codes });
+  });
+
+  app.get("/api/geo", requireUser, async (req, res) => {
+    const postcode = String(req.query.postcode || "");
+    const address = String(req.query.address || "");
+    const found = postcode ? locatePostcode(db, postcode) : await locateAddress(db, config, address);
+    if (!found) return sendError(res, 404, "That place is not on the map yet.");
+    res.json(found);
   });
 
   app.get("/api/buildings", requireUser, (req, res) => {
