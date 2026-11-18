@@ -23,7 +23,9 @@ async function readyManager(api, server, details) {
     name: "Harbour View Apartments", streetNumber: "42", street: "Collins Street", suburb: "Melbourne", postcode: "3000", ocPlan: "PS 41288"
   });
   assert.equal(building.status, 201);
-  return { user, building: building.json.building };
+  const budgets = await api("PATCH", "/api/buildings/" + building.json.building.id, { tier1: 999, tier2: 4999, tier3: 30000, q1: 1, q2: 2, q3: 3 });
+  assert.equal(budgets.status, 200);
+  return { user, building: budgets.json.building };
 }
 
 test("another organisation cannot read a job, and a contractor does not see the street number before booking", async () => {

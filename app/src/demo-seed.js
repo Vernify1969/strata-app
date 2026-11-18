@@ -90,13 +90,15 @@ export async function seedDemo(db) {
       VALUES (?, ?, ?, ?, 'property_manager', ?, '0418333444', 'Southbank Lettings', '51824753556', 'bank', 1, ?, ?)`).run(
       propertyId, propertyOrg, DEMO_PROPERTY_MANAGER.email, propertyHash, DEMO_PROPERTY_MANAGER.name, now, now
     );
-    db.prepare(`INSERT INTO buildings (id, organisation_id, world, name, street_number, street, suburb, postcode, lat, lng, oc_plan, tiers_confirmed, created_at)
-      VALUES (?, ?, 'common', 'Harbour View Apartments', '42', 'Collins Street', 'Melbourne', '3000', ?, ?, 'PS 41288', 1, ?)`).run(
+    db.prepare(`INSERT INTO buildings (id, organisation_id, world, name, street_number, street, suburb, postcode, lat, lng, oc_plan,
+      tier1_cents, tier1_quotes, tier2_cents, tier2_quotes, tier3_cents, tier3_quotes, tiers_confirmed, created_at)
+      VALUES (?, ?, 'common', 'Harbour View Apartments', '42', 'Collins Street', 'Melbourne', '3000', ?, ?, 'PS 41288', 99900, 1, 499900, 2, 3000000, 3, 1, ?)`).run(
       buildingId, managerOrg, centre ? centre.lat : null, centre ? centre.lng : null, now
     );
     db.prepare("INSERT INTO building_assignments (user_id, building_id) VALUES (?, ?)").run(managerId, buildingId);
-    db.prepare(`INSERT INTO buildings (id, organisation_id, world, name, street_number, street, suburb, postcode, lat, lng, oc_plan, tiers_confirmed, created_at)
-      VALUES (?, ?, 'common', 'Riverside Court', '18', 'Flinders Lane', 'Melbourne', '3000', ?, ?, 'PS 22041', 1, ?)`).run(
+    db.prepare(`INSERT INTO buildings (id, organisation_id, world, name, street_number, street, suburb, postcode, lat, lng, oc_plan,
+      tier1_cents, tier1_quotes, tier2_cents, tier2_quotes, tier3_cents, tier3_quotes, tiers_confirmed, created_at)
+      VALUES (?, ?, 'common', 'Riverside Court', '18', 'Flinders Lane', 'Melbourne', '3000', ?, ?, 'PS 22041', 99900, 1, 499900, 2, 3000000, 3, 1, ?)`).run(
       ocBuildingId, ocOrg, centre ? centre.lat : null, centre ? centre.lng : null, now
     );
     db.prepare("INSERT INTO building_assignments (user_id, building_id) VALUES (?, ?)").run(ocId, ocBuildingId);

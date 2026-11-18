@@ -21,6 +21,7 @@ async function bookedJob(server) {
   const building = await manager("POST", "/api/buildings", {
     name: "Harbour View", streetNumber: "42", street: "Collins Street", suburb: "Melbourne", postcode: "3000", ocPlan: "PS 1"
   });
+  assert.equal((await manager("PATCH", "/api/buildings/" + building.json.building.id, { tier1: 999, tier2: 4999, tier3: 30000, q1: 1, q2: 2, q3: 3 })).status, 200);
   const job = await manager("POST", "/api/jobs", { buildingId: building.json.building.id, title: "Tap", area: "Kitchen", tradeId: "plumbing" });
   await signIn(plumber, server, {
     kind: "contractor", name: "Sam Okonkwo", businessName: "Sam Plumbing", email: "sam@plumbing.example",

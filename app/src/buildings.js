@@ -83,8 +83,9 @@ export function registerBuildingRoutes(app, { db, sendError, requireUser, requir
     db.exec("BEGIN");
     try {
       db.prepare(`INSERT INTO buildings (
-        id, organisation_id, world, name, street_number, street, suburb, postcode, lat, lng, oc_plan, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        id, organisation_id, world, name, street_number, street, suburb, postcode, lat, lng, oc_plan,
+        tier1_cents, tier1_quotes, tier2_cents, tier2_quotes, tier3_cents, tier3_quotes, tiers_confirmed, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, 0, ?)`).run(
         id, req.user.organisation_id, world, parsed.name, parsed.streetNumber, parsed.street, parsed.suburb, parsed.postcode,
         centre ? centre.lat : null, centre ? centre.lng : null, parsed.ocPlan, now
       );
@@ -114,6 +115,11 @@ export function registerBuildingRoutes(app, { db, sendError, requireUser, requir
     if (body.close != null) next.close_time = String(body.close);
     if (body.weekends != null) next.weekends = body.weekends ? 1 : 0;
     if (body.captureM != null) next.capture_m = Math.max(10, Math.min(500, Number(body.captureM) || 150));
+    if (body.regionId != null) {
+      const region = db.prepare("SELECT id FROM regions WHERE id = ?").get(String(body.regionId));
+      if (!region) return sendError(res, 400, "That region is not available.");
+      next.region_id = region.id;
+    }
     if (next.name.length < 2 || next.street.length < 2) return sendError(res, 400, "Add a name and a street.");
     if (body.postcode != null) {
       const postcode = String(body.postcode);
@@ -145,10 +151,10 @@ export function registerBuildingRoutes(app, { db, sendError, requireUser, requir
     }
     db.prepare(`UPDATE buildings SET name=?, street_number=?, street=?, suburb=?, postcode=?, lat=?, lng=?, oc_plan=?, quotes_wanted=?,
       tier1_cents=?, tier1_quotes=?, tier2_cents=?, tier2_quotes=?, tier3_cents=?, tier3_quotes=?, tiers_confirmed=?,
-      open_time=?, close_time=?, weekends=?, access_note=?, capture_m=? WHERE id=? AND organisation_id=?`).run(
+      open_time=?, close_time=?, weekends=?, access_note=?, capture_m=?, region_id=? WHERE id=? AND organisation_id=?`).run(
       next.name, next.street_number, next.street, next.suburb, next.postcode, next.lat, next.lng, next.oc_plan, next.quotes_wanted,
       next.tier1_cents, next.tier1_quotes, next.tier2_cents, next.tier2_quotes, next.tier3_cents, next.tier3_quotes, next.tiers_confirmed,
-      next.open_time, next.close_time, next.weekends, next.access_note, next.capture_m, row.id, req.user.organisation_id
+      next.open_time, next.close_time, next.weekends, next.access_note, next.capture_m, next.region_id, row.id, req.user.organisation_id
     );
     audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "building.updated", subjectType: "building", subjectId: row.id, detail: {} });
     res.json({ building: publicBuilding(assignedBuilding(db, req.user, row.id)) });
@@ -230,14 +236,14 @@ export function publicBuilding(row) {
     oc: row.oc_plan,
     ocAbn: "",
     quotesWanted: row.quotes_wanted,
-    tier1: dollars(row.tier1_cents),
-    q1: row.tier1_quotes,
-    tier2: dollars(row.tier2_cents),
-    q2: row.tier2_quotes,
-    tier3: dollars(row.tier3_cents),
-    q3: row.tier3_quotes,
+    tier1: row.tiers_confirmed ? dollars(row.tier1_cents) : null,
+    q1: row.tiers_confirmed ? row.tier1_quotes : null,
+    tier2: row.tiers_confirmed ? dollars(row.tier2_cents) : null,
+    q2: row.tiers_confirmed ? row.tier2_quotes : null,
+    tier3: row.tiers_confirmed ? dollars(row.tier3_cents) : null,
+    q3: row.tiers_confirmed ? row.tier3_quotes : null,
     tiersConfirmed: !!row.tiers_confirmed,
-    limit: dollars(row.tier1_cents),
+    limit: row.tiers_confirmed ? dollars(row.tier1_cents) : null,
     open: row.open_time,
     close: row.close_time,
     weekends: !!row.weekends,
