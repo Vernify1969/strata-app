@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { audit } from "./db.js";
 import { newId } from "./ids.js";
@@ -248,7 +249,7 @@ async function ocrMany(images) {
     try {
       if (!ocrWorker) {
         const { createWorker } = await import("tesseract.js");
-        ocrWorker = createWorker("eng");
+        ocrWorker = createWorker("eng", 1, { cachePath: path.join(os.tmpdir(), "taskspeck-ocr") });
       }
       const worker = await ocrWorker;
       const result = await worker.recognize(image);
