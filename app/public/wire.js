@@ -112,6 +112,20 @@
     }));
   }
 
+  async function loadResident() {
+    const state = hooks().state;
+    const role = state.account && state.account.role;
+    if (!state.account || role === "contractor" || role === "property_manager" || role === "platform_owner") {
+      state.qrCodes = [];
+      state.residentReports = [];
+      return;
+    }
+    const codes = await call("GET", "/api/qr-codes");
+    state.qrCodes = codes.ok ? (codes.json.codes || []) : [];
+    const reports = await call("GET", "/api/reports");
+    state.residentReports = reports.ok ? (reports.json.reports || []) : [];
+  }
+
   async function loadJobs() {
     const state = hooks().state;
     const res = await call("GET", "/api/jobs");
@@ -249,6 +263,7 @@
         await loadArea();
         await loadBuildings();
         await loadJobs();
+        await loadResident();
       }
       if (res.json.user.role === "contractor") await loadJobs();
       await loadNotes();
@@ -330,6 +345,13 @@
         api.toast("Only the platform owner can open these settings.");
         return true;
       }
+      if (act === "open-reports" && state.remote) { this.openReports(); return true; }
+      if (act === "create-code" && state.remote) { this.createCode(); return true; }
+      if (act === "code-active" && state.remote) { this.setCodeActive(t.dataset.id, t.dataset.on === "1"); return true; }
+      if (act === "code-replace" && state.remote) { this.replaceCode(t.dataset.id); return true; }
+      if (act === "open-report" && state.remote) { this.openReport(t.dataset.id); return true; }
+      if (act === "convert-report" && state.remote) { this.convertReport(t.dataset.id); return true; }
+      if (act === "dismiss-report" && state.remote) { this.dismissReport(t.dataset.id); return true; }
       return false;
     },
     scheduleProfile() {
@@ -390,6 +412,69 @@
       api.toast(res.json.message);
       api.state.screen = "signin";
       history.replaceState(null, "", "/");
+      api.render();
+    },
+    async openReports() {
+      const api = hooks();
+      const state = api.state;
+      await loadResident();
+      if (state.screen !== "reports") {
+        state.history.push({ screen: state.screen, ctx: Object.assign({}, state.ctx || {}), step: state.step, title: state.title });
+        state.screen = "reports";
+        state.title = "Resident reports";
+      }
+      api.render();
+    },
+    async createCode() {
+      const api = hooks();
+      const draft = api.state.qrDraft || {};
+      if (!draft.buildingId) { api.toast("Choose a building."); return; }
+      const res = await call("POST", "/api/buildings/" + draft.buildingId + "/places", { name: draft.name || "", level: draft.level || "", kind: "other" });
+      if (!res.ok) { api.toast(res.json.error || "The code was not created."); return; }
+      api.state.qrDraft.name = "";
+      api.state.qrDraft.level = "";
+      await loadResident();
+      api.toast("QR code created.");
+      api.render();
+    },
+    async setCodeActive(id, active) {
+      const api = hooks();
+      const res = await call("POST", "/api/places/" + id + "/active", { active: active });
+      if (!res.ok) { api.toast(res.json.error || "That code was not changed."); return; }
+      await loadResident();
+      api.render();
+    },
+    async replaceCode(id) {
+      const api = hooks();
+      const res = await call("POST", "/api/places/" + id + "/replace", {});
+      if (!res.ok) { api.toast(res.json.error || "A new code was not made."); return; }
+      await loadResident();
+      api.toast("The old code is off. Use the new one.");
+      api.render();
+    },
+    async openReport(id) {
+      const api = hooks();
+      const res = await call("GET", "/api/reports/" + id);
+      if (!res.ok) { api.toast(res.json.error || "That report is not on your account."); return; }
+      api.state.reportOpenId = id;
+      api.state.reportDetail = res.json.report;
+      api.render();
+    },
+    async convertReport(id) {
+      const api = hooks();
+      const res = await call("POST", "/api/reports/" + id + "/convert", {});
+      if (!res.ok) { api.toast(res.json.error || "That report was not turned into a job."); return; }
+      await loadJobs();
+      await loadResident();
+      api.toast("The report is now a job. Contractors can make an offer.");
+      api.render();
+    },
+    async dismissReport(id) {
+      const api = hooks();
+      const res = await call("POST", "/api/reports/" + id + "/dismiss", {});
+      if (!res.ok) { api.toast(res.json.error || "That report was not dismissed."); return; }
+      await loadResident();
+      api.toast("Report dismissed.");
       api.render();
     },
     async signOut() {

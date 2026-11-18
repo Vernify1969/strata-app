@@ -18,7 +18,8 @@ export function registerQrRoutes(app, { db, config, mail, sendError, requireUser
     const a = randomBytes(2).readUInt16BE(0) % 8 + 1;
     const b = randomBytes(2).readUInt16BE(0) % 8 + 1;
     const demo = config.demoMode ? "<p><strong>Demo, test data only.</strong> This is not a real building.</p>" : "";
-    res.type("html").send(page(place.building_name + " · " + place.name, demo + formHtml(place, a, b)));
+    const label = placeLabel(place);
+    res.type("html").send(page(place.building_name + " · " + label, demo + formHtml(place, a, b)));
   });
 
   app.post("/api/public/reports", requireJson, async (req, res) => {
@@ -36,9 +37,16 @@ export function registerQrRoutes(app, { db, config, mail, sendError, requireUser
     if (description.length < 3) return sendError(res, 400, "Say what the problem is.");
     const kind = KINDS.includes(req.body?.kind) ? req.body.kind : "unsure";
     const emergency = !!req.body?.emergency;
-    const contact = String(req.body?.contact || "").trim();
+    const email = String(req.body?.email || "").trim();
+    const phone = String(req.body?.phone || "").trim();
+    const legacy = String(req.body?.contact || "").trim();
+    if (email && !isEmail(email)) return sendError(res, 400, "That email address does not look right.");
+    if (phone && !isPhone(phone)) return sendError(res, 400, "That phone number does not look right.");
+    if (!email && !phone && legacy && !emailOrPhone(legacy)) return sendError(res, 400, "Add an email or a phone number.");
+    const contact = [email, phone].filter(Boolean).join(" · ") || legacy;
+    const confirmTo = email || (isEmail(legacy) ? legacy : "");
     if (!emergency && place.contact_required && !contact) return sendError(res, 400, "Add an email or a phone number so the manager can reply.");
-    if (contact && !emailOrPhone(contact)) return sendError(res, 400, "Add an email or a phone number.");
+    const unit = String(req.body?.unit || "").trim().slice(0, 40);
     const photos = Array.isArray(req.body?.photos) ? req.body.photos : [];
     if (photos.length > 10) return sendError(res, 400, "You can add up to 10 photographs.");
     const stored = [];
@@ -56,13 +64,16 @@ export function registerQrRoutes(app, { db, config, mail, sendError, requireUser
     const count = db.prepare("SELECT COUNT(*) AS n FROM reports WHERE organisation_id = ?").get(place.organisation_id).n + 1;
     const reference = "RP-" + String(count).padStart(4, "0");
     const now = new Date().toISOString();
-    db.prepare(`INSERT INTO reports (id, building_id, organisation_id, place_id, reference, kind, description, emergency, status, reporter_name, reporter_contact, idempotency_key, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'NEW', ?, ?, ?, ?)`).run(
+    const photoBytes = stored.reduce((sum, bytes) => sum + bytes.length, 0);
+    if (photoBytes > 8 * 1024 * 1024) return sendError(res, 400, "The photographs together are larger than 8 MB.");
+    db.prepare(`INSERT INTO reports (id, building_id, organisation_id, place_id, reference, kind, description, emergency, status, reporter_name, reporter_contact, unit_number, idempotency_key, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'NEW', ?, ?, ?, ?, ?)`).run(
       id, place.building_id, place.organisation_id, place.id, reference, kind, description.slice(0, 2000),
-      emergency ? 1 : 0, String(req.body?.name || "").slice(0, 200), contact.slice(0, 200), key || null, now
+      emergency ? 1 : 0, String(req.body?.name || "").slice(0, 200), contact.slice(0, 200), unit, key || null, now
     );
     stored.forEach((bytes, index) => writePrivatePhoto(config, id + "-" + index + ".img", bytes));
     addReportEvent(db, id, "Reporter", "Report received.");
+    if (confirmTo) await sendConfirmation(mail, confirmTo, place, reference);
     if (emergency) await sendUrgent(db, mail, place, id, reference);
     audit(db, { organisationId: place.organisation_id, action: "report.received", subjectType: "report", subjectId: id, detail: { emergency, placeId: place.id } });
     res.status(201).json({ ok: true, reference, message: "The building manager will review this. This is not an emergency service. If anyone is in danger, call 000." });
@@ -76,8 +87,8 @@ export function registerQrRoutes(app, { db, config, mail, sendError, requireUser
     const building = ownBuilding(db, req.user, req.params.id);
     if (!building) return sendError(res, 404, "That building is not on your account.");
     if (building.world !== "common") return sendError(res, 403, "QR reporting is for common property, not for a private rental.");
-    const name = String(req.body?.name || "").trim();
-    if (name.length < 2) return sendError(res, 400, "Name the place.");
+    const name = String(req.body?.name || "").trim() || "Whole building";
+    if (name.length < 2 || name.length > 80) return sendError(res, 400, "Name the place in a few words.");
     const id = newId();
     const token = randomBytes(16).toString("hex");
     db.prepare(`INSERT INTO places (id, building_id, organisation_id, kind, name, level, token, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
@@ -104,12 +115,67 @@ export function registerQrRoutes(app, { db, config, mail, sendError, requireUser
     res.status(201).json({ place: { id, token, replaced: place.id } });
   });
 
+  app.get("/api/qr-codes", requireUser, (req, res) => {
+    if (!commonManager(req.user)) return sendError(res, 403, "Only a building manager can open QR codes.");
+    const rows = db.prepare(`SELECT places.id, places.building_id, buildings.name AS building_name, places.name, places.level, places.active
+      FROM places
+      JOIN buildings ON buildings.id = places.building_id
+      JOIN building_assignments ON building_assignments.building_id = places.building_id
+      WHERE places.organisation_id = ? AND building_assignments.user_id = ?
+      ORDER BY buildings.name, places.name`).all(req.user.organisation_id, req.user.id);
+    res.json({
+      codes: rows.map(row => ({
+        id: row.id,
+        buildingId: row.building_id,
+        buildingName: row.building_name,
+        name: row.name,
+        level: row.level,
+        active: !!row.active
+      }))
+    });
+  });
+
+  app.get("/api/places/:id/qr.png", requireUser, async (req, res) => {
+    try { await sendQrImage(req, res, db, config, sendError, "png"); }
+    catch { if (!res.headersSent) sendError(res, 500, "The QR code could not be drawn."); }
+  });
+  app.get("/api/places/:id/qr.svg", requireUser, async (req, res) => {
+    try { await sendQrImage(req, res, db, config, sendError, "svg"); }
+    catch { if (!res.headersSent) sendError(res, 500, "The QR code could not be drawn."); }
+  });
+
   app.get("/api/reports", requireUser, (req, res) => {
-    const building = ownBuilding(db, req.user, String(req.query.buildingId || ""));
-    if (!building) return sendError(res, 404, "That building is not on your account.");
-    const rows = db.prepare("SELECT id, reference, kind, description, emergency, status, created_at, place_id FROM reports WHERE building_id = ? AND organisation_id = ? ORDER BY created_at DESC")
-      .all(building.id, req.user.organisation_id);
-    res.json({ reports: rows });
+    const buildingId = String(req.query.buildingId || "");
+    if (buildingId) {
+      const building = ownBuilding(db, req.user, buildingId);
+      if (!building) return sendError(res, 404, "That building is not on your account.");
+      const rows = db.prepare("SELECT id, reference, kind, description, emergency, status, created_at, place_id FROM reports WHERE building_id = ? AND organisation_id = ? ORDER BY created_at DESC")
+        .all(building.id, req.user.organisation_id);
+      return res.json({ reports: rows });
+    }
+    if (!commonManager(req.user)) return sendError(res, 403, "Only a building manager can open resident reports.");
+    const rows = db.prepare(`SELECT reports.id, reports.reference, reports.kind, reports.description, reports.emergency, reports.status, reports.created_at, reports.place_id, reports.building_id, places.name AS place_name, buildings.name AS building_name
+      FROM reports
+      JOIN places ON places.id = reports.place_id
+      JOIN buildings ON buildings.id = reports.building_id
+      JOIN building_assignments ON building_assignments.building_id = reports.building_id
+      WHERE reports.organisation_id = ? AND building_assignments.user_id = ?
+      ORDER BY reports.created_at DESC`).all(req.user.organisation_id, req.user.id);
+    res.json({
+      reports: rows.map(row => ({
+        id: row.id,
+        reference: row.reference,
+        kind: row.kind,
+        description: row.description,
+        emergency: !!row.emergency,
+        status: row.status,
+        created_at: row.created_at,
+        placeId: row.place_id,
+        placeName: row.place_name,
+        buildingId: row.building_id,
+        buildingName: row.building_name
+      }))
+    });
   });
 
   app.get("/api/reports/:id", requireUser, (req, res) => {
@@ -123,6 +189,7 @@ export function registerQrRoutes(app, { db, config, mail, sendError, requireUser
         description: report.description,
         status: report.status,
         emergency: !!report.emergency,
+        unit: report.unit_number || "",
         reporterName: report.reporter_name,
         reporterContact: report.reporter_contact,
         history: db.prepare("SELECT at, actor, body FROM report_events WHERE report_id = ? ORDER BY id").all(report.id)
@@ -130,16 +197,29 @@ export function registerQrRoutes(app, { db, config, mail, sendError, requireUser
     });
   });
 
+  app.post("/api/reports/:id/dismiss", requireJson, requireUser, (req, res) => {
+    const report = ownReport(db, req.user, req.params.id);
+    if (!report) return sendError(res, 404, "That report is not on your account.");
+    if (report.job_id || report.status === "APPROVED") return sendError(res, 400, "This report is already a job.");
+    db.prepare("UPDATE reports SET status = 'DISMISSED' WHERE id = ?").run(report.id);
+    addReportEvent(db, report.id, req.user.name, "Dismissed. It was not turned into a job.");
+    audit(db, { actorId: req.user.id, organisationId: report.organisation_id, action: "report.dismissed", subjectType: "report", subjectId: report.id, detail: {} });
+    res.json({ status: "DISMISSED" });
+  });
+
   app.post("/api/reports/:id/convert", requireJson, requireUser, (req, res) => {
     const report = ownReport(db, req.user, req.params.id);
     if (!report) return sendError(res, 404, "That report is not on your account.");
+    if (report.status === "DISMISSED") return sendError(res, 400, "This report was dismissed.");
+    if (report.job_id) return sendError(res, 400, "This report is already a job.");
     const place = db.prepare("SELECT * FROM places WHERE id = ?").get(report.place_id);
     const jobId = newId();
     const payload = { safety: ["no", "no", "no", "no", "no", "no", "no"], photos: 0, reference: report.reference, date: "" };
+    const area = place ? [place.name, place.level].filter(Boolean).join(", ") : "Whole building";
     db.prepare(`INSERT INTO jobs (id, organisation_id, building_id, created_by, title, area, trade_id, instructions, urgency, payload, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
       jobId, report.organisation_id, report.building_id, req.user.id,
-      report.kind + " report", place.name, report.kind === "unsure" ? "other" : mapTrade(report.kind),
+      report.description.slice(0, 80), area, report.kind === "unsure" ? "other" : mapTrade(report.kind),
       report.description, report.emergency ? "emergency" : "standard", JSON.stringify(payload), new Date().toISOString()
     );
     db.prepare("UPDATE reports SET status = 'APPROVED', job_id = ? WHERE id = ?").run(jobId, report.id);
@@ -201,17 +281,60 @@ function addReportEvent(db, reportId, actor, body) {
 
 function tooMany(key, windowMs, max) {
   const now = Date.now();
-  for (let i = recent.length - 1; i >= 0; i -= 1) if (now - recent[i].at > windowMs) recent.splice(i, 1);
-  const count = recent.filter(item => item.key === key).length;
+  for (let i = recent.length - 1; i >= 0; i -= 1) {
+    if (recent[i].key === key && now - recent[i].at > windowMs) recent.splice(i, 1);
+  }
+  const count = recent.filter(item => item.key === key && now - item.at <= windowMs).length;
   if (count >= max) return true;
   recent.push({ key, at: now });
   return false;
 }
 
-function emailOrPhone(value) {
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return true;
+function commonManager(user) {
+  return user.role === "building_manager" || user.role === "oc_manager";
+}
+
+function isEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function isPhone(value) {
   const digits = value.replace(/\D/g, "");
   return digits.length >= 8 && digits.length <= 15 && !/[a-z]/i.test(value);
+}
+
+function emailOrPhone(value) {
+  return isEmail(value) || isPhone(value);
+}
+
+function placeLabel(place) {
+  return place.level ? place.name + " · " + place.level : place.name;
+}
+
+async function sendConfirmation(mail, email, place, reference) {
+  await mail.send({
+    to: email,
+    subject: `We received your report (${reference})`,
+    text: `The building manager at ${place.building_name} has your report for ${placeLabel(place)}.\nReference ${reference}.\n\nIf anyone is in danger, call 000. This is not an emergency service.`
+  });
+}
+
+async function sendQrImage(req, res, db, config, sendError, ext) {
+  const place = ownPlace(db, req.user, req.params.id);
+  if (!place || !place.active) return sendError(res, 404, "That QR code is not on your account.");
+  const building = db.prepare("SELECT name FROM buildings WHERE id = ?").get(place.building_id);
+  const url = `${config.publicBaseUrl}/r/${place.token}`;
+  const qr = await import("qrcode");
+  const draw = qr.default || qr;
+  const filename = `${(building?.name || "building").replace(/[^A-Za-z0-9]+/g, "-")}-${place.name.replace(/[^A-Za-z0-9]+/g, "-")}.${ext}`;
+  res.setHeader("Content-Disposition", `inline; filename="${filename}"`);
+  if (ext === "svg") {
+    const svg = await draw.toString(url, { type: "svg", margin: 1, errorCorrectionLevel: "M" });
+    res.type("image/svg+xml").send(svg);
+    return;
+  }
+  const png = await draw.toBuffer(url, { type: "png", width: 512, margin: 1, errorCorrectionLevel: "M" });
+  res.type("image/png").send(png);
 }
 
 async function sendUrgent(db, mail, place, reportId, reference) {
@@ -256,19 +379,23 @@ function escapeHtml(value) {
 
 function page(title, body) {
   return `<!DOCTYPE html><html lang="en-AU"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(title)}</title>
-<style>body{margin:0;min-height:100vh;font:18px/1.45 system-ui,sans-serif;background:#F6F8FB;color:#0F172A}main{width:min(720px,100%);margin:0 auto;padding:28px 20px;box-sizing:border-box}h1,p,label{overflow-wrap:break-word}h1{font-size:1.6rem}button,.btn{min-height:48px;width:100%;border:0;border-radius:14px;background:#1D4ED8;color:#fff;font:inherit;font-weight:700}label{display:block;font-weight:700;margin:14px 0 6px}input,textarea,select{width:100%;min-height:48px;border:1.5px solid #E2E8F0;border-radius:12px;padding:10px;font:inherit;box-sizing:border-box}textarea{min-height:96px}.warn{background:#FFF1F2;color:#9F1239;padding:12px;border-radius:14px}</style></head>
+<style>body{margin:0;min-height:100vh;font:18px/1.45 system-ui,sans-serif;background:#F6F8FB;color:#0F172A}main{width:min(720px,100%);margin:0 auto;padding:28px 20px;box-sizing:border-box}h1,p,label{overflow-wrap:break-word}h1{font-size:1.6rem}button,.btn{min-height:48px;width:100%;border:0;border-radius:14px;background:#1D4ED8;color:#fff;font:inherit;font-weight:700}label{display:block;font-weight:700;margin:14px 0 6px}input,textarea,select{width:100%;min-height:48px;border:1.5px solid #E2E8F0;border-radius:12px;padding:10px;font:inherit;box-sizing:border-box}textarea{min-height:96px}input[type=checkbox]{width:1.25rem;min-height:1.25rem;margin:0 8px 0 0;vertical-align:middle}label:has(input[type=checkbox]){font-weight:500}.warn{background:#FFF1F2;color:#9F1239;padding:12px;border-radius:14px}</style></head>
 <body><main><p class="warn"><strong>If anyone is in danger, call 000.</strong> TaskSpeck Strata is not an emergency service.</p><h1>${escapeHtml(title)}</h1>${body}</main></body></html>`;
 }
 
 function formHtml(place, a, b) {
-  const address = `${place.street_number} ${place.street}, ${place.suburb}`;
-  return `<p>${escapeHtml(place.building_name)}</p><p>${escapeHtml(address)}</p><p>${escapeHtml(place.name)}${place.level ? " · " + escapeHtml(place.level) : ""}</p>
+  const label = placeLabel(place);
+  return `<p>${escapeHtml(place.building_name)}</p><p>${escapeHtml(label)}</p>
 <form id="report">
-<input type="hidden" name="website" tabindex="-1" autocomplete="off">
+<div style="position:absolute;left:-9999px" aria-hidden="true"><label>Leave this blank<input name="website" tabindex="-1" autocomplete="off"></label></div>
 <label>What is the problem?<textarea name="description" required></textarea></label>
 <label>Kind of problem<select name="kind"><option>unsure</option><option>plumbing</option><option>electrical</option><option>lift</option><option>doors</option><option>cleaning</option><option>rubbish</option><option>fire</option><option>aircon</option><option>roof</option><option>other</option></select></label>
-<label>Your name<input name="name"></label>
-<label>Email or phone<input name="contact"></label>
+<label>Your name (optional)<input name="name" autocomplete="name"></label>
+<label>Unit number (optional)<input name="unit" autocomplete="off"></label>
+<label>Email (optional)<input name="email" type="email" autocomplete="email"></label>
+<label>Phone (optional)<input name="phone" type="tel" autocomplete="tel"></label>
+<label>Photos (optional)<input name="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple></label>
+<p>Up to 4 photos. JPEG, PNG or WebP. Each one under 3 MB.</p>
 <label><input type="checkbox" name="emergency"> Someone is in danger here, after calling 000</label>
 <label><input type="checkbox" name="consent" required> I agree this report and any photographs are for the building manager.</label>
 <p>What is ${a} + ${b}?<input name="bot" inputmode="numeric" required></p>
@@ -280,14 +407,26 @@ const key = sessionStorage.getItem("strata-report") || (Math.random().toString(3
 sessionStorage.setItem("strata-report", key);
 const draftKey = "strata-draft-" + ${JSON.stringify(place.token)};
 const form = document.getElementById("report");
-try { const saved = JSON.parse(localStorage.getItem(draftKey) || "{}"); for (const el of form.elements) if (saved[el.name] && el.type !== "checkbox") el.value = saved[el.name]; } catch (e) {}
-form.addEventListener("input", () => { const data = {}; for (const el of form.elements) if (el.name && el.type !== "checkbox") data[el.name] = el.value; localStorage.setItem(draftKey, JSON.stringify(data)); });
+try { const saved = JSON.parse(localStorage.getItem(draftKey) || "{}"); for (const el of form.elements) if (saved[el.name] && el.type !== "checkbox" && el.type !== "file") el.value = saved[el.name]; } catch (e) {}
+form.addEventListener("input", () => { const data = {}; for (const el of form.elements) if (el.name && el.type !== "checkbox" && el.type !== "file") data[el.name] = el.value; localStorage.setItem(draftKey, JSON.stringify(data)); });
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const body = { token: ${JSON.stringify(place.token)}, description: form.description.value, kind: form.kind.value, name: form.name.value, contact: form.contact.value, emergency: form.emergency.checked, consent: form.consent.checked, website: form.website.value, botA: ${a}, botB: ${b}, botAnswer: Number(form.bot.value), idempotencyKey: key };
+  const done = document.getElementById("done");
+  const files = Array.from(form.photos.files || []).slice(0, 4);
+  const photos = [];
+  for (const file of files) {
+    if (file.size > 3 * 1024 * 1024) { done.textContent = "Each photo must be under 3 MB."; return; }
+    photos.push(await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
+      reader.onerror = () => reject(new Error("unread"));
+      reader.readAsDataURL(file);
+    }));
+  }
+  const body = { token: ${JSON.stringify(place.token)}, description: form.description.value, kind: form.kind.value, name: form.name.value, unit: form.unit.value, email: form.email.value, phone: form.phone.value, photos: photos, emergency: form.emergency.checked, consent: form.consent.checked, website: form.website.value, botA: ${a}, botB: ${b}, botAnswer: Number(form.bot.value), idempotencyKey: key };
   const res = await fetch("/api/public/reports", { method: "POST", headers: { "content-type": "application/json", "x-requested-with": "StrataApp" }, body: JSON.stringify(body) });
   const json = await res.json();
-  document.getElementById("done").textContent = (json.reference ? "Reference " + json.reference + ". " : "") + (json.message || json.error || "");
+  done.textContent = (json.reference ? "Reference " + json.reference + ". " : "") + (json.message || json.error || "");
 });
 </script>`;
 }

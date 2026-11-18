@@ -28,6 +28,8 @@ export const DEMO_PROPERTY_MANAGER = {
 };
 
 export const DEMO_QR_TOKEN = "demo-lift-1";
+export const DEMO_QR_CORRIDOR = "demo-harbour-l3-7f3a9c2e1b84";
+export const DEMO_QR_RIVERSIDE = "demo-riverside-gate-a91c4e77b2";
 
 function nextWeekday() {
   const date = new Date();
@@ -118,6 +120,10 @@ export async function seedDemo(db) {
     );
     db.prepare(`INSERT INTO places (id, building_id, organisation_id, kind, name, level, token, created_at)
       VALUES (?, ?, ?, 'lift', 'Lift 1', 'Ground', ?, ?)`).run(placeId, buildingId, managerOrg, DEMO_QR_TOKEN, now);
+    db.prepare(`INSERT INTO places (id, building_id, organisation_id, kind, name, level, token, created_at)
+      VALUES (?, ?, ?, 'other', 'Level 3 corridor', 'Level 3', ?, ?)`).run(newId(), buildingId, managerOrg, DEMO_QR_CORRIDOR, now);
+    db.prepare(`INSERT INTO places (id, building_id, organisation_id, kind, name, level, token, created_at)
+      VALUES (?, ?, ?, 'doors', 'Car park gate', '', ?, ?)`).run(newId(), ocBuildingId, ocOrg, DEMO_QR_RIVERSIDE, now);
     const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
     const yesterday = new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.now() - 86400000));
     const addNote = db.prepare("INSERT INTO notes (id, organisation_id, author_id, author_name, body, notice_on, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)");

@@ -1381,6 +1381,7 @@ const PHOTOS = {
       person: personScreen,
       owner: ownerScreen,
       "building-new": buildingNewScreen,
+      reports: reportsScreen,
       emergency: emergencyScreen,
       guide: guideScreen,
       success: successScreen
@@ -1462,6 +1463,7 @@ const PHOTOS = {
       "</div>";
     const primary = '<div class="home-primary stack"><section class="hero' + heroPhoto + '><p class="eyebrow">For managers</p><h1>What do you need?</h1><p>Describe the job. A licensed contractor can make an offer.</p></section>' +
       '<button class="btn btn-primary request-bar" type="button" data-act="new-request">New request</button>' +
+      (state.manager.role === "property" ? "" : '<button class="btn btn-secondary" type="button" data-act="open-reports">Resident reports</button>') +
       stats +
       '<div class="dash">' + noticeProfile() + "</div>" +
       '<div class="trade-grid">' + tiles + "</div>" +
@@ -1578,6 +1580,48 @@ const PHOTOS = {
       '<p class="small">The fee stays at ' + esc(String(o.feePercent)) + "% until this is on. When it is on, the fee is that percentage plus 10% of the fee" + (o.gstOnFee ? " (now " + feePhrase() + ")" : " (15% would become 16.5%)") + ".</p>" +
       '<p class="small">On a ' + moneyShort(example) + " job the fee is " + money(fee) + ", the contractor receives " + money(receives(example)) + ", and the manager pays " + moneyShort(example) + ".</p>" +
       "<p class=\"small muted\">Strata App holds the money until the job is finished, then releases 100%. There is no retention. Managers pay the approved quote and no service fee.</p></div></div>";
+  }
+
+  function reportStatusLabel(status) {
+    if (status === "APPROVED") return "Turned into a job";
+    if (status === "DISMISSED") return "Dismissed";
+    return "New";
+  }
+  function reportsScreen() {
+    if (state.manager.role === "property") return '<div class="stack"><h1>Resident reports</h1><p>QR reporting is for apartment buildings, not for a private rental.</p></div>';
+    const draft = state.qrDraft || { buildingId: (state.buildings[0] && state.buildings[0].id) || "", name: "", level: "" };
+    state.qrDraft = draft;
+    const opts = state.buildings.map(b => '<option value="' + esc(b.id) + '"' + (b.id === draft.buildingId ? " selected" : "") + ">" + esc(b.name) + "</option>").join("");
+    const codes = (state.qrCodes || []).map(code => {
+      const label = code.name + (code.level ? " · " + code.level : "");
+      const picture = code.active
+        ? '<img src="/api/places/' + esc(code.id) + '/qr.svg" width="180" height="180" alt="QR code for ' + esc(label) + '">'
+        : '<p class="notice notice-warn">This code is switched off. An old sticker no longer works.</p>';
+      const downloads = code.active
+        ? '<a class="btn btn-secondary" href="/api/places/' + esc(code.id) + '/qr.png" download>Download PNG</a><a class="btn btn-secondary" href="/api/places/' + esc(code.id) + '/qr.svg" download>Download SVG</a>'
+        : "";
+      return '<article class="card stack"><div class="between"><h2>' + esc(code.buildingName) + '</h2><span class="pill pill-muted">' + (code.active ? "On" : "Off") + "</span></div><p>" + esc(label) + "</p>" + picture + downloads +
+        '<button class="btn btn-secondary" type="button" data-act="code-active" data-id="' + esc(code.id) + '" data-on="' + (code.active ? "0" : "1") + '">' + (code.active ? "Switch off" : "Switch on") + "</button>" +
+        '<button class="btn btn-ghost" type="button" data-act="code-replace" data-id="' + esc(code.id) + '">Make a new code</button>' +
+        '<p class="small muted">A new code switches this one off. Printing a label sheet stays off.</p></article>';
+    }).join("") || emptyState("No QR codes yet.");
+    const reports = (state.residentReports || []).map(item => {
+      const open = state.reportOpenId === item.id && state.reportDetail && state.reportDetail.id === item.id;
+      const detail = open
+        ? '<p>Name: ' + esc(state.reportDetail.reporterName || "Not given") + "</p><p>Unit: " + esc(state.reportDetail.unit || "Not given") + "</p><p>Contact: " + esc(state.reportDetail.reporterContact || "Not given") + "</p>"
+        : "";
+      const actions = item.status === "NEW"
+        ? '<button class="btn btn-primary" type="button" data-act="convert-report" data-id="' + esc(item.id) + '">Turn into a job</button><button class="btn btn-secondary" type="button" data-act="dismiss-report" data-id="' + esc(item.id) + '">Dismiss</button>'
+        : "";
+      return '<article class="card stack"><div class="between"><h2>' + esc(item.reference) + '</h2><span class="pill pill-muted">' + esc(reportStatusLabel(item.status)) + "</span></div><p>" + esc(item.buildingName || "") + " · " + esc(item.placeName || "") + "</p><p>" + esc(item.description) + "</p>" +
+        '<button class="btn btn-ghost" type="button" data-act="open-report" data-id="' + esc(item.id) + '">Details</button>' + detail + actions + "</article>";
+    }).join("") || emptyState("No resident reports yet.");
+    return '<div class="stack"><h1>Resident reports</h1><p class="small muted">A resident scans a code and sends a report with no account. The page shows the building name and the place, not the street address. You can show the code on screen or download it. Printing a label sheet stays off.</p>' +
+      '<div class="card stack"><h2>New code</h2><label class="field">Building<select data-field="qr.buildingId">' + opts + "</select></label>" +
+      field("Place, if this code is not for the whole building", "text", "qr.name", draft.name, "Lift 1") +
+      field("Level (optional)", "text", "qr.level", draft.level, "Ground") +
+      '<button class="btn btn-primary" type="button" data-act="create-code">Create a QR code</button></div>' +
+      "<h2>Codes</h2>" + codes + "<h2>Inbox</h2>" + reports + "</div>";
   }
 
   function buildingsScreen() {
@@ -2562,6 +2606,11 @@ const PHOTOS = {
   function applyField(field, value) {
     if (field === "find.q") { state.find.q = value; return false; }
     if (field === "note.draft") { state.noteDraft = value; return false; }
+    if (field.indexOf("qr.") === 0) {
+      state.qrDraft = state.qrDraft || { buildingId: "", name: "", level: "" };
+      state.qrDraft[field.split(".")[1]] = value;
+      return true;
+    }
     if (field === "note.day") { state.noteDay = value; return true; }
     if (field.indexOf("manager.") === 0) {
       const key = field.split(".")[1];
