@@ -409,6 +409,24 @@ function migrate(db) {
     `);
     db.exec("PRAGMA user_version = 12");
   }
+  if (userVersion(db) < 13) {
+    db.exec(`
+      ALTER TABLE users ADD COLUMN suspended INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE users ADD COLUMN suspended_reason TEXT NOT NULL DEFAULT '';
+      ALTER TABLE payments ADD COLUMN payout_paused INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE payments ADD COLUMN payout_pause_reason TEXT NOT NULL DEFAULT '';
+      ALTER TABLE contractor_documents ADD COLUMN owner_check TEXT NOT NULL DEFAULT '';
+      ALTER TABLE contractor_documents ADD COLUMN owner_note TEXT NOT NULL DEFAULT '';
+      CREATE TABLE contractor_strikes (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        reason TEXT NOT NULL,
+        actor_id TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+    db.exec("PRAGMA user_version = 13");
+  }
 }
 
 export function audit(db, event) {

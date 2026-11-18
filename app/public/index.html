@@ -1415,7 +1415,7 @@ const PHOTOS = {
       return '<div class="welcome-layout"><section class="hero"><p class="eyebrow">TaskSpeck Strata</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. TaskSpeck Strata does not.</p></section><div class="stack">' +
         '<button class="btn btn-primary" type="button" data-act="auth-goto" data-screen="register">Create an account</button>' +
         '<button class="btn btn-secondary" type="button" data-act="auth-goto" data-screen="signin">Sign in</button>' +
-        (state.demo ? '<div class="card stack"><p><strong>Four demo accounts. Pick one.</strong></p><div class="demo-pair"><div class="demo-account"><h2>Building manager</h2><p><strong>Mina Costa</strong></p><p class="small">mina.costa@harbour.example</p><p class="small">Password Harbour1</p><p class="small">Harbour View Apartments</p></div><div class="demo-account"><h2>Owners Corporation manager</h2><p><strong>Helen Tran</strong></p><p class="small">helen.tran@riverside.example</p><p class="small">Password Riverside1</p><p class="small">Riverside Court</p></div><div class="demo-account"><h2>Property manager</h2><p><strong>Leo Park</strong></p><p class="small">leo.park@southbanklets.example</p><p class="small">Password Lettings1</p><p class="small">12 Clarendon Street rental</p></div><div class="demo-account"><h2>Contractor</h2><p><strong>Sam Okonkwo</strong></p><p class="small">sam@plumbing.example</p><p class="small">Password Pipes123</p></div></div><p class="small">A new account shows its confirmation link on this screen. No email is sent. The Lift 1 report page is /r/demo-lift-1.</p></div>' : "") +
+        (state.demo ? '<div class="card stack"><p><strong>Five demo accounts. Pick one.</strong></p><div class="demo-pair"><div class="demo-account"><h2>Building manager</h2><p><strong>Mina Costa</strong></p><p class="small">mina.costa@harbour.example</p><p class="small">Password Harbour1</p><p class="small">Harbour View Apartments</p></div><div class="demo-account"><h2>Owners Corporation manager</h2><p><strong>Helen Tran</strong></p><p class="small">helen.tran@riverside.example</p><p class="small">Password Riverside1</p><p class="small">Riverside Court</p></div><div class="demo-account"><h2>Property manager</h2><p><strong>Leo Park</strong></p><p class="small">leo.park@southbanklets.example</p><p class="small">Password Lettings1</p><p class="small">12 Clarendon Street rental</p></div><div class="demo-account"><h2>Contractor</h2><p><strong>Sam Okonkwo</strong></p><p class="small">sam@plumbing.example</p><p class="small">Password Pipes123</p></div><div class="demo-account"><h2>Platform owner</h2><p><strong>Nick Owner</strong></p><p class="small">owner@taskspeck.example</p><p class="small">Password Ownerpass1</p><p class="small">Back office only</p></div></div><p class="small">A new account shows its confirmation link on this screen. No email is sent. The Lift 1 report page is /r/demo-lift-1.</p></div>' : "") +
         '<div class="card stack"><p>Building managers and OC managers look after apartment buildings and common property. Property managers look after private rental properties. Contractors do the work. An account is one of these, not more than one.</p><p class="small muted">The terms and privacy summary are a draft for a solicitor to review.</p><button class="btn btn-ghost" type="button" data-act="auth-goto" data-screen="terms">Read the terms and privacy summary</button></div></div></div>';
     }
     if (state.screen === "terms") {
@@ -1499,6 +1499,7 @@ const PHOTOS = {
       "building-new": buildingNewScreen,
       reports: reportsScreen,
       assistant: assistantScreen,
+      office: officeScreen,
       emergency: emergencyScreen,
       guide: guideScreen,
       success: successScreen,
@@ -1588,6 +1589,7 @@ const PHOTOS = {
       "</div>";
     const primary = '<div class="home-primary stack"><section class="hero' + heroPhoto + '><p class="eyebrow">For managers</p><h1>What do you need?</h1><p>Describe the job. A licensed contractor can make an offer.</p></section>' +
       '<button class="btn btn-primary request-bar" type="button" data-act="new-request">New request</button>' +
+      (state.account && state.account.role === "platform_owner" ? '<button class="btn btn-secondary" type="button" data-act="open-office">Back office</button>' : "") +
       (state.manager.role === "property" ? "" : '<button class="btn btn-secondary" type="button" data-act="open-reports">Resident reports</button>') +
       '<button class="btn btn-secondary" type="button" data-act="open-assistant">Draft helper</button>' +
       stats +
@@ -1749,6 +1751,38 @@ const PHOTOS = {
       buttons + result +
       (recent ? "<h2>Recent drafts</h2><ul class=\"clean\">" + recent + "</ul>" : "") +
       "</div>";
+  }
+
+  function officeScreen() {
+    const data = state.officeData || {};
+    const section = state.officeSection || "overview";
+    const names = ["overview", "users", "buildings", "jobs", "payments", "documents", "places", "ai", "settings", "audit"];
+    const nav = names.map(name => '<button class="chip" type="button" data-act="office-section" data-section="' + name + '" aria-pressed="' + (section === name ? "true" : "false") + '">' + name + "</button>").join("");
+    let body = "<p>Choose a section.</p>";
+    if (section === "overview" && data.managers != null) {
+      body = "<div class=\"card stack\"><p>Managers " + data.managers + " · Contractors " + data.contractors + " · Buildings " + data.buildings + "</p><p>Open jobs " + data.openJobs + " · Open reports " + data.openReports + "</p><p>Held " + data.moneyHeldCents + " cents · Released " + data.moneyReleasedCents + " cents · Fees " + data.feesEarnedCents + " cents</p><p>Documents expiring " + data.documentsExpiring + "</p><p>" + esc(data.refunds || "") + "</p></div>";
+    } else if (section === "users" && data.users) {
+      body = data.users.map(user => '<article class="card stack"><h2>' + esc(user.name) + "</h2><p>" + esc(user.email) + " · " + esc(user.role) + (user.suspended ? " · Suspended" : "") + "</p>" +
+        '<button class="btn btn-secondary" type="button" data-act="office-suspend" data-id="' + esc(user.id) + '" data-on="' + (user.suspended ? "0" : "1") + '">' + (user.suspended ? "Reactivate" : "Suspend") + "</button>" +
+        '<button class="btn btn-ghost" type="button" data-act="office-reset" data-id="' + esc(user.id) + '">Send password reset email</button></article>').join("") || "<p>No accounts.</p>";
+    } else if (section === "payments" && data.payments) {
+      body = '<p>' + esc(data.refunds || "") + "</p>" + data.payments.map(row => '<article class="card"><p>' + esc(row.ledger) + " · " + row.amount_cents + " cents · fee " + row.fee_cents + "</p>" +
+        (row.released_at ? "" : '<button class="btn btn-secondary" type="button" data-act="office-pause" data-id="' + esc(row.id) + '" data-on="' + (row.payout_paused ? "0" : "1") + '">' + (row.payout_paused ? "Resume payout" : "Pause payout") + "</button>") + "</article>").join("");
+    } else if (section === "places" && data.places) {
+      body = data.places.map(place => '<article class="card"><p>' + esc(place.buildingName) + " · " + esc(place.name) + (place.active ? "" : " · Off") + "</p>" +
+        (place.active ? '<button class="btn btn-secondary" type="button" data-act="office-disable-code" data-id="' + esc(place.id) + '">Disable code</button>' : "") + "</article>").join("");
+    } else if (section === "ai") {
+      const dollars = (cents) => "A$" + (Number(cents || 0) / 100).toFixed(2);
+      const people = (data.managers || []).map(row => "<p>" + esc(row.name || row.email) + " · " + dollars(row.spentCents) + " of " + dollars(data.capCents) + "</p>").join("");
+      body = "<div class=\"card stack\"><p>This month each manager can use " + dollars(data.capCents) + ".</p>" + (people || "<p>No manager has used the draft helper yet.</p>") + "<p class=\"small\">Change the allowance in Owner settings.</p></div>";
+    } else if (section === "settings" && data.holidays) {
+      body = data.holidays.slice(0, 12).map(day => "<p>" + esc(day.day) + " " + esc(day.name) + (day.note ? " · " + esc(day.note) : "") + "</p>").join("");
+    } else if (section === "audit" && data.events) {
+      body = '<a class="btn btn-secondary" href="/api/owner/audit.csv">Export CSV</a>' + data.events.slice(0, 20).map(event => "<p>" + esc(event.action) + " · " + esc(event.at) + "</p>").join("");
+    } else if (data && section !== "overview") {
+      body = "<div class=\"card\"><p>" + esc(JSON.stringify(data).slice(0, 800)) + "</p></div>";
+    }
+    return '<div class="stack"><h1>Back office</h1><p class="small muted">Platform owner only. Nothing here is deleted.</p><div class="row">' + nav + "</div>" + body + "</div>";
   }
 
   function reportStatusLabel(status) {

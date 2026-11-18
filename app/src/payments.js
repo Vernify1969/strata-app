@@ -172,7 +172,7 @@ export async function requestCapture(db, config, payment) {
 export async function releaseJobPayments(db, config, job) {
   const waiting = db.prepare("SELECT * FROM payments WHERE job_id = ? AND status IN ('requires_payment', 'requires_capture') AND released_at = ''").all(job.id);
   for (const payment of waiting) await requestCapture(db, config, payment);
-  const held = db.prepare("SELECT * FROM payments WHERE job_id = ? AND status = 'succeeded' AND released_at = ''").all(job.id);
+  const held = db.prepare("SELECT * FROM payments WHERE job_id = ? AND status = 'succeeded' AND released_at = '' AND payout_paused = 0").all(job.id);
   if (!held.length) return [];
   const contractor = db.prepare("SELECT stripe_account_id FROM users WHERE id = ?").get(job.contractor_user_id);
   const now = new Date().toISOString();

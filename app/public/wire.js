@@ -348,6 +348,12 @@
       if (act === "open-reports" && state.remote) { this.openReports(); return true; }
       if (act === "open-assistant" && state.remote) { this.openAssistant(); return true; }
       if (act === "ai-run" && state.remote) { this.runAssistant(t.dataset.helper); return true; }
+      if (act === "open-office" && state.remote) { this.openOffice(); return true; }
+      if (act === "office-section" && state.remote) { this.officeSection(t.dataset.section); return true; }
+      if (act === "office-suspend" && state.remote) { this.officeSuspend(t.dataset.id, t.dataset.on === "1"); return true; }
+      if (act === "office-reset" && state.remote) { this.officeReset(t.dataset.id); return true; }
+      if (act === "office-pause" && state.remote) { this.officePause(t.dataset.id, t.dataset.on === "1"); return true; }
+      if (act === "office-disable-code" && state.remote) { this.officeDisableCode(t.dataset.id); return true; }
       if (act === "create-code" && state.remote) { this.createCode(); return true; }
       if (act === "code-active" && state.remote) { this.setCodeActive(t.dataset.id, t.dataset.on === "1"); return true; }
       if (act === "code-replace" && state.remote) { this.replaceCode(t.dataset.id); return true; }
@@ -453,6 +459,57 @@
       state.aiResult = res.json;
       await this.loadAiUsage();
       api.render();
+    },
+    async openOffice() {
+      const api = hooks();
+      api.state.screen = "office";
+      api.state.title = "Back office";
+      await this.officeSection("overview");
+    },
+    async officeSection(section) {
+      const api = hooks();
+      const path = {
+        overview: "/api/owner/overview",
+        users: "/api/owner/users",
+        buildings: "/api/owner/buildings",
+        jobs: "/api/owner/jobs",
+        payments: "/api/owner/payments",
+        documents: "/api/owner/documents",
+        places: "/api/owner/places",
+        ai: "/api/owner/ai",
+        settings: "/api/owner/holidays",
+        audit: "/api/owner/audit"
+      }[section] || "/api/owner/overview";
+      const res = await call("GET", path);
+      if (!res.ok) { api.toast((res.json && res.json.error) || "That section is not available."); return; }
+      api.state.officeSection = section;
+      api.state.officeData = res.json;
+      api.state.screen = "office";
+      api.render();
+    },
+    async officeSuspend(id, suspend) {
+      if (!window.confirm(suspend ? "Suspend this account?" : "Reactivate this account?")) return;
+      const reason = window.prompt("Reason") || "";
+      const res = await call("POST", "/api/owner/users/" + id + "/suspend", { suspended: suspend, reason: reason });
+      if (!res.ok) { hooks().toast((res.json && res.json.error) || "That account was not changed."); return; }
+      await this.officeSection("users");
+    },
+    async officeReset(id) {
+      const res = await call("POST", "/api/owner/users/" + id + "/send-reset", {});
+      hooks().toast((res.json && (res.json.message || res.json.error)) || "Done.");
+    },
+    async officePause(id, pause) {
+      if (!window.confirm(pause ? "Pause this payout?" : "Resume this payout?")) return;
+      const reason = window.prompt("Reason") || "";
+      const res = await call("POST", "/api/owner/payments/" + id + "/pause", { paused: pause, reason: reason });
+      if (!res.ok) { hooks().toast((res.json && res.json.error) || "That payout was not changed."); return; }
+      await this.officeSection("payments");
+    },
+    async officeDisableCode(id) {
+      if (!window.confirm("Disable this QR code?")) return;
+      const res = await call("POST", "/api/owner/places/" + id + "/active", { active: false });
+      if (!res.ok) { hooks().toast((res.json && res.json.error) || "That code was not changed."); return; }
+      await this.officeSection("places");
     },
     async openReports() {
       const api = hooks();
