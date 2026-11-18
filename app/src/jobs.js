@@ -131,14 +131,17 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
       return sendError(res, 400, why);
     }
     const prepay = quote.deposit_type !== "none";
-    db.prepare(`UPDATE jobs SET stage = ?, approved_cents = ?, awarded_quote_id = ?, contractor_user_id = ?, needs_prepay = ?, pay_after = ?, fewer_reason = ? WHERE id = ?`).run(
+    const settings = moneySettings(db, config);
+    const urgentJob = job.urgency === "urgent" || job.urgency === "after_hours" || job.urgency === "emergency";
+    const depositHours = urgentJob ? settings.urgentDepositHours : settings.depositHours;
+    const depositDue = prepay ? new Date(Date.now() + depositHours * 3600 * 1000).toISOString() : "";
+    db.prepare(`UPDATE jobs SET stage = ?, approved_cents = ?, awarded_quote_id = ?, contractor_user_id = ?, needs_prepay = ?, pay_after = ?, fewer_reason = ?, deposit_due_at = ?, deposit_reminded_at = '' WHERE id = ?`).run(
       prepay ? "approved" : "paid", quote.price_cents, quote.id, quote.contractor_user_id, prepay ? 1 : 0, prepay ? 0 : 1,
-      String(req.body?.fewerReason || ""), job.id
+      String(req.body?.fewerReason || ""), depositDue, job.id
     );
     db.prepare("UPDATE quotes SET status = 'awarded' WHERE id = ?").run(quote.id);
     addEvent(db, job.id, req.user.name, prepay ? "Quote approved. Payment before the start is still unpaid." : "Quote approved. Nothing is paid before the work.");
     audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "job.approved", subjectType: "job", subjectId: job.id, detail: { prepay, quoteId: quote.id } });
-    const settings = moneySettings(db, config);
     const urgent = job.urgency === "urgent" || job.urgency === "after_hours";
     res.json({
       stage: prepay ? "approved" : "paid",
@@ -247,6 +250,12 @@ function todayIn(timeZone) {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
+function fundsStatus(db, job) {
+  if (!job.needs_prepay || (job.stage !== "approved" && job.stage !== "paid")) return "";
+  const confirmed = db.prepare("SELECT 1 AS ok FROM payments WHERE job_id = ? AND funds_confirmed_at != ''").get(job.id);
+  return confirmed ? "Funds secured by Stripe – OK to start" : "Waiting for deposit – do not start work";
+}
+
 function regionOf(db, building) {
   const region = db.prepare("SELECT * FROM regions WHERE id = ?").get(building?.region_id || "AU-VIC");
   return { id: region?.id || "AU-VIC", timeZone: region?.time_zone || "Australia/Melbourne" };
@@ -327,6 +336,7 @@ function clientJob(db, job, user, quotes = [], contractors = new Map()) {
     awardedTo: showAddress ? job.contractor_user_id : null,
     payAfter: !!job.pay_after,
     needsPrepay: !!job.needs_prepay,
+    fundsStatus: fundsStatus(db, job),
     approved: (job.approved_cents || 0) / 100,
     timeline: db.prepare("SELECT at, actor_name, body FROM job_events WHERE job_id = ? ORDER BY id").all(job.id).map(event => ({ t: event.at, who: event.actor_name, x: event.body })),
     evidence: { before: [], after: [], fix1: [], fix2: [] },
