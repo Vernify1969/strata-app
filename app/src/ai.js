@@ -17,10 +17,30 @@ export const HELPERS = {
   "reply-draft": { model: HAIKU, title: "Reply draft" },
   "budget-warning": { model: HAIKU, title: "Budget warning" },
   handover: { model: HAIKU, title: "Handover notes" },
-  paperwork: { model: SONNET, title: "Licence and insurance check" }
+  paperwork: { model: SONNET, title: "Licence and insurance check" },
+  "contractor-waiting": { model: HAIKU, title: "What is waiting for me" },
+  "contractor-quote": { model: HAIKU, title: "Draft a quote" },
+  "contractor-reply": { model: HAIKU, title: "Reply to a manager" },
+  "contractor-paperwork": { model: SONNET, title: "Check my licence or insurance" },
+  "owner-attention": { model: HAIKU, title: "What needs attention" },
+  "owner-reply": { model: HAIKU, title: "Draft a reply" }
 };
 
-const DRAFT = "Draft. Nothing is approved, sent, booked, or paid until you confirm it. This is not legal advice.";
+const MANAGER_HELPERS = ["triage", "job-draft", "quote-compare", "committee", "next-step", "missing-info", "reply-draft", "budget-warning", "handover", "paperwork"];
+const PROPERTY_HELPERS = MANAGER_HELPERS.filter(id => !["triage", "job-draft", "budget-warning"].includes(id));
+const CONTRACTOR_HELPERS = ["contractor-waiting", "contractor-quote", "contractor-reply", "contractor-paperwork"];
+const OWNER_HELPERS = ["owner-attention", "owner-reply"];
+
+export function helpersForRole(role) {
+  const ids = role === "property_manager" ? PROPERTY_HELPERS
+    : role === "contractor" ? CONTRACTOR_HELPERS
+    : role === "platform_owner" ? OWNER_HELPERS
+    : role === "building_manager" || role === "oc_manager" ? MANAGER_HELPERS
+    : [];
+  return ids.map(id => ({ id, title: HELPERS[id].title }));
+}
+
+const DRAFT = "Draft – check before using";
 
 export function estimateAudCents(model, inputTokens, outputTokens) {
   const rate = USD[model] || USD[HAIKU];
@@ -45,7 +65,13 @@ export function demoAnswer(helper) {
     "reply-draft": "Thank you for the report. A manager will look at it. If anyone is in danger, call 000.",
     "budget-warning": "Check this total against the building's three budgets before anyone approves it.",
     handover: "Open jobs and recent notices for this building are listed for the next manager. Confirm the details before you rely on them.",
-    paperwork: "Holder, number, cover and expiry could not be read in sample mode. Compare the name and ABN with the profile yourself, and check the expiry and the cover minimum."
+    paperwork: "Holder, number, cover and expiry could not be read in sample mode. Compare the name and ABN with the profile yourself, and check the expiry and the cover minimum.",
+    "contractor-waiting": "You have jobs you can quote, deposits still waiting, work to finish, and documents to check. Confirm each one yourself.",
+    "contractor-quote": "A draft quote you can edit. It has not been submitted. Leave the price blank until you set it.",
+    "contractor-reply": "A short reply you could send to the manager yourself. Nothing has been sent.",
+    "contractor-paperwork": "Compare your own name and ABN with the document, and check the expiry and the cover. This is a draft.",
+    "owner-attention": "Open jobs, open reports and documents close to expiry need a look. Confirm each one yourself.",
+    "owner-reply": "A short reply you could send yourself. Nothing has been sent."
   };
   return `Demo AI (sample answers).\n\n${samples[helper] || "A short draft is ready for you to edit."}`;
 }

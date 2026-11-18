@@ -427,6 +427,10 @@ function migrate(db) {
     `);
     db.exec("PRAGMA user_version = 13");
   }
+  if (userVersion(db) < 14) {
+    db.exec("ALTER TABLE platform_settings ADD COLUMN contractor_ai_cap_cents INTEGER NOT NULL DEFAULT 200");
+    db.exec("PRAGMA user_version = 14");
+  }
 }
 
 export function audit(db, event) {

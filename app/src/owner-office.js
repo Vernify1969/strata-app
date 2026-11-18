@@ -236,23 +236,28 @@ export function registerOwnerOffice(app, { db, mail, sendError, requireUser, req
   app.get("/api/owner/ai", requireUser, (req, res) => {
     if (!guard(req, res)) return;
     const month = monthKey();
-    const capCents = moneySettings(db).aiCapCents;
-    const rows = db.prepare(`SELECT users.id, users.name, users.email, COALESCE(SUM(ai_uses.cost_cents), 0) AS spent_cents
+    const settings = moneySettings(db);
+    const rows = db.prepare(`SELECT users.id, users.name, users.email, users.role, COALESCE(SUM(ai_uses.cost_cents), 0) AS spent_cents
       FROM users LEFT JOIN ai_uses ON ai_uses.user_id = users.id AND ai_uses.month = ? AND ai_uses.demo = 0
-      WHERE users.role IN ('building_manager', 'oc_manager', 'property_manager')
+      WHERE users.role IN ('building_manager', 'oc_manager', 'property_manager', 'contractor')
       GROUP BY users.id
       ORDER BY spent_cents DESC, users.name`).all(month);
+    const shape = (row) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      spentCents: row.spent_cents,
+      capCents: row.role === "contractor" ? settings.contractorAiCapCents : settings.aiCapCents
+    });
     res.json({
       available: true,
       month,
-      capCents,
-      managers: rows.map(row => ({
-        id: row.id,
-        name: row.name,
-        email: row.email,
-        spentCents: row.spent_cents,
-        capCents
-      }))
+      capCents: settings.aiCapCents,
+      managerCapCents: settings.aiCapCents,
+      contractorCapCents: settings.contractorAiCapCents,
+      ownerUncapped: true,
+      managers: rows.filter(row => row.role !== "contractor").map(shape),
+      contractors: rows.filter(row => row.role === "contractor").map(shape)
     });
   });
 

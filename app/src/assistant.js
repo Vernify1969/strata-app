@@ -2,10 +2,9 @@ import { newId } from "./ids.js";
 import { moneySettings } from "./payments.js";
 import { readDocumentBytes } from "./documents.js";
 import { readObject } from "./storage.js";
-import { HELPERS, completeAi, draftEnvelope, estimateAudCents, redactContacts } from "./ai.js";
+import { HELPERS, completeAi, draftEnvelope, estimateAudCents, helpersForRole, redactContacts } from "./ai.js";
 
-const MANAGERS = new Set(["building_manager", "oc_manager", "property_manager"]);
-const SYSTEM = "You draft short notes for a building manager in Victoria, Australia. Every answer is a draft. You never approve work, spend money, send a message, or book anyone. You do not give legal advice. Do not invent names, phone numbers, or email addresses. Keep the answer under 180 words.";
+const SYSTEM = "You draft short notes in Victoria, Australia. Every answer is a draft the person must check. You never approve work, spend money, send a message, submit a quote, or book anyone. You do not give legal advice. Do not invent names, phone numbers, or email addresses. Keep the answer under 180 words.";
 
 function monthKey(now = new Date()) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Australia/Melbourne", year: "numeric", month: "2-digit" }).format(now);
@@ -15,17 +14,26 @@ function spentCents(db, userId, month) {
   return db.prepare("SELECT COALESCE(SUM(cost_cents), 0) AS n FROM ai_uses WHERE user_id = ? AND month = ? AND demo = 0").get(userId, month).n;
 }
 
-export function usageFor(db, userId, now = new Date()) {
+export function capForRole(settings, role) {
+  if (role === "platform_owner") return null;
+  if (role === "contractor") return settings.contractorAiCapCents;
+  return settings.aiCapCents;
+}
+
+export function usageFor(db, user, now = new Date()) {
   const settings = moneySettings(db);
   const month = monthKey(now);
-  const spent = spentCents(db, userId, month);
-  const recent = db.prepare("SELECT helper, demo, cost_cents, created_at, subject_type, subject_id FROM ai_uses WHERE user_id = ? AND month = ? ORDER BY created_at DESC LIMIT 20").all(userId, month);
+  const spent = spentCents(db, user.id, month);
+  const cap = capForRole(settings, user.role);
+  const recent = db.prepare("SELECT helper, demo, cost_cents, created_at, subject_type, subject_id FROM ai_uses WHERE user_id = ? AND month = ? ORDER BY created_at DESC LIMIT 20").all(user.id, month);
   return {
     month,
     spentCents: spent,
-    capCents: settings.aiCapCents,
-    remainingCents: Math.max(0, settings.aiCapCents - spent),
-    recent
+    capCents: cap,
+    uncapped: cap == null,
+    remainingCents: cap == null ? null : Math.max(0, cap - spent),
+    recent,
+    helpers: helpersForRole(user.role)
   };
 }
 
@@ -47,6 +55,13 @@ function ownJob(db, user, id) {
   return db.prepare(`SELECT jobs.* FROM jobs
     JOIN building_assignments ON building_assignments.building_id = jobs.building_id
     WHERE jobs.id = ? AND jobs.organisation_id = ? AND building_assignments.user_id = ?`).get(id, user.organisation_id, user.id);
+}
+
+function contractorJob(db, user, id) {
+  const job = db.prepare("SELECT * FROM jobs WHERE id = ?").get(id);
+  if (!job) return null;
+  if (job.contractor_user_id === user.id || job.stage === "open") return job;
+  return null;
 }
 
 function canSeeDocument(db, user, doc) {
@@ -189,29 +204,122 @@ Photos attached: ${images.length}`;
       facts: { minimumCoverDollars: minimum, expiry: doc.expiry_on || read.suggestedExpiry || "" }
     };
   }
+  if (helper === "contractor-waiting") {
+    const openJobs = db.prepare("SELECT title FROM jobs WHERE stage = 'open' ORDER BY created_at DESC LIMIT 8").all();
+    const mine = db.prepare("SELECT title, stage, needs_prepay FROM jobs WHERE contractor_user_id = ?").all(user.id);
+    const docs = db.prepare("SELECT kind, expiry_on FROM contractor_documents WHERE user_id = ? AND expiry_on != '' ORDER BY expiry_on").all(user.id);
+    const soon = new Date();
+    soon.setDate(soon.getDate() + 30);
+    const soonDay = soon.toISOString().slice(0, 10);
+    const facts = {
+      quotesYouCanSend: openJobs.map(job => redactContacts(job.title)),
+      depositsWaiting: mine.filter(job => job.stage === "approved").map(job => redactContacts(job.title)),
+      jobsToFinish: mine.filter(job => ["paid", "review0", "review1"].includes(job.stage)).map(job => redactContacts(job.title)),
+      documentsExpiring: docs.filter(doc => doc.expiry_on <= soonDay).map(doc => ({ kind: doc.kind, expiry: doc.expiry_on }))
+    };
+    return {
+      userText: `Say what is waiting for this contractor, from this list only. Do not tell them to start work, send a quote, or contact anyone.\n${JSON.stringify(facts).slice(0, 2000)}`,
+      images: [],
+      subjectType: "user",
+      subjectId: user.id,
+      facts
+    };
+  }
+  if (helper === "contractor-quote") {
+    const job = contractorJob(db, user, String(body.jobId || ""));
+    if (!job) return { error: "That job is not one you can quote." };
+    let photoCount = 0;
+    try { photoCount = Number(JSON.parse(job.payload || "{}").photos || 0); } catch { photoCount = 0; }
+    const report = db.prepare("SELECT id FROM reports WHERE job_id = ?").get(job.id);
+    const images = report ? await reportPhotos(config, report.id) : [];
+    return {
+      userText: `Draft a quote the contractor will edit before submitting it. Do not submit it. Do not invent a price. Leave the price blank unless the description already states one.\nTitle: ${redactContacts(job.title)}\nPlace in the building: ${redactContacts(job.area)}\nWhat to do: ${redactContacts(job.instructions).slice(0, 800)}\nPhotos named on the job: ${photoCount}. Photos you can see: ${images.length}.`,
+      images,
+      subjectType: "job",
+      subjectId: job.id
+    };
+  }
+  if (helper === "contractor-reply") {
+    let about = redactContacts(body.about).slice(0, 800);
+    if (body.jobId) {
+      const job = contractorJob(db, user, String(body.jobId));
+      if (!job) return { error: "That job is not one you can reply about." };
+      about = redactContacts(job.title + ". " + job.instructions).slice(0, 800);
+    }
+    return {
+      userText: `Draft a short reply the contractor might send to the manager. Do not send it. Do not include a phone number or an email address.\nSubject: ${about || "(none)"}`,
+      images: [],
+      subjectType: "job",
+      subjectId: String(body.jobId || "")
+    };
+  }
+  if (helper === "contractor-paperwork") {
+    const doc = body.documentId
+      ? db.prepare("SELECT contractor_documents.*, users.name AS person_name, users.abn, users.business_name FROM contractor_documents JOIN users ON users.id = contractor_documents.user_id WHERE contractor_documents.id = ? AND contractor_documents.user_id = ?").get(String(body.documentId), user.id)
+      : db.prepare("SELECT contractor_documents.*, users.name AS person_name, users.abn, users.business_name FROM contractor_documents JOIN users ON users.id = contractor_documents.user_id WHERE contractor_documents.user_id = ? ORDER BY contractor_documents.created_at DESC LIMIT 1").get(user.id);
+    if (!doc) return { error: "Upload a licence or insurance document first." };
+    let bytes = null;
+    try { bytes = await readObject(config, "document", doc.stored_name); } catch { bytes = null; }
+    const read = bytes ? await readDocumentBytes(bytes, doc.mime) : { textFound: false, suggestedExpiry: "", suggestedNumber: "", note: "" };
+    const minimum = moneySettings(db).minCoverCents / 100;
+    return {
+      userText: `Check this contractor's own ${doc.kind}. Pre-fill the holder name, number, cover and expiry only when the words support them. Compare the holder with "${redactContacts(doc.person_name)}" and the business "${redactContacts(doc.business_name)}". The profile ABN is ${doc.abn || "not set"}. Flag a mismatch, an expiry that is past or within 30 days, and cover below $${minimum}. Stored expiry: ${doc.expiry_on || read.suggestedExpiry || "none"}. Stored number: ${doc.licence_number || read.suggestedNumber || "none"}. Reader note: ${redactContacts(read.note || "").slice(0, 400)}`,
+      images: [],
+      subjectType: "document",
+      subjectId: doc.id,
+      facts: { minimumCoverDollars: minimum, expiry: doc.expiry_on || "" }
+    };
+  }
+  if (helper === "owner-attention") {
+    const count = (sql) => db.prepare(sql).get().n;
+    const facts = {
+      openJobs: count("SELECT COUNT(*) AS n FROM jobs WHERE stage = 'open'"),
+      openReports: count("SELECT COUNT(*) AS n FROM reports WHERE status = 'NEW'"),
+      documentsExpiring: count("SELECT COUNT(*) AS n FROM contractor_documents WHERE expiry_on != '' AND expiry_on <= date('now', '+30 day')"),
+      suspendedAccounts: count("SELECT COUNT(*) AS n FROM users WHERE suspended = 1"),
+      pausedPayouts: count("SELECT COUNT(*) AS n FROM payments WHERE payout_paused = 1 AND released_at = ''")
+    };
+    return {
+      userText: `Write a plain summary of what needs attention. Use only these counts. Do not name people or include contact details.\n${JSON.stringify(facts)}`,
+      images: [],
+      subjectType: "owner",
+      subjectId: user.id,
+      facts
+    };
+  }
+  if (helper === "owner-reply") {
+    const person = body.userId
+      ? db.prepare("SELECT name, role FROM users WHERE id = ?").get(String(body.userId))
+      : null;
+    return {
+      userText: `Draft a short reply the platform owner might send. Do not send it. Do not include a phone number or an email address.\nRole: ${person?.role || "not named"}. Name: ${redactContacts(person?.name || "")}. Note: ${redactContacts(body.about).slice(0, 800) || "(none)"}`,
+      images: [],
+      subjectType: "user",
+      subjectId: String(body.userId || "")
+    };
+  }
   return { error: "That helper is not available." };
 }
 
 export function registerAssistantRoutes(app, { db, config, sendError, requireUser, requireJson }) {
   app.get("/api/ai/usage", requireUser, (req, res) => {
-    if (!MANAGERS.has(req.user.role) && req.user.role !== "platform_owner") return sendError(res, 403, "This account does not use the draft helper.");
-    const usage = req.user.role === "platform_owner"
-      ? ownerUsage(db)
-      : usageFor(db, req.user.id);
-    res.json({ ...usage, demoAvailable: !config.anthropicApiKey, capCents: moneySettings(db).aiCapCents });
+    const usage = usageFor(db, req.user);
+    res.json({ ...usage, demoAvailable: !config.anthropicApiKey });
   });
 
   app.post("/api/ai/:helper", requireJson, requireUser, async (req, res) => {
-    if (!MANAGERS.has(req.user.role)) return sendError(res, 403, "Only a manager can ask for a draft.");
     const helper = req.params.helper;
     const spec = HELPERS[helper];
     if (!spec) return sendError(res, 404, "That helper is not available.");
+    if (!helpersForRole(req.user.role).some(item => item.id === helper)) {
+      return sendError(res, 403, "That helper is not available for this account.");
+    }
     const month = monthKey();
-    const settings = moneySettings(db);
+    const cap = capForRole(moneySettings(db), req.user.role);
     const spent = spentCents(db, req.user.id, month);
     const willBill = !!config.anthropicApiKey;
-    if (willBill && spent >= settings.aiCapCents) {
-      return sendError(res, 403, "This month's draft allowance is used. The platform owner can raise it.");
+    if (willBill && cap != null && spent >= cap) {
+      return sendError(res, 403, "This month's AI Assistant allowance is used. The platform owner can raise it.");
     }
     const built = await contextFor(db, config, req.user, helper, req.body || {});
     if (built.error) return sendError(res, 404, built.error);
@@ -240,10 +348,4 @@ export function registerAssistantRoutes(app, { db, config, sendError, requireUse
     body.model = demo ? "" : spec.model;
     res.json(body);
   });
-}
-
-function ownerUsage(db) {
-  const month = monthKey();
-  const rows = db.prepare("SELECT user_id, SUM(cost_cents) AS spent FROM ai_uses WHERE month = ? AND demo = 0 GROUP BY user_id").all(month);
-  return { month, managers: rows, capCents: moneySettings(db).aiCapCents, spentCents: rows.reduce((sum, row) => sum + row.spent, 0) };
 }

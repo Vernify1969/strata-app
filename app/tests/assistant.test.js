@@ -36,7 +36,7 @@ test("sample answers are labelled drafts and do not change the report", async ()
     const draft = await alex("POST", "/api/ai/triage", { reportId: report.id });
     assert.equal(draft.status, 200);
     assert.equal(draft.json.draft, true);
-    assert.match(draft.json.label, /not legal advice/);
+    assert.equal(draft.json.label, "Draft – check before using");
     assert.match(draft.json.mode, /Demo AI \(sample answers\)/);
     assert.equal(draft.json.model, "");
     assert.equal(server.app.locals.db.prepare("SELECT status FROM reports WHERE id = ?").get(report.id).status, "NEW");
