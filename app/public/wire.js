@@ -346,6 +346,7 @@
         return true;
       }
       if (act === "open-reports" && state.remote) { this.openReports(); return true; }
+      if (act === "tab" && t.dataset.screen === "assistant" && state.remote) { this.openAssistant(); return true; }
       if (act === "open-assistant" && state.remote) { this.openAssistant(); return true; }
       if (act === "ai-run" && state.remote) { this.runAssistant(t.dataset.helper); return true; }
       if (act === "open-office" && state.remote) { this.openOffice(); return true; }
@@ -430,11 +431,9 @@
       const api = hooks();
       const state = api.state;
       await this.loadAiUsage();
-      if (state.screen !== "assistant") {
-        state.history.push({ screen: state.screen, ctx: Object.assign({}, state.ctx || {}), step: state.step, title: state.title });
-        state.screen = "assistant";
-        state.title = "Draft helper";
-      }
+      state.history = [];
+      state.screen = "assistant";
+      state.title = "AI Assistant";
       api.render();
     },
     async runAssistant(helper) {
@@ -445,7 +444,7 @@
       const building = (state.buildings || []).find(item => item.id === state.preferredBuildingId) || (state.buildings || [])[0];
       const body = {};
       if (helper === "triage" || helper === "job-draft" || helper === "reply-draft") body.reportId = report && report.id;
-      if (helper === "quote-compare" || helper === "committee" || helper === "budget-warning") body.jobId = job && job.id;
+      if (helper === "quote-compare" || helper === "committee" || helper === "budget-warning" || helper === "contractor-quote" || helper === "contractor-reply") body.jobId = job && job.id;
       if (helper === "reply-draft") body.audience = "resident";
       if (helper === "handover") body.buildingId = building && building.id;
       if (helper === "missing-info") {

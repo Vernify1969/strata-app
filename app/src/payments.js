@@ -14,6 +14,7 @@ export function moneySettings(db, config = {}) {
       depositHours: Number(row.deposit_hours || 48),
       urgentDepositHours: Number(row.urgent_deposit_hours || 12),
       aiCapCents: row.ai_cap_cents == null ? 500 : Number(row.ai_cap_cents),
+      contractorAiCapCents: row.contractor_ai_cap_cents == null ? 200 : Number(row.contractor_ai_cap_cents),
       minCoverCents: row.min_cover_cents == null ? 2000000000 : Number(row.min_cover_cents)
     };
   }
@@ -25,6 +26,7 @@ export function moneySettings(db, config = {}) {
     depositHours: Number(config.depositHours ?? 48),
     urgentDepositHours: Number(config.urgentDepositHours ?? 12),
     aiCapCents: Number(config.aiCapCents ?? 500),
+    contractorAiCapCents: Number(config.contractorAiCapCents ?? 200),
     minCoverCents: Number(config.minCoverCents ?? 2000000000)
   };
 }
