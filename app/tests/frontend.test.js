@@ -14,7 +14,7 @@ test("the server serves the existing front end and the account script", async ()
     assert.match(html, /src="\/wire\.js"/);
     assert.match(html, /class="tab sign-out-tab" type="button" data-act="sign-out"/);
     assert.match(html, /tab-label">Sign out</);
-    assert.match(html, /Four demo accounts/);
+    assert.match(html, /Five demo accounts/);
     assert.match(html, /<h2>Building manager<\/h2>/);
     assert.match(html, /<h2>Contractor<\/h2>/);
     assert.match(html, /Owners Corporation manager/);

@@ -107,7 +107,7 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
     if (!MANAGER.has(req.user.role)) return sendError(res, 403, "Only the building's manager can approve a quote.");
     const job = visibleJob(db, req.user, req.params.id);
     if (!job || job.organisation_id !== req.user.organisation_id) return sendError(res, 404, "That job is not on your account.");
-    const quote = db.prepare("SELECT * FROM quotes WHERE id = ? AND job_id = ? AND status = 'open'").get(req.body?.quoteId, job.id);
+    const quote = db.prepare("SELECT * FROM quotes WHERE id = ? AND job_id = ? AND status = 'open'").get(String(req.body?.quoteId || ""), job.id);
     if (!quote) return sendError(res, 404, "That quote is not open.");
     const building = db.prepare("SELECT * FROM buildings WHERE id = ?").get(job.building_id);
     const count = db.prepare("SELECT COUNT(*) AS n FROM quotes WHERE job_id = ? AND status = 'open'").get(job.id).n;

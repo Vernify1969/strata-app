@@ -27,6 +27,12 @@ export const DEMO_PROPERTY_MANAGER = {
   name: "Leo Park"
 };
 
+export const DEMO_OWNER = {
+  email: "owner@taskspeck.example",
+  password: "Ownerpass1",
+  name: "Nick Owner"
+};
+
 export const DEMO_QR_TOKEN = "demo-lift-1";
 export const DEMO_QR_CORRIDOR = "demo-harbour-l3-7f3a9c2e1b84";
 export const DEMO_QR_RIVERSIDE = "demo-riverside-gate-a91c4e77b2";
@@ -46,6 +52,8 @@ export async function seedDemo(db) {
 
   const now = new Date().toISOString();
   const managerOrg = newId();
+  const ownerOrg = newId();
+  const ownerId = newId();
   const contractorOrg = newId();
   const ocOrg = newId();
   const propertyOrg = newId();
@@ -67,10 +75,16 @@ export async function seedDemo(db) {
   const contractorHash = await hashPassword(DEMO_CONTRACTOR.password);
   const ocHash = await hashPassword(DEMO_OC_MANAGER.password);
   const propertyHash = await hashPassword(DEMO_PROPERTY_MANAGER.password);
+  const ownerHash = await hashPassword(DEMO_OWNER.password);
 
   db.exec("BEGIN");
   try {
     db.prepare("INSERT INTO organisations (id, name, world, created_at) VALUES (?, 'Harbour View OC', 'common', ?)").run(managerOrg, now);
+    db.prepare("INSERT INTO organisations (id, name, world, created_at) VALUES (?, 'Platform', 'platform', ?)").run(ownerOrg, now);
+    db.prepare(`INSERT INTO users (id, organisation_id, email, password_hash, role, name, mobile, business_name, abn, payment_method, consent, email_verified_at, created_at)
+      VALUES (?, ?, ?, ?, 'platform_owner', ?, '', 'Platform', '', '', 0, ?, ?)`).run(
+      ownerId, ownerOrg, DEMO_OWNER.email, ownerHash, DEMO_OWNER.name, now, now
+    );
     db.prepare("INSERT INTO organisations (id, name, world, created_at) VALUES (?, 'Sam Plumbing', 'contractor', ?)").run(contractorOrg, now);
     db.prepare("INSERT INTO organisations (id, name, world, created_at) VALUES (?, 'Riverside Owners Corporation', 'common', ?)").run(ocOrg, now);
     db.prepare("INSERT INTO organisations (id, name, world, created_at) VALUES (?, 'Southbank Lettings', 'private', ?)").run(propertyOrg, now);

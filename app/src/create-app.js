@@ -14,6 +14,7 @@ import { handleStripeWebhook, ensureMoneySettings, moneySettings, registerPaymen
 import { registerDocumentRoutes } from "./documents.js";
 import { registerQrRoutes } from "./qr.js";
 import { registerAssistantRoutes } from "./assistant.js";
+import { registerOwnerOffice } from "./owner-office.js";
 import { seedDemo } from "./demo-seed.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -119,7 +120,7 @@ export async function createApp(config) {
     }
     db.prepare("UPDATE sessions SET last_seen_at = ? WHERE token_hash = ?").run(new Date().toISOString(), hashToken(token));
     const user = userById(row.user_id);
-    if (!user || !user.email_verified_at) return null;
+    if (!user || !user.email_verified_at || user.suspended) return null;
     return user;
   }
 
@@ -284,6 +285,7 @@ export async function createApp(config) {
       return sendError(res, 401, same);
     }
     if (!user.email_verified_at) return sendError(res, 403, "Confirm your email first. You can ask for the link again.");
+    if (user.suspended) return sendError(res, 403, "This account is suspended.");
     db.prepare("DELETE FROM login_attempts WHERE email = ?").run(email);
     issueSession(req, res, user, keep);
     audit(db, { actorId: user.id, organisationId: user.organisation_id, action: "account.signed_in", subjectType: "user", subjectId: user.id, detail: {} });
@@ -463,6 +465,7 @@ export async function createApp(config) {
   registerDocumentRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
   registerQrRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
   registerAssistantRoutes(app, { db, config, sendError, requireUser, requireJson });
+  registerOwnerOffice(app, { db, mail, sendError, requireUser, requireJson, sendToken });
 
   app.get("/api/owner/settings", requireUser, (req, res) => {
     if (req.user.role !== "platform_owner") return sendError(res, 403, "Only the platform owner can open these settings.");
