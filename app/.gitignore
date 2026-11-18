@@ -1,4 +1,5 @@
 node_modules/
+eng.traineddata
 var/
 .env
 *.db
