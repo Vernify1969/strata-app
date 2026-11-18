@@ -3,24 +3,80 @@ import path from "node:path";
 import { audit } from "./db.js";
 import { newId } from "./ids.js";
 
-const ALLOWED = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
+const MAX_BYTES = 8 * 1024 * 1024;
+const TYPES = {
+  "application/pdf": ".pdf",
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/heic": ".heic",
+  "image/heif": ".heif",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+  "application/msword": ".doc"
+};
+const BY_EXT = Object.fromEntries(Object.entries(TYPES).map(([mime, ext]) => [ext, mime]));
+const BLOCKED_EXT = new Set([".exe", ".dll", ".js", ".mjs", ".sh", ".bat", ".cmd", ".com", ".scr", ".html", ".htm", ".svg", ".app"]);
 
-export function readDocumentBytes(buffer, mime) {
-  const text = mime === "application/pdf" ? extractPdfText(buffer) : "";
-  const dates = text.match(/20\d{2}-\d{2}-\d{2}/g) || [];
-  const number = (text.match(/licen[cs]e[:\s#-]*([A-Z0-9-]{4,})/i) || [])[1] || "";
+let ocrWorker;
+
+export async function closeReader() {
+  if (!ocrWorker) return;
+  const worker = await ocrWorker;
+  ocrWorker = null;
+  await worker.terminate();
+}
+
+export function acceptedType(mime, filename) {
+  const ext = path.extname(String(filename || "")).toLowerCase();
+  if (BLOCKED_EXT.has(ext)) return "";
+  if (TYPES[mime]) return mime;
+  return BY_EXT[ext] || "";
+}
+
+export function fileIsSafe(buffer, mime) {
+  if (!buffer?.length) return false;
+  if (buffer[0] === 0x4d && buffer[1] === 0x5a) return false;
+  if (buffer[0] === 0x7f && buffer[1] === 0x45 && buffer[2] === 0x4c && buffer[3] === 0x46) return false;
+  if (buffer.slice(0, 2).toString() === "#!") return false;
+  if (mime === "application/pdf") return buffer.slice(0, 5).toString() === "%PDF-";
+  if (mime === "image/jpeg") return buffer[0] === 0xff && buffer[1] === 0xd8;
+  if (mime === "image/png") return buffer.slice(0, 8).toString("hex") === "89504e470d0a1a0a";
+  if (mime === "image/webp") return buffer.slice(0, 4).toString() === "RIFF" && buffer.slice(8, 12).toString() === "WEBP";
+  if (mime === "image/heic" || mime === "image/heif") return buffer.slice(4, 8).toString() === "ftyp";
+  if (mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") return buffer[0] === 0x50 && buffer[1] === 0x4b;
+  if (mime === "application/msword") return buffer.slice(0, 4).toString("hex") === "d0cf11e0";
+  return false;
+}
+
+export async function readDocumentBytes(buffer, mime) {
+  let text = "";
+  try {
+    if (mime === "application/pdf") {
+      text = extractPdfText(buffer);
+      if (!/licen|insur|policy|expir|20\d{2}/i.test(text)) text = await ocrMany(extractPdfImages(buffer));
+    } else if (mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+      const mammoth = await import("mammoth");
+      text = (await mammoth.extractRawText({ buffer })).value || "";
+    } else if (mime.startsWith("image/")) {
+      text = await ocrMany([await imageForOcr(buffer, mime)]);
+    }
+  } catch {
+    text = "";
+  }
+  return suggestionsFrom(text, mime);
+}
+
+function suggestionsFrom(text, mime) {
+  const dates = findDates(text);
+  const number = (text.match(/(?:licen[cs]e|policy)[:\s#-]*([A-Z0-9-]{4,})/i) || [])[1] || "";
   let suggestedKind = "";
-  if (/insurance/i.test(text)) suggestedKind = "insurance";
+  if (/insurance|policy/i.test(text)) suggestedKind = "insurance";
   else if (/licen[cs]e/i.test(text)) suggestedKind = "licence";
-  return {
-    textFound: text.length > 0,
-    suggestedExpiry: dates.sort().at(-1) || "",
-    suggestedNumber: number,
-    suggestedKind,
-    note: text
-      ? "These details were read from the file. Confirm or correct them."
-      : "The file had no readable text. Type the expiry and the number yourself. Picture reading is not connected yet."
-  };
+  const readable = text.replace(/\s/g, "").length > 0;
+  let note = "These details were read from the file. Confirm or correct them.";
+  if (!readable && mime === "application/msword") note = "Older Word .doc files are stored, but the words are not read. Save it as .docx, or type the expiry and the number.";
+  else if (!readable) note = "The file was saved, but the words could not be read. Type the expiry and the number yourself.";
+  return { textFound: readable, suggestedExpiry: dates.at(-1) || "", suggestedNumber: number, suggestedKind, note };
 }
 
 export function lookupVbaLicence() {
@@ -41,7 +97,7 @@ export function complianceBlock(db, userId, today) {
   const rows = db.prepare("SELECT kind, expiry_on, created_at FROM contractor_documents WHERE user_id = ? ORDER BY created_at DESC").all(userId);
   const latest = {};
   for (const row of rows) if (!latest[row.kind]) latest[row.kind] = row;
-  const expired = Object.values(latest).find(row => row.expiry_on < today);
+  const expired = Object.values(latest).find(row => row.expiry_on && row.expiry_on < today);
   if (!expired) return "";
   const label = expired.kind === "insurance" ? "insurance" : "licence";
   return `The ${label} on file expired on ${expired.expiry_on}. Upload a current one before taking new work.`;
@@ -51,27 +107,28 @@ export function registerDocumentRoutes(app, { db, config, mail, sendError, requi
   const documentsPath = config.documentsPath || path.join(config.root, "var", "documents");
   fs.mkdirSync(documentsPath, { recursive: true });
 
-  app.post("/api/documents", requireJson, requireUser, (req, res) => {
+  app.post("/api/documents", requireJson, requireUser, async (req, res) => {
     if (req.user.role !== "contractor") return sendError(res, 403, "Only a contractor uploads licence and insurance.");
     if (req.body?.declaration !== true) return sendError(res, 400, "Tick the declaration that the document is true, current, and your responsibility.");
-    const mime = String(req.body?.mime || "");
-    if (!ALLOWED.has(mime)) return sendError(res, 400, "Upload a PDF or a picture (JPEG, PNG, or WebP).");
+    const filename = String(req.body?.filename || "document").slice(0, 120);
+    const mime = acceptedType(String(req.body?.mime || ""), filename);
+    if (!mime) return sendError(res, 400, "Upload a PDF, a photo (JPEG, PNG, WebP or HEIC), or a Word document. Programs and other files are refused.");
     const bytes = Buffer.from(String(req.body?.dataBase64 || ""), "base64");
-    if (!bytes.length || bytes.length > 5_000_000) return sendError(res, 400, "The file is missing or larger than 5 MB.");
+    if (!bytes.length || bytes.length > MAX_BYTES) return sendError(res, 400, "The file is missing or larger than 8 MB.");
+    if (!fileIsSafe(bytes, mime)) return sendError(res, 400, "That file does not match the type you named, or it is not a document.");
     const kind = req.body?.kind === "insurance" ? "insurance" : req.body?.kind === "licence" ? "licence" : "";
     if (!kind) return sendError(res, 400, "Say whether this is a licence or insurance.");
-    const suggestions = readDocumentBytes(bytes, mime);
+    const suggestions = await readDocumentBytes(bytes, mime);
     const expiry = calendarDate(req.body?.expiry) || suggestions.suggestedExpiry;
-    if (!expiry) return sendError(res, 400, "Add the expiry date. The file did not contain one we could read.");
     const number = String(req.body?.licenceNumber || suggestions.suggestedNumber || "").slice(0, 40);
     const id = newId();
-    const stored = id + (mime === "application/pdf" ? ".pdf" : ".img");
+    const stored = id + TYPES[mime];
     fs.writeFileSync(path.join(documentsPath, stored), bytes);
     const now = new Date().toISOString();
     db.prepare(`INSERT INTO contractor_documents
       (id, user_id, kind, stored_name, original_name, mime, declared, declared_at, expiry_on, licence_number, suggested_expiry, suggested_number, suggested_kind, created_at)
       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`).run(
-      id, req.user.id, kind, stored, String(req.body?.filename || "document").slice(0, 120), mime, now, expiry, number,
+      id, req.user.id, kind, stored, filename, mime, now, expiry, number,
       suggestions.suggestedExpiry, suggestions.suggestedNumber, suggestions.suggestedKind, now
     );
     audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "document.declared", subjectType: "document", subjectId: id, detail: { kind, expiry } });
@@ -176,6 +233,70 @@ function calendarDate(value) {
   const date = new Date(Date.UTC(year, month - 1, day));
   if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return "";
   return text;
+}
+
+async function imageForOcr(buffer, mime) {
+  if (mime !== "image/heic" && mime !== "image/heif") return buffer;
+  const convert = (await import("heic-convert")).default;
+  return Buffer.from(await convert({ buffer, format: "JPEG", quality: 0.85 }));
+}
+
+async function ocrMany(images) {
+  const pieces = [];
+  for (const image of images.slice(0, 2)) {
+    if (!image?.length) continue;
+    try {
+      if (!ocrWorker) {
+        const { createWorker } = await import("tesseract.js");
+        ocrWorker = createWorker("eng");
+      }
+      const worker = await ocrWorker;
+      const result = await worker.recognize(image);
+      if (result.data?.text) pieces.push(result.data.text);
+    } catch {
+      pieces.push("");
+    }
+  }
+  return pieces.join("\n");
+}
+
+function extractPdfImages(buffer) {
+  const images = [];
+  let index = 0;
+  while (index < buffer.length - 8 && images.length < 2) {
+    if (buffer[index] === 0xff && buffer[index + 1] === 0xd8) {
+      let end = index + 2;
+      while (end < buffer.length - 1 && !(buffer[end] === 0xff && buffer[end + 1] === 0xd9)) end += 1;
+      end += 2;
+      if (end - index > 100) images.push(buffer.subarray(index, end));
+      index = end;
+      continue;
+    }
+    if (buffer.slice(index, index + 8).toString("hex") === "89504e470d0a1a0a") {
+      const at = buffer.indexOf(Buffer.from("IEND"), index);
+      const end = at === -1 ? Math.min(buffer.length, index + 2_000_000) : at + 8;
+      images.push(buffer.subarray(index, end));
+      index = end;
+      continue;
+    }
+    index += 1;
+  }
+  return images;
+}
+
+function findDates(text) {
+  const found = [];
+  const push = (year, month, day) => {
+    const iso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    if (calendarDate(iso)) found.push(iso);
+  };
+  for (const match of text.matchAll(/\b(20\d{2})-(\d{2})-(\d{2})\b/g)) push(match[1], match[2], match[3]);
+  for (const match of text.matchAll(/\b(\d{1,2})[\/\-.](\d{1,2})[\/\-.](20\d{2})\b/g)) push(match[3], match[2], match[1]);
+  const months = { january: 1, february: 2, march: 3, april: 4, may: 5, june: 6, july: 7, august: 8, september: 9, october: 10, november: 11, december: 12 };
+  for (const match of text.matchAll(/\b(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(20\d{2})\b/gi)) {
+    push(match[3], months[match[2].toLowerCase()], match[1]);
+  }
+  return found;
 }
 
 function extractPdfText(buffer) {

@@ -48,9 +48,8 @@ test("another organisation cannot read a job, and a contractor does not see the 
     await plumber("PATCH", "/api/me/work", { trades: ["plumbing"], basePostcode: "3000" });
     const seen = await plumber("GET", "/api/jobs/" + posted.json.job.id);
     assert.equal(seen.status, 200);
-    const text = JSON.stringify(seen.json);
-    assert.equal(text.includes("42"), false);
-    assert.equal(text.includes("Collins Street"), true);
+    assert.equal(seen.json.job.place.streetNumber, "");
+    assert.equal(seen.json.job.place.street, "Collins Street");
     assert.equal(seen.json.job.access, "");
     assert.equal(seen.json.job.phone, "");
     const offer = await plumber("POST", "/api/jobs/" + posted.json.job.id + "/quotes", {

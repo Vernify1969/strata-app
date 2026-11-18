@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { client, lastLink, startApp } from "./helpers.js";
-import { alertDay, readDocumentBytes } from "../src/documents.js";
+import fs from "node:fs";
+import path from "node:path";
+import { alertDay, closeReader, fileIsSafe, readDocumentBytes } from "../src/documents.js";
 
 function signature(event) {
   const canonical = [event.id, event.type, event.paymentId, event.status].join("|");
@@ -127,7 +129,7 @@ function pdf(text) {
 }
 
 test("an expired document blocks new offers, alerts go out at 30, 7 and 0 days, and files stay private", async () => {
-  const read = readDocumentBytes(Buffer.from("%PDF-1.4\n(Licence: CDB-99 Expiry: 2027-06-01)\n%%EOF"), "application/pdf");
+  const read = await readDocumentBytes(Buffer.from("%PDF-1.4\n(Licence: CDB-99 Expiry: 2027-06-01)\n%%EOF"), "application/pdf");
   assert.equal(read.suggestedExpiry, "2027-06-01");
   assert.equal(read.suggestedNumber, "CDB-99");
   assert.equal(alertDay("2026-12-01", "2026-11-01"), 30);
@@ -204,5 +206,50 @@ test("an expired document blocks new offers, alerts go out at 30, 7 and 0 days, 
     assert.ok(managerNotes.json.notifications.length >= 3);
   } finally {
     await server.close();
+  }
+});
+
+test("a photo, a scanned PDF and a Word file suggest the expiry, and a bad file is refused", async () => {
+  const fixture = name => fs.readFileSync(path.join(import.meta.dirname, "fixtures", name));
+  const photo = await readDocumentBytes(fixture("licence.png"), "image/png");
+  assert.equal(photo.suggestedExpiry, "2027-06-01");
+  assert.equal(photo.suggestedNumber, "CDB-99");
+  assert.equal(photo.suggestedKind, "licence");
+  const scanned = await readDocumentBytes(fixture("licence-scanned.pdf"), "application/pdf");
+  assert.equal(scanned.suggestedExpiry, "2027-06-01");
+  assert.equal(scanned.suggestedKind, "licence");
+  const word = await readDocumentBytes(fixture("policy.docx"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+  assert.equal(word.suggestedExpiry, "2028-03-15");
+  assert.equal(word.suggestedNumber, "POL-445");
+  assert.equal(word.suggestedKind, "insurance");
+  assert.equal(fileIsSafe(Buffer.from("MZ fake"), "image/jpeg"), false);
+
+  const server = await startApp({ securityGate: true });
+  const plumber = client(server.base);
+  try {
+    await signIn(plumber, server, plumberBody);
+    await plumber("PATCH", "/api/me/work", { trades: ["plumbing"], basePostcode: "3000" });
+    const program = await plumber("POST", "/api/documents", {
+      kind: "licence", mime: "image/jpeg", filename: "run.exe", dataBase64: Buffer.from("MZ").toString("base64"), declaration: true, expiry: "2027-01-01"
+    });
+    assert.equal(program.status, 400);
+    const saved = await plumber("POST", "/api/documents", {
+      kind: "licence", mime: "image/png", filename: "licence.png",
+      dataBase64: fixture("licence.png").toString("base64"), declaration: true
+    });
+    assert.equal(saved.status, 201);
+    assert.equal(saved.json.document.expiry, "2027-06-01");
+    const typed = await plumber("POST", "/api/documents", {
+      kind: "licence", mime: "application/pdf", filename: "scan.pdf",
+      dataBase64: Buffer.from("%PDF-1.4\nempty\n%%EOF").toString("base64"),
+      declaration: true, expiry: "2028-01-01", licenceNumber: "TYPED-1"
+    });
+    assert.equal(typed.status, 201);
+    assert.equal(typed.json.document.expiry, "2028-01-01");
+    assert.equal(typed.json.document.licenceNumber, "TYPED-1");
+    assert.equal(typed.json.suggestions.textFound, false);
+  } finally {
+    await server.close();
+    await closeReader();
   }
 });
