@@ -110,6 +110,7 @@ export async function seedDemo(db) {
       buildingId, managerOrg, centre ? centre.lat : null, centre ? centre.lng : null, now
     );
     db.prepare("INSERT INTO building_assignments (user_id, building_id) VALUES (?, ?)").run(managerId, buildingId);
+    db.prepare("UPDATE buildings SET building_use = 'residential', building_class = '2' WHERE id = ?").run(buildingId);
     db.prepare(`INSERT INTO buildings (id, organisation_id, world, name, street_number, street, suburb, postcode, lat, lng, oc_plan,
       tier1_cents, tier1_quotes, tier2_cents, tier2_quotes, tier3_cents, tier3_quotes, tiers_confirmed, created_at)
       VALUES (?, ?, 'common', 'Riverside Court', '18', 'Flinders Lane', 'Melbourne', '3000', ?, ?, 'PS 22041', 99900, 1, 499900, 2, 3000000, 3, 1, ?)`).run(
@@ -121,6 +122,7 @@ export async function seedDemo(db) {
       rentalId, propertyOrg, southbank ? southbank.lat : null, southbank ? southbank.lng : null, now
     );
     db.prepare("INSERT INTO building_assignments (user_id, building_id) VALUES (?, ?)").run(propertyId, rentalId);
+    db.prepare("UPDATE buildings SET building_use = 'residential', building_class = '1' WHERE id = ?").run(rentalId);
     const payload = JSON.stringify({ safety: ["no", "no", "no", "no", "no", "no", "no"], photos: 0, date: visit, phone: "0418000111" });
     db.prepare(`INSERT INTO jobs (id, organisation_id, building_id, created_by, title, area, trade_id, instructions, urgency, quote_deadline, payload, created_at)
       VALUES (?, ?, ?, ?, 'Dripping lobby tap', 'Level 2 lobby tap', 'plumbing', 'The lobby mixer drips all day.', 'standard', ?, ?, ?)`).run(

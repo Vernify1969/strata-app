@@ -120,6 +120,16 @@ export function registerBuildingRoutes(app, { db, sendError, requireUser, requir
       if (!region) return sendError(res, 400, "That region is not available.");
       next.region_id = region.id;
     }
+    if (body.buildingUse != null) {
+      const use = String(body.buildingUse);
+      if (!["", "residential", "commercial", "industrial"].includes(use)) return sendError(res, 400, "The building type is residential, commercial or industrial.");
+      next.building_use = use;
+    }
+    if (body.buildingClass != null) {
+      const kind = String(body.buildingClass);
+      if (kind && !["1", "2", "5", "6", "7", "8", "9"].includes(kind)) return sendError(res, 400, "The building class is 1, 2, 5, 6, 7, 8 or 9.");
+      next.building_class = kind;
+    }
     if (next.name.length < 2 || next.street.length < 2) return sendError(res, 400, "Add a name and a street.");
     if (body.postcode != null) {
       const postcode = String(body.postcode);
@@ -151,10 +161,10 @@ export function registerBuildingRoutes(app, { db, sendError, requireUser, requir
     }
     db.prepare(`UPDATE buildings SET name=?, street_number=?, street=?, suburb=?, postcode=?, lat=?, lng=?, oc_plan=?, quotes_wanted=?,
       tier1_cents=?, tier1_quotes=?, tier2_cents=?, tier2_quotes=?, tier3_cents=?, tier3_quotes=?, tiers_confirmed=?,
-      open_time=?, close_time=?, weekends=?, access_note=?, capture_m=?, region_id=? WHERE id=? AND organisation_id=?`).run(
+      open_time=?, close_time=?, weekends=?, access_note=?, capture_m=?, region_id=?, building_use=?, building_class=? WHERE id=? AND organisation_id=?`).run(
       next.name, next.street_number, next.street, next.suburb, next.postcode, next.lat, next.lng, next.oc_plan, next.quotes_wanted,
       next.tier1_cents, next.tier1_quotes, next.tier2_cents, next.tier2_quotes, next.tier3_cents, next.tier3_quotes, next.tiers_confirmed,
-      next.open_time, next.close_time, next.weekends, next.access_note, next.capture_m, next.region_id, row.id, req.user.organisation_id
+      next.open_time, next.close_time, next.weekends, next.access_note, next.capture_m, next.region_id, next.building_use || "", next.building_class || "", row.id, req.user.organisation_id
     );
     audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "building.updated", subjectType: "building", subjectId: row.id, detail: {} });
     res.json({ building: publicBuilding(assignedBuilding(db, req.user, row.id)) });
@@ -251,6 +261,8 @@ export function publicBuilding(row) {
     captureM: row.capture_m,
     archived: !!row.archived,
     regionId: row.region_id,
+    buildingUse: row.building_use || "",
+    buildingClass: row.building_class || "",
     sample: false
   };
 }
