@@ -2552,6 +2552,7 @@ const PHOTOS = {
     if (job.stage === "released") stage += releasedManager(job);
     return '<div class="stack">' + head + stage +
       '<button class="btn btn-secondary" type="button" data-act="open-evidence" data-id="' + job.id + '">View evidence record</button>' +
+      documentsCard(job, "manager") +
       '<div class="card">' + timelineHtml(job) + "</div></div>";
   }
   function cancelBeforeArrival(job) {
@@ -2852,7 +2853,19 @@ const PHOTOS = {
       const ready = job.fundsStatus.indexOf("OK to start") !== -1;
       work = '<div class="notice ' + (ready ? "notice-ok" : "notice-warn") + '"><strong>' + esc(job.fundsStatus) + "</strong></div>" + work;
     }
-    return '<div class="stack">' + top + work + '<button class="btn btn-secondary" type="button" data-act="open-evidence" data-id="' + job.id + '">View evidence record</button><div class="card">' + timelineHtml(job) + "</div></div>";
+    return '<div class="stack">' + top + work + '<button class="btn btn-secondary" type="button" data-act="open-evidence" data-id="' + job.id + '">View evidence record</button>' + documentsCard(job, "contractor") + '<div class="card">' + timelineHtml(job) + "</div></div>";
+  }
+  function documentsCard(job, who) {
+    if (!job.workOrder) return "";
+    const base = "/api/jobs/" + job.id + "/documents/";
+    const variations = (job.variations || []).map(item => '<p>' + esc(item.number) + " · " + money(item.amount) + " · " + esc(item.status) + (item.declineReason ? " · " + esc(item.declineReason) : "") + '</p><a class="btn btn-secondary" href="' + base + "variation/" + item.id + '">View ' + esc(item.number) + "</a>" +
+      (who === "manager" && item.status === "requested" ? '<button class="btn btn-primary" type="button" data-act="approve-variation" data-id="' + item.id + '" data-job="' + job.id + '">Approve this extra</button><label class="field">Why decline it<input data-field="variationDecline" placeholder="Not in the agreed scope"></label><button class="btn btn-ghost" type="button" data-act="decline-variation" data-id="' + item.id + '" data-job="' + job.id + '">Decline this extra</button>' : "")).join("");
+    const invoice = job.invoice ? '<p>Invoice ' + esc(job.invoice.number) + " · " + money(job.invoice.amount) + " · " + esc(job.invoice.status) + (job.invoice.reason ? " · " + esc(job.invoice.reason) : "") + '</p><a class="btn btn-secondary" href="' + base + 'invoice">View invoice</a>' : "<p>No invoice file yet.</p>";
+    const ask = who === "contractor" ? '<h3>Ask for extra work</h3><label class="field">Amount<input type="number" data-field="variationAmount" value="' + esc(state.variationAmount || "") + '"></label><label class="field">What is the extra work<input data-field="variationReason" value="' + esc(state.variationReason || "") + '"></label><button class="btn btn-secondary" type="button" data-act="request-variation" data-id="' + job.id + '">Request extra work</button>' +
+      '<h3>Upload the invoice</h3><label class="field">Invoice number<input data-field="invoiceNumber" value="' + esc(state.invoiceNumber || "") + '"></label><label class="field">Amount<input type="number" data-field="invoiceAmount" value="' + esc(state.invoiceAmount || "") + '"></label><label class="btn btn-secondary">Choose the invoice file<input class="sr" type="file" accept="image/*,application/pdf" data-invoice="' + job.id + '"></label>' : "";
+    const ret = who === "manager" && job.invoice && (job.invoice.status === "received" || job.invoice.status === "held") ? '<label class="field">Why it needs correcting<input data-field="invoiceNote" value="' + esc(state.invoiceNote || "") + '"></label><button class="btn btn-secondary" type="button" data-act="return-invoice" data-id="' + job.invoice.id + '" data-job="' + job.id + '">Send the invoice back</button>' : "";
+    const fee = who === "contractor" ? '<a class="btn btn-secondary" href="' + base + 'fee">View the TaskSpeck fee invoice</a>' : "";
+    return '<div class="card stack"><h2>Job documents</h2><p>Work order ' + esc(job.workOrder) + '</p><a class="btn btn-secondary" href="' + base + 'work-order">View work order</a><a class="btn btn-secondary" href="' + base + 'quote">View quote</a>' + variations + invoice + ret + ask + fee + '<p class="small">Print or save as PDF from the document page. The fee invoice goes to the contractor only, and GST is not added until the platform is registered.</p></div>';
   }
   function requirementLines(job) {
     const p = placeOf(job);
@@ -3148,6 +3161,12 @@ const PHOTOS = {
       return false;
     }
     if (field === "cancelReason") { state.cancelReason = value; return false; }
+    if (field === "variationAmount") { state.variationAmount = value; return false; }
+    if (field === "variationReason") { state.variationReason = value; return false; }
+    if (field === "variationDecline") { state.variationDecline = value; return false; }
+    if (field === "invoiceNumber") { state.invoiceNumber = value; return false; }
+    if (field === "invoiceAmount") { state.invoiceAmount = value; return false; }
+    if (field === "invoiceNote") { state.invoiceNote = value; return false; }
     if (field === "note.draft") { state.noteDraft = value; return false; }
     if (field.indexOf("qr.") === 0) {
       state.qrDraft = state.qrDraft || { buildingId: "", name: "", level: "" };
@@ -3763,6 +3782,10 @@ const PHOTOS = {
   });
   document.addEventListener("change", e => {
     const el = e.target;
+    if (el.dataset && el.dataset.invoice && state.remote && window.StrataWire) {
+      window.StrataWire.uploadInvoice(el);
+      return;
+    }
     if (el.dataset && el.dataset.capture && state.remote && window.StrataWire) {
       window.StrataWire.captureFile(el);
       return;

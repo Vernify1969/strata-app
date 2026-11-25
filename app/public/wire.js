@@ -354,6 +354,10 @@
       if ((act === "take-photo" || act === "take-video") && state.remote) { this.saveEvidence(t.dataset.id, t.dataset.stage, act === "take-photo" ? "photo" : "video"); return true; }
       if (act === "challenge" && state.remote) { this.challengeWork(t.dataset.id); return true; }
       if (act === "export" && state.remote) { this.exportEvidence(t.dataset.id); return true; }
+      if (act === "request-variation" && state.remote) { this.requestVariation(t.dataset.id); return true; }
+      if (act === "approve-variation" && state.remote) { this.decideVariation(t.dataset.job, t.dataset.id, "approve"); return true; }
+      if (act === "decline-variation" && state.remote) { this.decideVariation(t.dataset.job, t.dataset.id, "decline"); return true; }
+      if (act === "return-invoice" && state.remote) { this.returnInvoice(t.dataset.job, t.dataset.id); return true; }
       if (act === "accept" && state.remote) { this.acceptWork(t.dataset.id); return true; }
       if ((act === "save-building" || act === "join-wait") && state.remote) { this.saveBuilding(); return true; }
       if (act === "owner" && state.account && state.account.role !== "platform_owner") {
@@ -939,6 +943,52 @@
       api.state.challengeNote = "";
       await loadJobs();
       api.toast(res.json.stage === "fix2" ? "Final fix requested." : "Fix requested.");
+      api.render();
+    },
+    async requestVariation(jobId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/variations", { amount: Number(api.state.variationAmount), reason: api.state.variationReason || "" });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The extra work was not requested."); return; }
+      api.state.variationAmount = "";
+      api.state.variationReason = "";
+      await loadJobs();
+      api.toast("Asked for " + res.json.number + ".");
+      api.render();
+    },
+    async decideVariation(jobId, variationId, decision) {
+      const api = hooks();
+      const body = decision === "decline" ? { reason: api.state.variationDecline || "" } : {};
+      const res = await call("POST", "/api/jobs/" + jobId + "/variations/" + variationId + "/" + decision, body);
+      if (!res.ok) { api.toast((res.json && res.json.error) || "That extra work was not updated."); return; }
+      await loadJobs();
+      api.toast(decision === "approve" ? "Extra work approved." : "Extra work declined.");
+      api.render();
+    },
+    uploadInvoice(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      const api = hooks();
+      reader.onload = async () => {
+        const res = await call("POST", "/api/jobs/" + input.dataset.invoice + "/invoice-file", {
+          number: api.state.invoiceNumber || "",
+          amount: Number(api.state.invoiceAmount),
+          fileName: file.name,
+          data: reader.result
+        });
+        if (!res.ok) { api.toast((res.json && res.json.error) || "The invoice was not uploaded."); return; }
+        await loadJobs();
+        api.toast(res.json.held ? "Invoice uploaded. It is above the agreed price, so it is held." : "Invoice uploaded.");
+        api.render();
+      };
+      reader.readAsDataURL(file);
+    },
+    async returnInvoice(jobId, invoiceId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/invoices/" + invoiceId + "/return", { reason: api.state.invoiceNote || "" });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The invoice was not sent back."); return; }
+      await loadJobs();
+      api.toast("Sent back to the contractor.");
       api.render();
     },
     async exportEvidence(jobId) {

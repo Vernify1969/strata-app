@@ -531,6 +531,41 @@ function migrate(db) {
     `);
   }
   if (userVersion(db) < 22) db.exec("PRAGMA user_version = 22");
+  if (!columnExists(db, "jobs", "work_order")) {
+    db.exec("ALTER TABLE jobs ADD COLUMN work_order TEXT NOT NULL DEFAULT ''");
+    db.exec("ALTER TABLE quotes ADD COLUMN quote_number TEXT NOT NULL DEFAULT ''");
+    db.exec(`
+      CREATE TABLE number_counters (
+        name TEXT PRIMARY KEY,
+        next_value INTEGER NOT NULL
+      );
+      CREATE TABLE job_variations (
+        id TEXT PRIMARY KEY,
+        job_id TEXT NOT NULL,
+        number TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL,
+        reason TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'requested',
+        decline_reason TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        decided_at TEXT NOT NULL DEFAULT ''
+      );
+      CREATE TABLE job_invoices (
+        id TEXT PRIMARY KEY,
+        job_id TEXT NOT NULL,
+        number TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL,
+        gst INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'received',
+        return_reason TEXT NOT NULL DEFAULT '',
+        stored_name TEXT NOT NULL DEFAULT '',
+        original_name TEXT NOT NULL DEFAULT '',
+        content_type TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+    `);
+  }
+  if (userVersion(db) < 23) db.exec("PRAGMA user_version = 23");
 }
 
 function tableExists(db, name) {
