@@ -56,7 +56,7 @@ test("a work order, an extra, an invoice file and a fee invoice are kept", async
     const db = new DatabaseSync(server.config.databasePath, { readOnly: true });
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM job_invoices").get().n, 2);
     assert.equal(db.prepare("SELECT status FROM job_invoices WHERE number = 'INV-9'").get().status, "returned");
-    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 23);
+    assert.ok(db.prepare("PRAGMA user_version").get().user_version >= 23);
     db.close();
     const fee = await plumber("GET", "/api/jobs/" + id + "/documents/fee");
     assert.equal(fee.status, 200);

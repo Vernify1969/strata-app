@@ -14,6 +14,7 @@ import { registerEvidenceRoutes } from "./evidence.js";
 import { handleStripeWebhook, ensureMoneySettings, moneySettings, cleanDesignTheme, registerPaymentRoutes } from "./payments.js";
 import { registerDocumentRoutes } from "./documents.js";
 import { registerJobPaperRoutes } from "./job-papers.js";
+import { registerPaymentRequestRoutes } from "./payment-requests.js";
 import { registerQrRoutes } from "./qr.js";
 import { registerAssistantRoutes } from "./assistant.js";
 import { cleanAssistantName, registerChloeRoutes } from "./chloe.js";
@@ -501,6 +502,7 @@ export async function createApp(config) {
   registerEvidenceRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerJobPaperRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerPaymentRoutes(app, { db, config, sendError, requireUser, requireJson });
+  registerPaymentRequestRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
   registerDocumentRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
   registerQrRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
   registerChloeRoutes(app, { db, config, sendError, requireUser, requireJson });
@@ -518,8 +520,9 @@ export async function createApp(config) {
     const settings = moneySettings(db, config);
     res.json({
       feePercent: settings.commissionPercent,
-      gstOnFee: false,
-      maxPayDays: 14,
+      gstOnFee: settings.gstOnFee,
+      maxPayDays: settings.maxPayDays,
+      overduePauseDays: settings.overduePauseDays,
       urgentFeeCents: settings.urgentFeeCents,
       apartmentFeeCents: settings.apartmentFeeCents,
       apartmentFeeEnabled: settings.apartmentFeeEnabled,
@@ -554,6 +557,9 @@ export async function createApp(config) {
     const assistantGreeting = req.body?.assistantGreeting == null ? current.assistantGreeting : String(req.body.assistantGreeting).slice(0, 180);
     const assistantTone = req.body?.assistantTone == null ? current.assistantTone : (req.body.assistantTone === "short" ? "short" : "friendly");
     const designTheme = cleanDesignTheme(req.body?.designTheme, current.designTheme);
+    const gstOnFee = req.body?.gstOnFee == null ? current.gstOnFee : !!req.body.gstOnFee;
+    const maxPayDays = req.body?.maxPayDays == null ? current.maxPayDays : Number(req.body.maxPayDays);
+    const overduePauseDays = req.body?.overduePauseDays == null ? current.overduePauseDays : Number(req.body.overduePauseDays);
     if (req.body?.assistantName != null && !assistantName) return sendError(res, 400, "The assistant name is 1 to 20 letters and spaces.");
     if (!Number.isInteger(commission) || commission < 0 || commission > 30) return sendError(res, 400, "Commission is a whole number from 0 to 30.");
     if (!Number.isInteger(urgent) || urgent < 0) return sendError(res, 400, "The urgent fee is a number of cents.");
@@ -563,8 +569,10 @@ export async function createApp(config) {
     if (!Number.isInteger(aiCapCents) || aiCapCents < 0 || aiCapCents > 100000) return sendError(res, 400, "The manager allowance is a whole number of cents.");
     if (!Number.isInteger(contractorAiCapCents) || contractorAiCapCents < 0 || contractorAiCapCents > 100000) return sendError(res, 400, "The contractor allowance is a whole number of cents.");
     if (!Number.isInteger(minCoverCents) || minCoverCents < 0) return sendError(res, 400, "The cover minimum is a whole number of cents.");
-    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, apartment_fee_cents = ?, apartment_fee_enabled = ?, deposit_hours = ?, urgent_deposit_hours = ?, ai_cap_cents = ?, contractor_ai_cap_cents = ?, min_cover_cents = ?, assistant_name = ?, assistant_greeting = ?, assistant_tone = ?, design_theme = ? WHERE id = 'main'`)
-      .run(commission, urgent, apartment, enabled ? 1 : 0, depositHours, urgentDepositHours, aiCapCents, contractorAiCapCents, minCoverCents, assistantName, assistantGreeting, assistantTone, designTheme);
+    if (!Number.isInteger(maxPayDays) || maxPayDays < 1 || maxPayDays > 90) return sendError(res, 400, "The longest payment terms are a whole number of days from 1 to 90.");
+    if (!Number.isInteger(overduePauseDays) || overduePauseDays < 1 || overduePauseDays > 60) return sendError(res, 400, "The overdue pause is a whole number of days from 1 to 60.");
+    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, apartment_fee_cents = ?, apartment_fee_enabled = ?, deposit_hours = ?, urgent_deposit_hours = ?, ai_cap_cents = ?, contractor_ai_cap_cents = ?, min_cover_cents = ?, assistant_name = ?, assistant_greeting = ?, assistant_tone = ?, design_theme = ?, gst_on_fee = ?, max_pay_days = ?, overdue_pause_days = ? WHERE id = 'main'`)
+      .run(commission, urgent, apartment, enabled ? 1 : 0, depositHours, urgentDepositHours, aiCapCents, contractorAiCapCents, minCoverCents, assistantName, assistantGreeting, assistantTone, designTheme, gstOnFee ? 1 : 0, maxPayDays, overduePauseDays);
     res.json({ ...moneySettings(db, config), apartmentFeeCharged: false });
   });
 

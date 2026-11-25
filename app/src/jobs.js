@@ -3,11 +3,10 @@ import { complianceBlock } from "./documents.js";
 import { centreOf } from "./area.js";
 import { abnOk, newId } from "./ids.js";
 import { moneySettings, requestCapture } from "./payments.js";
+import { closeReady } from "./payment-requests.js";
 import { takeNumber } from "./job-papers.js";
 import { approvalFor, depositAllowed, depositCents, hasContact, invoiceDecision, reviewEndsAt } from "./rules.js";
 
-// TODO(owner): refunds are not built. A cancellation before arrival should refund through Stripe once you decide the policy.
-// TODO(owner): disputes are not built. TaskSpeck never decides who is right.
 // TODO(owner): the Strata administrator role is not defined, so it is not a role in this app.
 
 const MANAGER = new Set(["building_manager", "oc_manager", "property_manager"]);
@@ -50,6 +49,7 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
       WHERE buildings.id = ? AND buildings.organisation_id = ? AND building_assignments.user_id = ? AND buildings.archived = 0`)
       .get(req.body?.buildingId, req.user.organisation_id, req.user.id);
     if (!building) return sendError(res, 404, "That building is not on your account.");
+    if (building.payments_paused) return sendError(res, 400, "Payments for this building are overdue. New jobs are paused until they are paid.");
     const served = db.prepare("SELECT postcode FROM service_postcodes WHERE postcode = ?").get(building.postcode);
     if (!served) return sendError(res, 400, "We do not cover this area yet.");
     const title = String(req.body?.title || "").trim();
@@ -161,7 +161,7 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
     if (job.arrival_status === "arrived") return sendError(res, 400, "This job can no longer be cancelled here. The contractor has arrived.");
     if (!job.contractor_user_id) return sendError(res, 400, "This job has no booked contractor.");
     const held = db.prepare("SELECT 1 AS ok FROM payments WHERE job_id = ? AND status NOT IN ('failed', 'canceled', 'cancelled')").get(job.id);
-    if (held) return sendError(res, 409, "A payment is already recorded. Refunds are not available yet, so this job cannot be cancelled from here.");
+    if (held) return sendError(res, 409, "A payment is already recorded. The platform owner can refund it. This job cannot be cancelled from here.");
     const contractor = req.user.role === "contractor";
     if (contractor && job.contractor_user_id !== req.user.id) return sendError(res, 403, "Only the booked contractor can cancel their own job.");
     if (!contractor && !MANAGER.has(req.user.role)) return sendError(res, 403, "You cannot cancel this job.");
@@ -264,8 +264,7 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
       urgent,
       urgentFeeCents: urgent ? settings.urgentFeeCents : 0,
       commissionPercent: settings.commissionPercent,
-      shownBeforeApproval: true,
-      // TODO(owner): refunds and disputes are not decided. Do not refund or judge from this approval.
+      shownBeforeApproval: true
     });
   });
 
@@ -528,6 +527,12 @@ function clientJob(db, job, user, quotes = [], contractors = new Map()) {
       const row = db.prepare("SELECT * FROM job_invoices WHERE job_id = ? ORDER BY created_at DESC LIMIT 1").get(job.id);
       return row ? { id: row.id, number: row.number, amount: row.amount_cents / 100, status: row.status, reason: row.return_reason, fileName: row.original_name } : null;
     })(),
+    paymentRequests: db.prepare("SELECT * FROM payment_requests WHERE job_id = ? ORDER BY created_at").all(job.id).map(row => ({
+      id: row.id, number: row.number, kind: row.kind, amount: row.amount_cents / 100, amountCents: row.amount_cents,
+      dueOn: row.due_on, status: row.status, failureReason: row.failure_reason || ""
+    })),
+    closeState: job.closed_at ? "closed" : closeReady(db, job).ok ? "ready" : "",
+    closedAt: job.closed_at || "",
     stage: job.stage,
     postedAt: Date.parse(job.created_at) || Date.now(),
     access: showAddress ? building.access_note : "",

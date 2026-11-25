@@ -89,6 +89,10 @@
       weekends: !!item.weekends,
       access: item.access || "",
       captureM: item.captureM || 150,
+      payer: item.payer || "accounts",
+      paymentEmail: item.paymentEmail || "",
+      paymentTermsDays: item.paymentTermsDays == null ? 14 : item.paymentTermsDays,
+      paymentsPaused: !!item.paymentsPaused,
       sample: false
     };
   }
@@ -358,6 +362,11 @@
       if (act === "approve-variation" && state.remote) { this.decideVariation(t.dataset.job, t.dataset.id, "approve"); return true; }
       if (act === "decline-variation" && state.remote) { this.decideVariation(t.dataset.job, t.dataset.id, "decline"); return true; }
       if (act === "return-invoice" && state.remote) { this.returnInvoice(t.dataset.job, t.dataset.id); return true; }
+      if (act === "make-request" && state.remote) { this.makeRequest(t.dataset.id); return true; }
+      if (act === "send-request" && state.remote) { this.sendRequest(t.dataset.job, t.dataset.id); return true; }
+      if ((act === "pay-request" || act === "retry-request") && state.remote) { this.payRequest(t.dataset.job, t.dataset.id, act === "retry-request"); return true; }
+      if (act === "close-job" && state.remote) { this.closeJob(t.dataset.id); return true; }
+      if (act === "toggle-gst" && state.remote) { this.saveGst(!state.owner.gstOnFee); return true; }
       if (act === "accept" && state.remote) { this.acceptWork(t.dataset.id); return true; }
       if ((act === "save-building" || act === "join-wait") && state.remote) { this.saveBuilding(); return true; }
       if (act === "owner" && state.account && state.account.role !== "platform_owner") {
@@ -584,6 +593,10 @@
       }[section] || "/api/owner/overview";
       const res = await call("GET", path);
       if (!res.ok) { api.toast((res.json && res.json.error) || "That section is not available."); return; }
+      if (section === "settings") {
+        const money = await call("GET", "/api/owner/settings");
+        if (money.ok) api.state.owner.gstOnFee = !!money.json.gstOnFee;
+      }
       api.state.officeSection = section;
       api.state.officeData = res.json;
       api.state.screen = "office";
@@ -762,7 +775,10 @@
         close: building.close,
         weekends: !!building.weekends,
         access: building.access,
-        captureM: building.captureM
+        captureM: building.captureM,
+        payer: building.payer || "accounts",
+        paymentEmail: building.paymentEmail || "",
+        paymentTermsDays: Number(building.paymentTermsDays == null ? 14 : building.paymentTermsDays)
       };
       if (api.state.manager.role === "property") body.quotesWanted = Number(building.quotesWanted || 1);
       else {
@@ -982,6 +998,53 @@
         api.render();
       };
       reader.readAsDataURL(file);
+    },
+    async makeRequest(jobId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/payment-requests", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The payment request was not prepared."); return; }
+      await loadJobs();
+      api.toast("Payment request " + res.json.number + " prepared.");
+      api.render();
+    },
+    async sendRequest(jobId, requestId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/payment-requests/" + requestId + "/send", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The payment request was not sent."); return; }
+      await loadJobs();
+      api.toast(res.json.status === "sent" ? "Payment request sent." : "Payment request updated.");
+      api.render();
+    },
+    async payRequest(jobId, requestId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/payment-requests/" + requestId + "/pay", {
+        idempotencyKey: "pay-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8)
+      });
+      await loadJobs();
+      if (res.status === 402 || (res.json && res.json.failed)) {
+        api.toast("Payment failed. Nothing was taken. You can try again.");
+        api.render();
+        return;
+      }
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The payment was not recorded."); return; }
+      api.toast(res.json.repeated ? "That payment was already recorded." : "Payment recorded.");
+      api.render();
+    },
+    async closeJob(jobId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/close", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The job was not closed."); return; }
+      await loadJobs();
+      api.toast("Job closed. The records stay.");
+      api.render();
+    },
+    async saveGst(on) {
+      const api = hooks();
+      const res = await call("PATCH", "/api/owner/settings", { gstOnFee: !!on });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "Only the owner can change GST on the fee."); return; }
+      api.state.owner.gstOnFee = !!res.json.gstOnFee;
+      api.toast(api.state.owner.gstOnFee ? "GST on the fee is on." : "GST on the fee is off.");
+      api.render();
     },
     async returnInvoice(jobId, invoiceId) {
       const api = hooks();

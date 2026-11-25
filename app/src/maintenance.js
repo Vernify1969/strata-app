@@ -1,4 +1,5 @@
 import { sendDueAlerts } from "./documents.js";
+import { chaseOverdueRequests } from "./payment-requests.js";
 import { applyTemplate } from "./mail.js";
 import { captureExpiringHolds, moneySettings, releaseJobPayments } from "./payments.js";
 
@@ -89,7 +90,8 @@ export async function runMaintenance(db, mail, config, now = new Date()) {
   const released = await releaseExpiredReviews(db, config, now);
   const deposits = await watchDeposits(db, mail, config, now);
   const captures = await captureExpiringHolds(db, config, now);
-  return { alerts, released, deposits, captures, reviews };
+  const overdue = await chaseOverdueRequests(db, mail, config, now);
+  return { alerts, released, deposits, captures, reviews, overdue };
 }
 
 export function startMaintenance({ db, mail, config }) {

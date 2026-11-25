@@ -231,11 +231,14 @@ function invoicePage(db, job) {
 
 function feePage(db, config, job) {
   const settings = moneySettings(db, config);
-  const fee = feeOfCents(job.approved_cents || 0, settings.commissionPercent, false);
+  const fee = feeOfCents(job.approved_cents || 0, settings.commissionPercent, settings.gstOnFee);
   const number = "TS-" + String(job.work_order || "").replace(/^WO-/, "");
-  return page(number, `<p class="muted">TaskSpeck Strata</p><h1>Invoice ${esc(number)}</h1>
+  const gstLine = settings.gstOnFee
+    ? `<p>GST on the fee ${money(fee.gst)}. This is a tax invoice.</p>`
+    : "<p>GST on the fee: not charged. The platform is not registered for GST, so this is not a tax invoice yet.</p>";
+  return page(number, `<p class="muted">TaskSpeck Strata</p><h1>${settings.gstOnFee ? "Tax invoice" : "Invoice"} ${esc(number)}</h1>
 <p>Platform fee on ${esc(job.work_order)}</p><p>${esc(job.title)}</p>
 <p>Agreed price ${money(job.approved_cents)}</p><p>Platform fee (${settings.commissionPercent}%) ${money(fee.fee)}</p>
-<p>GST on the fee: not charged. The platform is not registered for GST, so this is not a tax invoice yet.</p>
+${gstLine}
 <p>The fee is taken from the contractor’s payout. The manager does not receive this invoice and pays no fee.</p>`);
 }

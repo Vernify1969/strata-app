@@ -55,7 +55,7 @@ export function registerOwnerOffice(app, { db, mail, sendError, requireUser, req
       moneyReleasedCents: db.prepare("SELECT COALESCE(SUM(amount_cents), 0) AS n FROM payments WHERE released_at != ''").get().n,
       feesEarnedCents: db.prepare("SELECT COALESCE(SUM(fee_cents), 0) AS n FROM payments WHERE status = 'succeeded'").get().n,
       documentsExpiring: expiring,
-      refunds: "not available yet: refund rules not decided by Nick"
+      refunds: "The owner can refund a payment in full or in part. Opening a dispute pauses the payout until it is won. TaskSpeck does not decide who is right."
     });
   });
 
@@ -176,7 +176,7 @@ export function registerOwnerOffice(app, { db, mail, sendError, requireUser, req
     if (filter) rows = rows.filter(row => row.ledger === filter || row.status === filter);
     res.json({
       payments: rows,
-      refunds: "not available yet: refund rules not decided by Nick"
+      refunds: "The owner can refund a payment in full or in part. Opening a dispute pauses the payout until it is won. TaskSpeck does not decide who is right."
     });
   });
 

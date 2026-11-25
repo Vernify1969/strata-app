@@ -25,6 +25,9 @@ export function moneySettings(db, config = {}) {
       webSearchEnabled: row.web_search_enabled == null ? true : row.web_search_enabled === 1,
       reminderCheckHours: row.reminder_check_hours == null ? 3 : Number(row.reminder_check_hours),
       designTheme: cleanDesignTheme(row.design_theme),
+      gstOnFee: row.gst_on_fee === 1,
+      overduePauseDays: row.overdue_pause_days == null ? 7 : Number(row.overdue_pause_days),
+      maxPayDays: row.max_pay_days == null ? 14 : Number(row.max_pay_days),
       minCoverCents: row.min_cover_cents == null ? 2000000000 : Number(row.min_cover_cents)
     };
   }
@@ -43,6 +46,9 @@ export function moneySettings(db, config = {}) {
     webSearchEnabled: config.webSearchEnabled !== false,
     reminderCheckHours: Number(config.reminderCheckHours ?? 3),
     designTheme: cleanDesignTheme(config.designTheme),
+    gstOnFee: !!config.gstOnFee,
+    overduePauseDays: Number(config.overduePauseDays ?? 7),
+    maxPayDays: Number(config.maxPayDays ?? 14),
     minCoverCents: Number(config.minCoverCents ?? 2000000000)
   };
 }
@@ -75,7 +81,7 @@ export function registerPaymentRoutes(app, { db, config, sendError, requireUser,
     const jobPart = job.needs_prepay && paidSoFar === 0 ? (quote?.deposit_cents || job.approved_cents) : Math.max(0, (job.approved_cents || 0) - paidSoFar);
     if (!jobPart) return sendError(res, 400, "Nothing more is due on this job.");
     const urgent = (job.urgency === "urgent" || job.urgency === "after_hours") && paidSoFar === 0 ? settings.urgentFeeCents : 0;
-    const split = feeOfCents(jobPart, settings.commissionPercent, false);
+    const split = feeOfCents(jobPart, settings.commissionPercent, settings.gstOnFee);
     const fee = split.fee + urgent;
     const amount = jobPart + urgent;
     const net = amount - fee;
@@ -96,7 +102,7 @@ export function registerPaymentRoutes(app, { db, config, sendError, requireUser,
       const contractor = db.prepare("SELECT stripe_account_id FROM users WHERE id = ?").get(job.contractor_user_id);
       if (!contractor?.stripe_account_id) return sendError(res, 400, "The contractor has not finished Stripe Connect in test mode.");
       // Separate charge. The contractor is not paid yet. The transfer happens when the manager marks the job complete.
-      // TODO(owner): refunds and disputes are not built. Do not refund this charge until that decision is made.
+      // The platform owner refunds or records a dispute from the owner payment routes.
       const intent = await stripe.paymentIntents.create({
         amount,
         currency: "aud",
@@ -187,10 +193,20 @@ export async function requestCapture(db, config, payment) {
   await stripe.paymentIntents.capture(payment.provider_ref);
 }
 
+export async function releasePrepaidOnArrival(db, config, job) {
+  if (!job || job.arrival_confirmed !== 1) return [];
+  const held = db.prepare("SELECT * FROM payments WHERE job_id = ? AND status = 'succeeded' AND released_at = '' AND payout_paused = 0 AND release_on = 'arrival'").all(job.id);
+  return payOut(db, config, job, held);
+}
+
 export async function releaseJobPayments(db, config, job) {
   const waiting = db.prepare("SELECT * FROM payments WHERE job_id = ? AND status IN ('requires_payment', 'requires_capture') AND released_at = ''").all(job.id);
   for (const payment of waiting) await requestCapture(db, config, payment);
-  const held = db.prepare("SELECT * FROM payments WHERE job_id = ? AND status = 'succeeded' AND released_at = '' AND payout_paused = 0").all(job.id);
+  const held = db.prepare("SELECT * FROM payments WHERE job_id = ? AND status = 'succeeded' AND released_at = '' AND payout_paused = 0 AND release_on != 'arrival'").all(job.id);
+  return payOut(db, config, job, held);
+}
+
+async function payOut(db, config, job, held) {
   if (!held.length) return [];
   const contractor = db.prepare("SELECT stripe_account_id FROM users WHERE id = ?").get(job.contractor_user_id);
   const now = new Date().toISOString();
@@ -253,9 +269,9 @@ export async function handleStripeWebhook(req, res, { db, config }) {
     return;
   }
   if (event.type === "payment_intent.payment_failed") {
-    db.prepare("UPDATE payments SET status = 'failed', failure_reason = ? WHERE id = ?").run(
-      String(intent.last_payment_error?.message || "The card was declined."), payment.id
-    );
+    const reason = String(intent.last_payment_error?.message || "The card was declined.");
+    db.prepare("UPDATE payments SET status = 'failed', failure_reason = ? WHERE id = ?").run(reason, payment.id);
+    db.prepare("UPDATE payment_requests SET status = 'failed', failure_reason = ? WHERE payment_id = ?").run(reason, payment.id);
   } else if (event.type === "payment_intent.amount_capturable_updated" && Number(intent.amount_capturable || 0) > 0) {
     db.prepare("UPDATE payments SET status = 'requires_capture', provider_ref = ? WHERE id = ?").run(String(intent.id || payment.provider_ref), payment.id);
   } else if (event.type === "payment_intent.succeeded") {
@@ -264,9 +280,11 @@ export async function handleStripeWebhook(req, res, { db, config }) {
       confirmedAt, confirmedAt, String(intent.id || payment.provider_ref), payment.id
     );
     const job = db.prepare("SELECT * FROM jobs WHERE id = ?").get(payment.job_id);
+    db.prepare("UPDATE payment_requests SET status = 'paid', paid_at = ?, failure_reason = '' WHERE payment_id = ?").run(confirmedAt, payment.id);
     if (job && job.needs_prepay && job.stage === "approved") {
       db.prepare("UPDATE jobs SET stage = 'paid' WHERE id = ?").run(job.id);
     }
+    if (job && job.arrival_confirmed === 1) await releasePrepaidOnArrival(db, config, db.prepare("SELECT * FROM jobs WHERE id = ?").get(job.id));
     if (!payment.funds_confirmed_at && job?.contractor_user_id && config.mail) {
       const contractor = db.prepare("SELECT email FROM users WHERE id = ?").get(job.contractor_user_id);
       if (contractor?.email) {
