@@ -75,6 +75,10 @@ export function loadConfig(overrides = {}) {
     },
     anthropicApiKey: overrides.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY ?? "",
     mapTileUrl: overrides.mapTileUrl || process.env.MAP_TILE_URL || DEFAULT_MAP_TILE_URL,
-    mapTileAttribution: overrides.mapTileAttribution || process.env.MAP_TILE_ATTRIBUTION || DEFAULT_MAP_TILE_ATTRIBUTION
+    mapTileAttribution: overrides.mapTileAttribution || process.env.MAP_TILE_ATTRIBUTION || DEFAULT_MAP_TILE_ATTRIBUTION,
+    supportEmail: overrides.supportEmail || process.env.SUPPORT_EMAIL || "support@your-domain.example",
+    vapidPublicKey: overrides.vapidPublicKey || process.env.VAPID_PUBLIC_KEY || "",
+    vapidPrivateKey: overrides.vapidPrivateKey || process.env.VAPID_PRIVATE_KEY || "",
+    vapidSubject: overrides.vapidSubject || process.env.VAPID_SUBJECT || ""
   };
 }

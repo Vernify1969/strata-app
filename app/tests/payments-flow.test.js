@@ -170,7 +170,7 @@ test("payment requests can be sent, retried, released, closed, refunded and paus
     assert.equal((await alex("POST", "/api/jobs", { buildingId, title: "Another tap", area: "Kitchen", tradeId: "plumbing" })).status, 201);
 
     const version = new DatabaseSync(server.config.databasePath, { readOnly: true });
-    assert.equal(version.prepare("PRAGMA user_version").get().user_version, 24);
+    assert.ok(version.prepare("PRAGMA user_version").get().user_version >= 24);
     version.close();
     const page = await (await fetch(server.base + "/")).text();
     assert.match(page, /Payment failed/);

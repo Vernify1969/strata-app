@@ -1627,6 +1627,8 @@ const PHOTOS = {
       office: officeScreen,
       emergency: emergencyScreen,
       guide: guideScreen,
+      help: helpScreen,
+      notify: notifyScreen,
       success: successScreen
     };
     const fn = map[state.screen] || managerHome;
@@ -2411,6 +2413,7 @@ const PHOTOS = {
       '<button class="btn btn-secondary" type="button" data-act="open-evidence" data-id="' + job.id + '">View evidence record</button>' +
       documentsCard(job, "manager") +
       paymentsCard(job) +
+      messagesCard(job) +
       '<div class="card">' + timelineHtml(job) + "</div></div>";
   }
   function cancelBeforeArrival(job) {
@@ -2711,7 +2714,7 @@ const PHOTOS = {
       const ready = job.fundsStatus.indexOf("OK to start") !== -1;
       work = '<div class="notice ' + (ready ? "notice-ok" : "notice-warn") + '"><strong>' + esc(job.fundsStatus) + "</strong></div>" + work;
     }
-    return '<div class="stack">' + top + work + '<button class="btn btn-secondary" type="button" data-act="open-evidence" data-id="' + job.id + '">View evidence record</button>' + documentsCard(job, "contractor") + '<div class="card">' + timelineHtml(job) + "</div></div>";
+    return '<div class="stack">' + top + work + '<button class="btn btn-secondary" type="button" data-act="open-evidence" data-id="' + job.id + '">View evidence record</button>' + documentsCard(job, "contractor") + messagesCard(job) + '<div class="card">' + timelineHtml(job) + "</div></div>";
   }
   function documentsCard(job, who) {
     if (!job.workOrder) return "";
@@ -2738,6 +2741,56 @@ const PHOTOS = {
       : (job.closeState === "closed" ? "<p>Closed. The quote, work order, invoice and payments stay on the record.</p>" : "");
     return '<div class="card stack"><h2>Payment requests</h2>' + (rows || "<p>No payment request yet.</p>") +
       '<button class="btn btn-secondary" type="button" data-act="make-request" data-id="' + job.id + '">Prepare a payment request</button>' + close + "</div>";
+  }
+  function helpLinks() {
+    return '<h2>Help and settings</h2><div class="card stack"><button class="btn btn-secondary" type="button" data-act="open-notify">Notification settings</button><button class="btn btn-secondary" type="button" data-act="open-help">Help and support</button></div>';
+  }
+  function helpScreen() {
+    const questions = [
+      ["How do I send a request?", "On Home, tap a service, say where the problem is, add photos, choose when, then send. Contractors in the area can see it straight away."],
+      ["What does it cost?", "Managers pay nothing. Contractors pay a 15% fee on each job, taken from their payment. Stripe holds the money. TaskSpeck Strata never holds it."],
+      ["What if the work is not right?", "You have 72 hours to accept the work or challenge it with photos. If the 72 hours end on a weekend or public holiday, the review stays open until 5 pm on the next working day. TaskSpeck Strata keeps the evidence but does not decide who is right."],
+      ["Can I change a request?", "Yes, until the first quote arrives. After that, cancel it and send a new one, or ask the contractors a question in the messages."],
+      ["What if no one quotes?", "The request shows the date quotes are wanted by. You can extend it by two days."],
+      ["How do I stop being notified?", "Open Profile, then Notification settings. Urgent and emergency alerts always stay on, and always come by email."],
+      ["How do I get or delete my data?", "Open Profile, then My data and privacy. You can download what the app holds about you, or send a privacy request to get a copy, correct it or delete it. Some records must be kept, such as tax records and the other person’s side of a job."]
+    ];
+    const email = (state.help && state.help.supportEmail) || "support@your-domain.example";
+    return '<div class="stack"><h1>Help and support</h1><div class="notice notice-bad"><strong>In an emergency call 000.</strong><p>TaskSpeck Strata is not an emergency service.</p></div>' +
+      '<div class="card stack"><h2>Contact us</h2><p>Email <strong>' + esc(email) + '</strong>. This address is a placeholder until the real support address exists. Please say which building or job you mean and what you were doing.</p></div><h2>Common questions</h2>' +
+      questions.map(item => '<details class="card"><summary>' + esc(item[0]) + '</summary><p>' + esc(item[1]) + "</p></details>").join("") + "</div>";
+  }
+  function notifyScreen() {
+    const prefs = state.notify || { channels: { email: true, sms: false, push: true }, events: {} };
+    const events = state.role === "contractor"
+      ? [["job", "A new job near me"], ["offer", "My offer is accepted or declined"], ["pay", "A payment is released"], ["review", "The manager accepts or challenges my work"], ["msg", "A message arrives"], ["expiry", "My licence or insurance is about to expire"]]
+      : [["quote", "A quote arrives"], ["work", "The contractor hands in work to review"], ["pay", "A payment is due or overdue"], ["report", "A new QR report arrives"], ["late", "An invoice is late"], ["msg", "A message arrives"], ["expiry", "A contractor’s licence or insurance is about to end"]];
+    const box = (field, on, label) => '<label class="check"><input type="checkbox" data-field="' + field + '"' + (on ? " checked" : "") + "> <span>" + label + "</span></label>";
+    return '<div class="stack"><h1>Notification settings</h1><p class="small">Choose what you are told about and how. Urgent and emergency alerts always come by email. They cannot be switched off, and they are never sent by text message.</p>' +
+      '<h2>How</h2><div class="card stack">' + box("notify.ch.email", prefs.channels.email !== false, "Email") + box("notify.ch.sms", !!prefs.channels.sms, "Text message (never used for urgent alerts)") + box("notify.ch.push", prefs.channels.push !== false, "Push notification on this phone") +
+      '<button class="btn btn-secondary" type="button" data-act="enable-push">Turn on push on this phone</button><p class="small">Text messages are saved as a choice only. No text service is connected yet.</p></div>' +
+      '<h2>What</h2><div class="card stack">' + events.map(item => box("notify.ev." + item[0], prefs.events[item[0]] !== false, item[1])).join("") +
+      '<label class="check"><input type="checkbox" checked disabled> <span>Urgent and emergency alerts (always by email)</span></label></div></div>';
+  }
+  function messagesCard(job) {
+    const people = [];
+    const seen = {};
+    (state.quotes || []).filter(quote => quote.jobId === job.id).forEach(quote => {
+      if (seen[quote.contractorId]) return;
+      seen[quote.contractorId] = true;
+      const person = (state.contractors || []).find(item => item.id === quote.contractorId);
+      people.push({ id: quote.contractorId, name: person ? person.name : "Contractor" });
+    });
+    const forId = state.messageFor || (people[0] && people[0].id) || "";
+    const rows = (job.messages || []).filter(item => state.role === "contractor" || !forId || item.contractorId === forId);
+    const list = rows.map(item => "<p><strong>" + esc(item.author) + "</strong> " + esc(item.text) + "</p>").join("") || "<p>No messages yet.</p>";
+    const choose = state.role !== "contractor" && people.length > 1
+      ? '<label class="field">Contractor<select data-field="messageFor">' + people.map(person => '<option value="' + esc(person.id) + '"' + (person.id === forId ? " selected" : "") + ">" + esc(person.name) + "</option>").join("") + "</select></label>"
+      : "";
+    return '<div class="card stack"><h2>Messages</h2>' + choose + list +
+      '<label class="field">Message<textarea data-field="messageDraft" maxlength="500">' + esc(state.messageDraft || "") + "</textarea></label>" +
+      '<button class="btn btn-secondary" type="button" data-act="send-message" data-id="' + job.id + '" data-contractor="' + esc(forId) + '">Send message</button>' +
+      '<p class="small">Phone numbers and emails cannot be shared before the job is booked.</p></div>';
   }
   function requirementLines(job) {
     const p = placeOf(job);
@@ -2936,7 +2989,8 @@ const PHOTOS = {
       '<label class="check"><input type="checkbox" data-field="me.consent"' + (c.consentPublic ? " checked" : "") + "> <span>I agree that my verification, description and years in the trade are visible to managers before a quote is approved.</span></label>" +
       '<h2>Trades I offer</h2><div class="row">' + trades + "</div>" +
       '<div class="card stack"><h2>Get paid</h2><span class="demo">Demo</span><p>Bank account ending ' + esc(c.bankLast4) + ".</p><p>Strata App never sees or stores the account number. A payment provider holds it.</p></div>" +
-      '<div class="card stack"><h2>Safety guide</h2><p>' + (c.guideDone ? "Done." : "Not done yet.") + '</p><button class="btn btn-secondary" type="button" data-act="open-guide">' + (c.guideDone ? "Read it again" : "Open the safety guide") + "</button></div></div>";
+      '<div class="card stack"><h2>Safety guide</h2><p>' + (c.guideDone ? "Done." : "Not done yet.") + '</p><button class="btn btn-secondary" type="button" data-act="open-guide">' + (c.guideDone ? "Read it again" : "Open the safety guide") + "</button></div>" +
+      helpLinks() + "</div>";
   }
   function guideScreen() {
     const points = [
@@ -3035,6 +3089,15 @@ const PHOTOS = {
     if (field === "invoiceNumber") { state.invoiceNumber = value; return false; }
     if (field === "invoiceAmount") { state.invoiceAmount = value; return false; }
     if (field === "invoiceNote") { state.invoiceNote = value; return false; }
+    if (field === "messageDraft") { state.messageDraft = value; return false; }
+    if (field === "messageFor") { state.messageFor = value; return true; }
+    if (field.indexOf("notify.") === 0) {
+      const parts = field.split(".");
+      state.notify = state.notify || { channels: { email: true, sms: false, push: true }, events: {} };
+      if (parts[1] === "ch") state.notify.channels[parts[2]] = !!value;
+      if (parts[1] === "ev") state.notify.events[parts[2]] = !!value;
+      return false;
+    }
     if (field === "note.draft") { state.noteDraft = value; return false; }
     if (field.indexOf("qr.") === 0) {
       state.qrDraft = state.qrDraft || { buildingId: "", name: "", level: "" };
@@ -3205,6 +3268,8 @@ const PHOTOS = {
     }
     if (act === "new-request") { startRequest({ tradeId: t.dataset.trade || "plumbing" }); return; }
     if (act === "owner") { push("owner", {}, "Owner settings"); return; }
+    if (act === "open-help") { push("help", {}, "Help and support"); return; }
+    if (act === "open-notify") { push("notify", {}, "Notification settings"); return; }
     if (act === "add-building") {
       state.newBuilding = { name: "", number: "", street: "", suburb: "Balwyn", oc: "", limit: 4999 };
       push("building-new", {}, "Add a building");
@@ -3645,6 +3710,7 @@ const PHOTOS = {
     if (el.type !== "checkbox" && el.tagName !== "SELECT") return;
     applyField(el.dataset.field, el.type === "checkbox" ? el.checked : el.value);
     if (el.dataset.field === "owner.gstOnFee" && state.remote && window.StrataWire) window.StrataWire.saveGst(!!el.checked);
+    if (el.dataset.field.indexOf("notify.") === 0 && state.remote && window.StrataWire) window.StrataWire.saveNotify();
     render({ keepScroll: true, keepFocus: true });
   });
   document.addEventListener("keydown", e => {

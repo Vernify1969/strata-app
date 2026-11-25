@@ -4,6 +4,7 @@ import { centreOf } from "./area.js";
 import { abnOk, newId } from "./ids.js";
 import { moneySettings, requestCapture } from "./payments.js";
 import { closeReady } from "./payment-requests.js";
+import { deliverNotice } from "./notify.js";
 import { takeNumber } from "./job-papers.js";
 import { approvalFor, depositAllowed, depositCents, hasContact, invoiceDecision, reviewEndsAt } from "./rules.js";
 
@@ -12,7 +13,7 @@ import { approvalFor, depositAllowed, depositCents, hasContact, invoiceDecision,
 const MANAGER = new Set(["building_manager", "oc_manager", "property_manager"]);
 const NO_STRIKE = new Set(["The site was unsafe", "The manager changed the job or the access"]);
 
-export function registerJobRoutes(app, { db, config = {}, sendError, requireUser, requireJson }) {
+export function registerJobRoutes(app, { db, config = {}, mail, sendError, requireUser, requireJson }) {
   app.patch("/api/me/work", requireJson, requireUser, (req, res) => {
     if (req.user.role !== "contractor") return sendError(res, 403, "Only a contractor sets trades and a work postcode.");
     const trades = Array.isArray(req.body?.trades) ? req.body.trades.map(String) : [];
@@ -268,7 +269,7 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
     });
   });
 
-  app.post("/api/jobs/:id/messages", requireJson, requireUser, (req, res) => {
+  app.post("/api/jobs/:id/messages", requireJson, requireUser, async (req, res) => {
     const job = visibleJob(db, req.user, req.params.id);
     if (!job) return sendError(res, 404, "That job is not on your account.");
     const text = String(req.body?.text || "").trim();
@@ -278,9 +279,28 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
     const contractorId = req.user.role === "contractor" ? req.user.id : String(req.body?.contractorId || "");
     if (req.user.role === "contractor" && contractorId !== req.user.id) return sendError(res, 403, "You can only write in your own thread.");
     if (!contractorId) return sendError(res, 400, "Choose the contractor this message is for.");
+    const onJob = db.prepare("SELECT 1 AS ok FROM quotes WHERE job_id = ? AND contractor_user_id = ?").get(job.id, contractorId) || job.contractor_user_id === contractorId;
+    if (!onJob) return sendError(res, 400, "That contractor is not on this job.");
     const id = newId();
+    const now = new Date().toISOString();
     db.prepare(`INSERT INTO job_messages (id, job_id, contractor_user_id, author_user_id, body, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
-      .run(id, job.id, contractorId, req.user.id, text, new Date().toISOString());
+      .run(id, job.id, contractorId, req.user.id, text, now);
+    addEvent(db, job.id, req.user.name, "Message sent.");
+    const recipients = req.user.role === "contractor"
+      ? db.prepare(`SELECT DISTINCT users.id, users.email FROM users
+          JOIN building_assignments ON building_assignments.user_id = users.id
+          WHERE building_assignments.building_id = ? AND users.id != ?`).all(job.building_id, req.user.id)
+      : [db.prepare("SELECT id, email FROM users WHERE id = ?").get(contractorId)].filter(Boolean);
+    for (const person of recipients) {
+      if (!person || person.id === req.user.id) continue;
+      await deliverNotice(db, mail, config, {
+        userId: person.id,
+        email: person.email,
+        event: "msg",
+        subject: "New message on " + job.title,
+        text: req.user.name + " wrote on \"" + job.title + "\": " + text
+      });
+    }
     res.status(201).json({ id });
   });
 
@@ -531,6 +551,11 @@ function clientJob(db, job, user, quotes = [], contractors = new Map()) {
       id: row.id, number: row.number, kind: row.kind, amount: row.amount_cents / 100, amountCents: row.amount_cents,
       dueOn: row.due_on, status: row.status, failureReason: row.failure_reason || ""
     })),
+    messages: db.prepare(`SELECT job_messages.id, job_messages.body, job_messages.created_at, job_messages.contractor_user_id, users.name AS author
+      FROM job_messages JOIN users ON users.id = job_messages.author_user_id
+      WHERE job_messages.job_id = ? ORDER BY job_messages.created_at`).all(job.id)
+      .filter(row => user.role !== "contractor" || row.contractor_user_id === user.id)
+      .map(row => ({ id: row.id, contractorId: row.contractor_user_id, author: row.author, text: row.body, at: row.created_at })),
     closeState: job.closed_at ? "closed" : closeReady(db, job).ok ? "ready" : "",
     closedAt: job.closed_at || "",
     stage: job.stage,

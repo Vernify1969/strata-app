@@ -272,6 +272,7 @@ swap(
       '<div class="row"><button class="chip" type="button" data-act="assistant-tone" data-tone="friendly">Friendly</button><button class="chip" type="button" data-act="assistant-tone" data-tone="short">Short and direct</button></div>' +
       '<button class="btn btn-secondary" type="button" data-act="save-assistant">Save assistant</button>' +
       '<div id="memory-list"></div><button class="btn btn-ghost" type="button" data-act="load-memory">Show what Chloe remembers</button></div>' +
+      helpLinks() +
       (state.account && state.account.role === "platform_owner" ? '<button class="owner-link" type="button" data-act="owner">Owner settings</button>' : "") + "</div>";`,
   "account card"
 );
