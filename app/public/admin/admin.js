@@ -260,8 +260,8 @@
     if (!res.ok) return refused(res);
     const data = res.json;
     return "<h1>Settings</h1><p>Fee " + esc(data.commissionPercent) + "% · Deposit " + esc(data.depositHours) + "h · Urgent " + esc(data.urgentDepositHours) + "h · Reminder check every " + esc(data.reminderCheckHours) + "h.</p>" +
-      "<h2>Look</h2><p>One setting for the whole app. The current look is " + esc(data.designTheme || "clear") + ".</p>" +
-      '<p><button class="btn look-choice" type="button" data-look="clear">Clear &amp; Calm</button> <button class="btn look-choice" type="button" data-look="warm">Warm Professional</button> <button class="btn look-choice" type="button" data-look="modern">Modern Dark-Accent</button></p>' +
+      "<h2>Look</h2><p>One setting for the whole app. The current look is " + esc(data.designTheme || "grove") + ".</p>" +
+      '<p><button class="btn look-choice" type="button" data-look="grove">Grove</button> <button class="btn look-choice" type="button" data-look="harbour">Harbour</button> <button class="btn look-choice" type="button" data-look="daylight">Daylight</button></p>' +
       "<h2>Chloe</h2><p>Default name " + esc(data.assistantName || "Chloe") + ". Greeting: " + esc(data.assistantGreeting || "") + ". Tone: " + esc(data.assistantTone || "friendly") + ".</p>" +
       "<p>Web search is " + (data.webSearchEnabled === false ? "paused" : "on") + ". Chloe chooses when to search. There is no domain list.</p>" +
       '<button class="btn" type="button" id="web-emergency">' + (data.webSearchEnabled === false ? "Turn web search back on" : "Emergency: pause web search") + "</button>" +

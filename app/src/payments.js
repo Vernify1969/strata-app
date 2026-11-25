@@ -3,8 +3,9 @@ import { newId } from "./ids.js";
 import { feeOfCents } from "./rules.js";
 import { liveKeyProblem, securityGateOpen } from "./security-gate.js";
 
-export function cleanDesignTheme(value, fallback = "clear") {
-  return value === "warm" || value === "modern" || value === "clear" ? value : fallback;
+export function cleanDesignTheme(value, fallback = "grove") {
+  const names = { clear: "grove", warm: "harbour", modern: "daylight", grove: "grove", harbour: "harbour", daylight: "daylight" };
+  return names[value] || fallback;
 }
 
 export function moneySettings(db, config = {}) {
