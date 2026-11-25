@@ -10,6 +10,7 @@ import { approvalFor, depositAllowed, depositCents, hasContact, invoiceDecision,
 // TODO(owner): the Strata administrator role is not defined, so it is not a role in this app.
 
 const MANAGER = new Set(["building_manager", "oc_manager", "property_manager"]);
+const NO_STRIKE = new Set(["The site was unsafe", "The manager changed the job or the access"]);
 
 export function registerJobRoutes(app, { db, config = {}, sendError, requireUser, requireJson }) {
   app.patch("/api/me/work", requireJson, requireUser, (req, res) => {
@@ -25,7 +26,7 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
   });
 
   app.get("/api/jobs", requireUser, (req, res) => {
-    res.json(workspace(db, req.user));
+    res.json(workspace(db, req.user, String(req.query.q || "")));
   });
 
   app.get("/api/jobs/:id", requireUser, (req, res) => {
@@ -73,6 +74,114 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
     addEvent(db, id, req.user.name, "Request posted.");
     audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "job.posted", subjectType: "job", subjectId: id, detail: { buildingId: building.id } });
     res.status(201).json({ job: clientJob(db, jobById(db, id), req.user) });
+  });
+
+  app.patch("/api/jobs/:id", requireJson, requireUser, (req, res) => {
+    if (!MANAGER.has(req.user.role)) return sendError(res, 403, "Only a manager can edit a request.");
+    const job = visibleJob(db, req.user, req.params.id);
+    if (!job) return sendError(res, 404, "That job is not on your account.");
+    if (job.stage !== "open") return sendError(res, 400, "This request can no longer be edited.");
+    const arrived = db.prepare("SELECT COUNT(*) AS n FROM quotes WHERE job_id = ? AND status != 'withdrawn'").get(job.id).n;
+    if (arrived) return sendError(res, 400, "Quotes have been received, so this request can no longer be edited.");
+    const title = req.body?.title == null ? job.title : String(req.body.title).trim();
+    const area = req.body?.area == null ? job.area : String(req.body.area).trim();
+    const instructions = req.body?.instructions == null ? job.instructions : String(req.body.instructions).slice(0, 500);
+    const tradeId = req.body?.tradeId == null ? job.trade_id : String(req.body.tradeId);
+    const urgency = req.body?.urgency == null ? job.urgency : String(req.body.urgency).toLowerCase();
+    const deadline = req.body?.deadline == null ? job.quote_deadline : String(req.body.deadline);
+    if (title.length < 2 || area.length < 2) return sendError(res, 400, "Add a title and the place in the building.");
+    const payload = JSON.parse(job.payload || "{}");
+    if (req.body?.date != null) payload.date = String(req.body.date);
+    db.prepare(`UPDATE jobs SET title = ?, area = ?, trade_id = ?, instructions = ?, urgency = ?, quote_deadline = ?, payload = ? WHERE id = ?`).run(
+      title, area, tradeId, instructions, urgency, deadline || "", JSON.stringify(payload), job.id
+    );
+    addEvent(db, job.id, req.user.name, "Request edited by the manager.");
+    audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "job.edited", subjectType: "job", subjectId: job.id, detail: {} });
+    res.json({ job: clientJob(db, jobById(db, job.id), req.user) });
+  });
+
+  app.post("/api/jobs/:id/extend-deadline", requireJson, requireUser, (req, res) => {
+    if (!MANAGER.has(req.user.role)) return sendError(res, 403, "Only a manager can extend the quote deadline.");
+    const job = visibleJob(db, req.user, req.params.id);
+    if (!job || job.stage !== "open") return sendError(res, 400, "This job is not open for quotes.");
+    const building = db.prepare("SELECT * FROM buildings WHERE id = ?").get(job.building_id);
+    const today = todayIn(regionOf(db, building).timeZone);
+    const current = /^\d{4}-\d{2}-\d{2}$/.test(job.quote_deadline || "") ? job.quote_deadline : today;
+    const base = current < today ? today : current;
+    const next = addDays(base, 2);
+    db.prepare("UPDATE jobs SET quote_deadline = ? WHERE id = ?").run(next, job.id);
+    addEvent(db, job.id, req.user.name, "Quote deadline extended to " + next + ".");
+    audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "job.deadline_extended", subjectType: "job", subjectId: job.id, detail: { quoteDeadline: next } });
+    res.json({ quoteDeadline: next });
+  });
+
+  app.post("/api/jobs/:id/quotes/:quoteId/decline", requireJson, requireUser, (req, res) => {
+    if (!MANAGER.has(req.user.role)) return sendError(res, 403, "Only a manager can decline a quote.");
+    const job = visibleJob(db, req.user, req.params.id);
+    if (!job || job.stage !== "open") return sendError(res, 400, "This job is not open.");
+    const quote = db.prepare("SELECT * FROM quotes WHERE id = ? AND job_id = ? AND status = 'open'").get(req.params.quoteId, job.id);
+    if (!quote) return sendError(res, 404, "That quote is not open.");
+    const reason = String(req.body?.reason || "").trim().slice(0, 120);
+    const now = new Date().toISOString();
+    db.prepare("UPDATE quotes SET status = 'declined', decline_reason = ?, declined_at = ? WHERE id = ?").run(reason, now, quote.id);
+    addEvent(db, job.id, req.user.name, "Declined the quote" + (reason ? " (" + reason + ")." : "."));
+    audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "quote.declined", subjectType: "quote", subjectId: quote.id, detail: { reason } });
+    res.json({ status: "declined", reason });
+  });
+
+  app.post("/api/jobs/:id/quotes/:quoteId/undo-decline", requireJson, requireUser, (req, res) => {
+    if (!MANAGER.has(req.user.role)) return sendError(res, 403, "Only a manager can restore a quote.");
+    const job = visibleJob(db, req.user, req.params.id);
+    if (!job || job.stage !== "open") return sendError(res, 400, "This job is not open.");
+    const quote = db.prepare("SELECT * FROM quotes WHERE id = ? AND job_id = ? AND status = 'declined'").get(req.params.quoteId, job.id);
+    if (!quote) return sendError(res, 404, "That quote is not declined.");
+    db.prepare("UPDATE quotes SET status = 'open', decline_reason = '', declined_at = '' WHERE id = ?").run(quote.id);
+    addEvent(db, job.id, req.user.name, "Restored the declined quote.");
+    audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "quote.decline_undone", subjectType: "quote", subjectId: quote.id, detail: {} });
+    res.json({ status: "open" });
+  });
+
+  app.post("/api/jobs/:id/quotes/:quoteId/withdraw", requireJson, requireUser, (req, res) => {
+    if (req.user.role !== "contractor") return sendError(res, 403, "Only the contractor who sent the offer can withdraw it.");
+    const job = jobById(db, req.params.id);
+    if (!job || job.stage !== "open" || job.awarded_quote_id) return sendError(res, 400, "This offer can no longer be withdrawn.");
+    const quote = db.prepare("SELECT * FROM quotes WHERE id = ? AND job_id = ? AND status = 'open'").get(req.params.quoteId, job.id);
+    if (!quote || quote.contractor_user_id !== req.user.id) return sendError(res, 404, "That offer is not yours.");
+    db.prepare("UPDATE quotes SET status = 'withdrawn' WHERE id = ?").run(quote.id);
+    addEvent(db, job.id, req.user.name, "Withdrew their offer.");
+    audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "quote.withdrawn", subjectType: "quote", subjectId: quote.id, detail: {} });
+    res.json({ status: "withdrawn" });
+  });
+
+  app.post("/api/jobs/:id/cancel", requireJson, requireUser, (req, res) => {
+    const job = visibleJob(db, req.user, req.params.id);
+    if (!job) return sendError(res, 404, "That job is not on your account.");
+    if (job.stage !== "approved" && job.stage !== "paid") return sendError(res, 400, "This job can only be cancelled before the contractor arrives.");
+    if (!job.contractor_user_id) return sendError(res, 400, "This job has no booked contractor.");
+    const held = db.prepare("SELECT 1 AS ok FROM payments WHERE job_id = ? AND status NOT IN ('failed', 'canceled', 'cancelled')").get(job.id);
+    if (held) return sendError(res, 409, "A payment is already recorded. Refunds are not available yet, so this job cannot be cancelled from here.");
+    const contractor = req.user.role === "contractor";
+    if (contractor && job.contractor_user_id !== req.user.id) return sendError(res, 403, "Only the booked contractor can cancel their own job.");
+    if (!contractor && !MANAGER.has(req.user.role)) return sendError(res, 403, "You cannot cancel this job.");
+    const reason = String(req.body?.reason || "").trim().slice(0, 160);
+    if (reason.length < 3) return sendError(res, 400, "Add the reason for cancelling.");
+    const excused = NO_STRIKE.has(reason);
+    let strikeId = "";
+    if (contractor && !excused) {
+      strikeId = newId();
+      db.prepare("INSERT INTO contractor_strikes (id, user_id, reason, actor_id, created_at, job_id, kind) VALUES (?, ?, ?, ?, ?, ?, 'cancel')").run(
+        strikeId, req.user.id, reason, req.user.id, new Date().toISOString(), job.id
+      );
+    }
+    db.prepare("UPDATE quotes SET status = 'withdrawn' WHERE id = ?").run(job.awarded_quote_id);
+    db.prepare(`UPDATE jobs SET stage = 'open', approved_cents = NULL, awarded_quote_id = NULL, contractor_user_id = NULL, needs_prepay = 0, pay_after = 1, deposit_due_at = '', deposit_reminded_at = '' WHERE id = ?`).run(job.id);
+    const note = contractor
+      ? (excused ? "Cancelled before arrival. No strike: " + reason + "." : "Cancelled before arrival. A strike was recorded: " + reason + ".")
+      : "The manager cancelled the job before arrival. No strike was recorded.";
+    addEvent(db, job.id, req.user.name, note);
+    audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "job.cancelled_before_arrival", subjectType: "job", subjectId: job.id, detail: { reason, strike: !!strikeId } });
+    const strikes = db.prepare("SELECT COUNT(*) AS n FROM contractor_strikes WHERE user_id = ? AND kind = 'cancel'").get(job.contractor_user_id || req.user.id).n;
+    res.json({ stage: "open", strike: !!strikeId, strikeCount: strikes, excused });
   });
 
   app.post("/api/jobs/:id/quotes", requireJson, requireUser, (req, res) => {
@@ -252,6 +361,13 @@ function todayIn(timeZone) {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
 
+function addDays(iso, days) {
+  const [year, month, day] = iso.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function fundsStatus(db, job) {
   if (!job.needs_prepay || (job.stage !== "approved" && job.stage !== "paid")) return "";
   const confirmed = db.prepare("SELECT 1 AS ok FROM payments WHERE job_id = ? AND funds_confirmed_at != ''").get(job.id);
@@ -263,7 +379,7 @@ function regionOf(db, building) {
   return { id: region?.id || "AU-VIC", timeZone: region?.time_zone || "Australia/Melbourne" };
 }
 
-function workspace(db, user) {
+function workspace(db, user, query = "") {
   let jobs;
   if (user.role === "contractor") {
     jobs = db.prepare("SELECT * FROM jobs WHERE stage = 'open' OR contractor_user_id = ?").all(user.id);
@@ -271,6 +387,14 @@ function workspace(db, user) {
     jobs = db.prepare(`SELECT jobs.* FROM jobs
       JOIN building_assignments ON building_assignments.building_id = jobs.building_id
       WHERE jobs.organisation_id = ? AND building_assignments.user_id = ?`).all(user.organisation_id, user.id);
+    const needle = String(query || "").trim().toLowerCase();
+    if (needle) {
+      jobs = jobs.filter(job => {
+        const building = db.prepare("SELECT name, suburb FROM buildings WHERE id = ?").get(job.building_id);
+        const hay = [job.title, job.area, job.instructions, job.trade_id, job.stage, building && building.name, building && building.suburb].join(" ").toLowerCase();
+        return hay.includes(needle);
+      });
+    }
   } else jobs = [];
   const quotes = [];
   const contractors = new Map();
@@ -283,7 +407,7 @@ function clientJob(db, job, user, quotes = [], contractors = new Map()) {
   const booked = job.contractor_user_id && (user.role !== "contractor" || job.contractor_user_id === user.id);
   const showAddress = user.role !== "contractor" || (job.contractor_user_id === user.id && job.stage !== "open");
   const payload = JSON.parse(job.payload || "{}");
-  const rows = db.prepare("SELECT * FROM quotes WHERE job_id = ?").all(job.id)
+  const rows = db.prepare("SELECT * FROM quotes WHERE job_id = ? AND status != 'withdrawn'").all(job.id)
     .filter(quote => user.role !== "contractor" || quote.contractor_user_id === user.id);
   for (const quote of rows) {
     const person = db.prepare("SELECT * FROM users WHERE id = ?").get(quote.contractor_user_id);
@@ -317,7 +441,9 @@ function clientJob(db, job, user, quotes = [], contractors = new Map()) {
       note: quote.note,
       at: Date.parse(quote.created_at),
       committeeApproved: false,
-      depositType: quote.deposit_type
+      depositType: quote.deposit_type,
+      status: quote.status || "open",
+      declineReason: quote.decline_reason || ""
     });
   }
   return {
@@ -334,6 +460,7 @@ function clientJob(db, job, user, quotes = [], contractors = new Map()) {
     safety: payload.safety || ["no", "no", "no", "no", "no", "no", "no"],
     urgency: job.urgency,
     date: payload.date || "",
+    quoteDeadline: job.quote_deadline || "",
     stage: job.stage,
     postedAt: Date.parse(job.created_at) || Date.now(),
     access: showAddress ? building.access_note : "",
@@ -344,7 +471,7 @@ function clientJob(db, job, user, quotes = [], contractors = new Map()) {
     needsPrepay: !!job.needs_prepay,
     fundsStatus: fundsStatus(db, job),
     approved: (job.approved_cents || 0) / 100,
-    timeline: db.prepare("SELECT at, actor_name, body FROM job_events WHERE job_id = ? ORDER BY id").all(job.id).map(event => ({ t: event.at, who: event.actor_name, x: event.body })),
+    timeline: db.prepare("SELECT at, actor_name, body FROM job_events WHERE job_id = ? ORDER BY id").all(job.id).map(event => ({ t: event.at, who: event.actor_name, text: event.body, x: event.body })),
     evidence: { before: [], after: [], fix1: [], fix2: [] },
     challenges: [],
     arrival: null,

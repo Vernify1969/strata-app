@@ -350,6 +350,11 @@
       }
       if (act === "open-reports" && state.remote) { this.openReports(); return true; }
       if (act === "save-look" && state.remote) { this.saveLook(t.dataset.look); return true; }
+      if (act === "decline-quote" && state.remote) { this.declineQuote(t.dataset.id); return true; }
+      if (act === "undo-decline" && state.remote) { this.undoDecline(t.dataset.id); return true; }
+      if (act === "withdraw-offer" && state.remote) { this.withdrawOffer(t.dataset.id); return true; }
+      if (act === "extend-deadline" && state.remote) { this.extendDeadline(t.dataset.id); return true; }
+      if (act === "cancel-job" && state.remote) { this.cancelJob(t.dataset.id); return true; }
       if (act === "chloe-open" && state.remote) { this.openChloe(); return true; }
       if (act === "chloe-close" && state.remote) { state.chloeOpen = false; hooks().render(); return true; }
       if (act === "chloe-new" && state.remote) { state.chloeLog = []; hooks().render(); return true; }
@@ -762,6 +767,28 @@
     async postDraft() {
       const api = hooks();
       const draft = api.state.draft;
+      if (api.state.editingJobId) {
+        const res = await call("PATCH", "/api/jobs/" + api.state.editingJobId, {
+          title: draft.title,
+          area: draft.area,
+          tradeId: draft.tradeId,
+          instructions: draft.instructions,
+          urgency: draft.urgency,
+          deadline: draft.date,
+          date: draft.date
+        });
+        if (!res.ok) { api.toast((res.json && res.json.error) || "The request was not updated."); return; }
+        api.state.editingJobId = "";
+        api.state.draft = null;
+        await loadJobs();
+        api.state.history = [];
+        api.state.screen = "job";
+        api.state.ctx = { id: res.json.job.id };
+        api.state.title = res.json.job.title;
+        api.toast("Request updated.");
+        api.render();
+        return;
+      }
       const res = await call("POST", "/api/jobs", {
         buildingId: draft.buildingId,
         title: draft.title,
@@ -830,6 +857,54 @@
       if (!res.ok) { api.toast((res.json && res.json.error) || "The payment was not started."); return; }
       api.toast(res.json.simulated ? "Demo only. No card was charged. The test payment is marked paid so you can see the next step." : (res.json.paid ? "Stripe has confirmed the payment." : "Stripe is holding this request. It is not paid until Stripe confirms it."));
       await loadJobs();
+      api.render();
+    },
+    async declineQuote(quoteId) {
+      const api = hooks();
+      const quote = api.state.quotes.find(item => item.id === quoteId);
+      if (!quote) return;
+      const res = await call("POST", "/api/jobs/" + quote.jobId + "/quotes/" + quoteId + "/decline", { reason: (api.state.declineReason && api.state.declineReason[quoteId]) || "" });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The quote was not declined."); return; }
+      await loadJobs();
+      api.toast("Quote declined.");
+      api.render();
+    },
+    async undoDecline(quoteId) {
+      const api = hooks();
+      const quote = api.state.quotes.find(item => item.id === quoteId);
+      if (!quote) return;
+      const res = await call("POST", "/api/jobs/" + quote.jobId + "/quotes/" + quoteId + "/undo-decline", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The quote was not restored."); return; }
+      await loadJobs();
+      api.toast("Quote restored.");
+      api.render();
+    },
+    async withdrawOffer(quoteId) {
+      const api = hooks();
+      const quote = api.state.quotes.find(item => item.id === quoteId);
+      if (!quote) return;
+      const res = await call("POST", "/api/jobs/" + quote.jobId + "/quotes/" + quoteId + "/withdraw", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The offer was not withdrawn."); return; }
+      await loadJobs();
+      api.toast("Offer withdrawn.");
+      api.render();
+    },
+    async extendDeadline(jobId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/extend-deadline", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The deadline was not extended."); return; }
+      await loadJobs();
+      api.toast("Quotes now wanted by " + res.json.quoteDeadline + ".");
+      api.render();
+    },
+    async cancelJob(jobId) {
+      const api = hooks();
+      const reason = String(api.state.cancelReason || "").trim();
+      const res = await call("POST", "/api/jobs/" + jobId + "/cancel", { reason: reason });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The job was not cancelled."); return; }
+      api.state.cancelReason = "";
+      await loadJobs();
+      api.toast(res.json.strike ? "Cancelled. A strike was recorded." : "Cancelled. The job is open for quotes again.");
       api.render();
     },
     async doApprove(quoteId) {

@@ -496,6 +496,17 @@ function migrate(db) {
     db.exec("ALTER TABLE platform_settings ADD COLUMN design_theme TEXT NOT NULL DEFAULT 'clear'");
   }
   if (userVersion(db) < 20) db.exec("PRAGMA user_version = 20");
+  if (!columnExists(db, "quotes", "decline_reason")) {
+    db.exec("ALTER TABLE quotes ADD COLUMN decline_reason TEXT NOT NULL DEFAULT ''");
+    db.exec("ALTER TABLE quotes ADD COLUMN declined_at TEXT NOT NULL DEFAULT ''");
+  }
+  if (!columnExists(db, "contractor_strikes", "job_id")) {
+    db.exec("ALTER TABLE contractor_strikes ADD COLUMN job_id TEXT NOT NULL DEFAULT ''");
+  }
+  if (!columnExists(db, "contractor_strikes", "kind")) {
+    db.exec("ALTER TABLE contractor_strikes ADD COLUMN kind TEXT NOT NULL DEFAULT 'note'");
+  }
+  if (userVersion(db) < 21) db.exec("PRAGMA user_version = 21");
 }
 
 function tableExists(db, name) {
