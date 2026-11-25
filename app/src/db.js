@@ -615,6 +615,13 @@ function migrate(db) {
     `);
   }
   if (userVersion(db) < 25) db.exec("PRAGMA user_version = 25");
+  if (userVersion(db) < 26) {
+    if (!columnExists(db, "platform_settings", "reminder_every_days")) {
+      db.exec("ALTER TABLE platform_settings ADD COLUMN reminder_every_days INTEGER NOT NULL DEFAULT 7");
+    }
+    db.exec("UPDATE buildings SET payments_paused = 0");
+    db.exec("PRAGMA user_version = 26");
+  }
 }
 
 function tableExists(db, name) {

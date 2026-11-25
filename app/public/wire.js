@@ -100,7 +100,7 @@
       payer: item.payer || "accounts",
       paymentEmail: item.paymentEmail || "",
       paymentTermsDays: item.paymentTermsDays == null ? 14 : item.paymentTermsDays,
-      paymentsPaused: !!item.paymentsPaused,
+      overdueCount: Number(item.overdueCount || 0),
       sample: false
     };
   }
@@ -596,6 +596,7 @@
         buildings: "/api/owner/buildings",
         jobs: "/api/owner/jobs",
         payments: "/api/owner/payments",
+        overdue: "/api/owner/overdue-payments",
         documents: "/api/owner/documents",
         places: "/api/owner/places",
         ai: "/api/owner/ai",

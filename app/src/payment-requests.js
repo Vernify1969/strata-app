@@ -155,40 +155,58 @@ export function registerPaymentRequestRoutes(app, { db, config, mail, sendError,
   });
 }
 
+export function listOverdue(db, now = new Date()) {
+  const today = now.toISOString().slice(0, 10);
+  return db.prepare(`SELECT payment_requests.*, jobs.title AS job_title, buildings.name AS building_name, buildings.id AS building_id
+    FROM payment_requests
+    JOIN jobs ON jobs.id = payment_requests.job_id
+    JOIN buildings ON buildings.id = jobs.building_id
+    WHERE payment_requests.status = 'sent' AND payment_requests.due_on != '' AND payment_requests.due_on < ?
+    ORDER BY payment_requests.due_on`).all(today).map(row => ({
+    id: row.id,
+    number: row.number,
+    jobId: row.job_id,
+    jobTitle: row.job_title,
+    buildingId: row.building_id,
+    buildingName: row.building_name,
+    amountCents: row.amount_cents,
+    dueOn: row.due_on,
+    payerEmail: row.payer_email,
+    reminders: row.reminders,
+    daysOverdue: wholeDays(row.due_on, today)
+  }));
+}
+
 export async function chaseOverdueRequests(db, mail, config, now = new Date()) {
   const settings = moneySettings(db, config);
+  const every = Math.max(1, Number(settings.reminderEveryDays) || 7);
   const today = now.toISOString().slice(0, 10);
-  const rows = db.prepare("SELECT * FROM payment_requests WHERE status = 'sent' AND due_on != '' AND due_on < ?").all(today);
+  const rows = db.prepare("SELECT * FROM payment_requests WHERE status = 'sent' AND due_on != '' AND due_on <= ?").all(today);
   let reminded = 0;
-  const buildings = new Set();
   for (const row of rows) {
     const job = db.prepare("SELECT * FROM jobs WHERE id = ?").get(row.job_id);
     if (!job) continue;
-    buildings.add(job.building_id);
-    const last = Date.parse(row.last_reminded_at || "") || 0;
-    if (now.getTime() - last < 20 * 3600 * 1000) continue;
+    const first = Number(row.reminders || 0) === 0;
+    const since = row.last_reminded_at ? wholeDays(row.last_reminded_at.slice(0, 10), today) : every;
+    if (!first && since < every) continue;
+    const text = `Hello,\n\nThis is a polite reminder about payment request ${row.number} for "${job.title}". It was due on ${row.due_on}. The amount is ${money(row.amount_cents)}.\n\nPlease pay it in the app when you can. New jobs for the building can still be posted.\n\nTaskSpeck Strata`;
     if (row.payer_email) {
       await mail.send({
         to: row.payer_email,
-        subject: "Payment overdue: " + row.number,
-        text: `${row.number} for "${job.title}" was due on ${row.due_on} and is still unpaid.`
+        subject: "A reminder about " + row.number,
+        text
       });
     }
     db.prepare("UPDATE payment_requests SET reminders = reminders + 1, last_reminded_at = ? WHERE id = ?").run(now.toISOString(), row.id);
     reminded += 1;
-    const overdueDays = Math.floor((now.getTime() - Date.parse(row.due_on + "T00:00:00Z")) / (24 * 3600 * 1000));
-    if (overdueDays >= settings.overduePauseDays) {
-      db.prepare("UPDATE buildings SET payments_paused = 1 WHERE id = ?").run(job.building_id);
-    }
-  }
-  const paused = db.prepare("SELECT id FROM buildings WHERE payments_paused = 1").all();
-  for (const building of paused) {
-    const still = db.prepare(`SELECT 1 AS ok FROM payment_requests
-      JOIN jobs ON jobs.id = payment_requests.job_id
-      WHERE jobs.building_id = ? AND payment_requests.status = 'sent' AND payment_requests.due_on < ?`).get(building.id, today);
-    if (!still) db.prepare("UPDATE buildings SET payments_paused = 0 WHERE id = ?").run(building.id);
   }
   return reminded;
+}
+
+function wholeDays(fromDay, toDay) {
+  const from = Date.parse(fromDay + "T00:00:00Z");
+  const to = Date.parse(toDay + "T00:00:00Z");
+  return Math.floor((to - from) / (24 * 3600 * 1000));
 }
 
 function payerEmail(building, user) {

@@ -6,6 +6,7 @@
     ["buildings", "Buildings"],
     ["jobs", "Jobs"],
     ["payments", "Payments"],
+    ["overdue", "Overdue payments"],
     ["mail", "Email"],
     ["messages", "Messages"],
     ["reports", "Reports"],
@@ -62,7 +63,7 @@
     document.querySelectorAll(".side a").forEach((link) => {
       link.setAttribute("aria-current", link.getAttribute("href") === "#/" + section ? "page" : "false");
     });
-    const pages = { dashboard, users, organisations, buildings, jobs, payments, mail, messages, reports, documents, ai, map, settings, audit };
+    const pages = { dashboard, users, organisations, buildings, jobs, payments, overdue, mail, messages, reports, documents, ai, map, settings, audit };
     const fn = pages[section] || dashboard;
     screen.innerHTML = "<p>Loading…</p>";
       try {
@@ -158,6 +159,22 @@
       "<h2>Timeline</h2>" + (res.json.timeline || []).map((row) => "<p>" + esc(row.at) + " · " + esc(row.body) + "</p>").join("") +
       "<h2>Quotes</h2>" + (res.json.quotes || []).map((row) => "<p>" + (row.price_cents / 100).toFixed(2) + " · " + esc(row.status) + "</p>").join("") +
       '<p><button type="button" id="cancel-job">Cancel job</button></p>';
+  }
+
+  async function overdue() {
+    const res = await api("GET", "/api/admin/overdue");
+    if (!res.ok) return refused(res);
+    const rows = res.json.overdue || [];
+    return "<h1>Overdue payments</h1><p>" + esc(res.json.note || "") + "</p>" +
+      (rows.length ? table([
+        { key: "number", label: "Request" },
+        { key: "buildingName", label: "Building" },
+        { key: "jobTitle", label: "Job" },
+        { key: "dueOn", label: "Due" },
+        { key: "daysOverdue", label: "Days" },
+        { key: "payerEmail", label: "Payer" },
+        { key: "amountCents", label: "Amount", value: (row) => dollars(row.amountCents) }
+      ], rows) : "<p>Nothing is overdue.</p>");
   }
 
   async function payments() {

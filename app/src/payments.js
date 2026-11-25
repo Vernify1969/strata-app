@@ -26,7 +26,7 @@ export function moneySettings(db, config = {}) {
       reminderCheckHours: row.reminder_check_hours == null ? 3 : Number(row.reminder_check_hours),
       designTheme: cleanDesignTheme(row.design_theme),
       gstOnFee: row.gst_on_fee === 1,
-      overduePauseDays: row.overdue_pause_days == null ? 7 : Number(row.overdue_pause_days),
+      reminderEveryDays: row.reminder_every_days == null ? 7 : Number(row.reminder_every_days),
       maxPayDays: row.max_pay_days == null ? 14 : Number(row.max_pay_days),
       minCoverCents: row.min_cover_cents == null ? 2000000000 : Number(row.min_cover_cents)
     };
@@ -47,7 +47,7 @@ export function moneySettings(db, config = {}) {
     reminderCheckHours: Number(config.reminderCheckHours ?? 3),
     designTheme: cleanDesignTheme(config.designTheme),
     gstOnFee: !!config.gstOnFee,
-    overduePauseDays: Number(config.overduePauseDays ?? 7),
+    reminderEveryDays: Number(config.reminderEveryDays ?? 7),
     maxPayDays: Number(config.maxPayDays ?? 14),
     minCoverCents: Number(config.minCoverCents ?? 2000000000)
   };

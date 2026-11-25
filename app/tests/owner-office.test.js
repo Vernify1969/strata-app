@@ -30,6 +30,7 @@ test("other roles are refused on every owner endpoint", async () => {
       ["GET", "/api/owner/jobs"],
       ["GET", "/api/owner/jobs/x"],
       ["GET", "/api/owner/payments"],
+      ["GET", "/api/owner/overdue-payments"],
       ["GET", "/api/owner/documents"],
       ["GET", "/api/owner/places"],
       ["GET", "/api/owner/ai"],

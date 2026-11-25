@@ -49,8 +49,8 @@ export function registerBuildingRoutes(app, { db, config = {}, sendError, requir
       ORDER BY buildings.created_at`).all(req.user.organisation_id, req.user.id);
     const waiting = db.prepare("SELECT * FROM waiting_places WHERE organisation_id = ? AND user_id = ? ORDER BY created_at").all(req.user.organisation_id, req.user.id);
     res.json({
-      buildings: rows.filter(row => !row.archived).map(publicBuilding),
-      archived: rows.filter(row => row.archived).map(publicBuilding),
+      buildings: rows.filter(row => !row.archived).map(row => publicBuilding(row, db)),
+      archived: rows.filter(row => row.archived).map(row => publicBuilding(row, db)),
       waiting: waiting.map(place => {
         const centre = centreOf(place.postcode);
         return {
@@ -68,7 +68,7 @@ export function registerBuildingRoutes(app, { db, config = {}, sendError, requir
   app.get("/api/buildings/:id", requireUser, (req, res) => {
     const row = assignedBuilding(db, req.user, req.params.id);
     if (!row) return sendError(res, 404, "That building is not on your account.");
-    res.json({ building: publicBuilding(row) });
+    res.json({ building: publicBuilding(row, db) });
   });
 
   app.post("/api/buildings", requireJson, requireUser, (req, res) => {
@@ -106,7 +106,7 @@ export function registerBuildingRoutes(app, { db, config = {}, sendError, requir
       db.exec("ROLLBACK");
       throw err;
     }
-    res.status(201).json({ building: publicBuilding(assignedBuilding(db, req.user, id)) });
+    res.status(201).json({ building: publicBuilding(assignedBuilding(db, req.user, id), db) });
   });
 
   app.patch("/api/buildings/:id", requireJson, requireUser, (req, res) => {
@@ -190,7 +190,7 @@ export function registerBuildingRoutes(app, { db, config = {}, sendError, requir
       row.id, req.user.organisation_id
     );
     audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "building.updated", subjectType: "building", subjectId: row.id, detail: {} });
-    res.json({ building: publicBuilding(assignedBuilding(db, req.user, row.id)) });
+    res.json({ building: publicBuilding(assignedBuilding(db, req.user, row.id), db) });
   });
 
   app.post("/api/buildings/:id/archive", requireJson, requireUser, (req, res) => {
@@ -255,7 +255,7 @@ function dollars(cents) {
   return cents / 100;
 }
 
-export function publicBuilding(row) {
+export function publicBuilding(row, db) {
   return {
     id: row.id,
     world: row.world,
@@ -289,7 +289,14 @@ export function publicBuilding(row) {
     payer: row.payer || "accounts",
     paymentEmail: row.payment_email || "",
     paymentTermsDays: row.payment_terms_days == null ? 14 : row.payment_terms_days,
-    paymentsPaused: row.payments_paused === 1,
+    overdueCount: db ? countOverdue(db, row.id) : 0,
     sample: false
   };
+}
+
+function countOverdue(db, buildingId) {
+  const today = new Date().toISOString().slice(0, 10);
+  return db.prepare(`SELECT COUNT(*) AS n FROM payment_requests
+    JOIN jobs ON jobs.id = payment_requests.job_id
+    WHERE jobs.building_id = ? AND payment_requests.status = 'sent' AND payment_requests.due_on != '' AND payment_requests.due_on < ?`).get(buildingId, today).n;
 }
