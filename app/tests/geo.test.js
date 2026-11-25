@@ -67,8 +67,8 @@ test("the map page uses a keyless street map and a short map card", async () => 
     } finally {
       await custom.close();
     }
-    assert.match(html, /height: 100%/);
-    assert.match(html, /min-height: 0/);
+    assert.match(html, /height: 360px/);
+    assert.match(html, /height: 220px/);
     assert.match(html, /Full screen/);
   } finally {
     await server.close();
