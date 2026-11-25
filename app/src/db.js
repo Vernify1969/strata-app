@@ -599,6 +599,22 @@ function migrate(db) {
     `);
   }
   if (userVersion(db) < 24) db.exec("PRAGMA user_version = 24");
+  if (!columnExists(db, "users", "notify_channels")) {
+    db.exec("ALTER TABLE users ADD COLUMN notify_channels TEXT NOT NULL DEFAULT '{\"email\":true,\"sms\":false,\"push\":true}'");
+    db.exec("ALTER TABLE users ADD COLUMN notify_events TEXT NOT NULL DEFAULT '{}'");
+    db.exec(`
+      CREATE TABLE push_subscriptions (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        endpoint TEXT NOT NULL DEFAULT '',
+        p256dh TEXT NOT NULL DEFAULT '',
+        auth_key TEXT NOT NULL DEFAULT '',
+        demo INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL
+      );
+    `);
+  }
+  if (userVersion(db) < 25) db.exec("PRAGMA user_version = 25");
 }
 
 function tableExists(db, name) {

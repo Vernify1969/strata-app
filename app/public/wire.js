@@ -32,6 +32,14 @@
     if (cal.month > 11) { cal.month = 0; cal.year += 1; }
   }
 
+  function vapidBytes(value) {
+    const pad = "=".repeat((4 - (value.length % 4)) % 4);
+    const raw = atob(String(value).replace(/-/g, "+").replace(/_/g, "/") + pad);
+    const out = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i += 1) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+
   async function call(method, path, body) {
     const res = await fetch(path, {
       method: method,
@@ -367,6 +375,10 @@
       if ((act === "pay-request" || act === "retry-request") && state.remote) { this.payRequest(t.dataset.job, t.dataset.id, act === "retry-request"); return true; }
       if (act === "close-job" && state.remote) { this.closeJob(t.dataset.id); return true; }
       if (act === "toggle-gst" && state.remote) { this.saveGst(!state.owner.gstOnFee); return true; }
+      if (act === "open-help" && state.remote) { this.openHelp(); return true; }
+      if (act === "open-notify" && state.remote) { this.openNotify(); return true; }
+      if (act === "enable-push" && state.remote) { this.enablePush(); return true; }
+      if (act === "send-message" && state.remote) { this.sendMessage(t.dataset.id, t.dataset.contractor); return true; }
       if (act === "accept" && state.remote) { this.acceptWork(t.dataset.id); return true; }
       if ((act === "save-building" || act === "join-wait") && state.remote) { this.saveBuilding(); return true; }
       if (act === "owner" && state.account && state.account.role !== "platform_owner") {
@@ -1036,6 +1048,58 @@
       if (!res.ok) { api.toast((res.json && res.json.error) || "The job was not closed."); return; }
       await loadJobs();
       api.toast("Job closed. The records stay.");
+      api.render();
+    },
+    async openHelp() {
+      const api = hooks();
+      const res = await call("GET", "/api/help");
+      if (res.ok) api.state.help = res.json;
+      api.state.screen = "help";
+      api.state.title = "Help and support";
+      api.render();
+    },
+    async openNotify() {
+      const api = hooks();
+      const res = await call("GET", "/api/me/notifications");
+      if (res.ok) api.state.notify = { channels: res.json.channels, events: res.json.events };
+      api.state.screen = "notify";
+      api.state.title = "Notification settings";
+      api.render();
+    },
+    async saveNotify() {
+      const api = hooks();
+      const prefs = api.state.notify || { channels: {}, events: {} };
+      const res = await call("PATCH", "/api/me/notifications", { channels: prefs.channels, events: prefs.events });
+      if (!res.ok) api.toast((res.json && res.json.error) || "Those notification settings were not saved.");
+    },
+    async enablePush() {
+      const api = hooks();
+      const key = await call("GET", "/api/push/vapid");
+      if (key.ok && key.json.configured && navigator.serviceWorker && window.PushManager) {
+        try {
+          const reg = await navigator.serviceWorker.register("/sw.js");
+          const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: vapidBytes(key.json.publicKey) });
+          const json = sub.toJSON();
+          const saved = await call("POST", "/api/me/push", { endpoint: json.endpoint, keys: json.keys });
+          api.toast((saved.json && saved.json.message) || "Push is saved on this phone.");
+          return;
+        } catch (err) {
+          api.toast("This phone did not turn push on.");
+          return;
+        }
+      }
+      const saved = await call("POST", "/api/me/push", { demo: true });
+      api.toast((saved.json && saved.json.message) || "Push is saved on this account.");
+    },
+    async sendMessage(jobId, contractorId) {
+      const api = hooks();
+      const body = { text: api.state.messageDraft || "" };
+      if (api.state.role !== "contractor" && contractorId) body.contractorId = contractorId;
+      const res = await call("POST", "/api/jobs/" + jobId + "/messages", body);
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The message was not sent."); return; }
+      api.state.messageDraft = "";
+      await loadJobs();
+      api.toast("Message sent.");
       api.render();
     },
     async saveGst(on) {

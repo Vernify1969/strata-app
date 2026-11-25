@@ -15,6 +15,7 @@ import { handleStripeWebhook, ensureMoneySettings, moneySettings, cleanDesignThe
 import { registerDocumentRoutes } from "./documents.js";
 import { registerJobPaperRoutes } from "./job-papers.js";
 import { registerPaymentRequestRoutes } from "./payment-requests.js";
+import { registerNotifyRoutes } from "./notify.js";
 import { registerQrRoutes } from "./qr.js";
 import { registerAssistantRoutes } from "./assistant.js";
 import { cleanAssistantName, registerChloeRoutes } from "./chloe.js";
@@ -498,7 +499,8 @@ export async function createApp(config) {
 
   registerBuildingRoutes(app, { db, config, sendError, requireUser, requireJson });
   ensureMoneySettings(db, config);
-  registerJobRoutes(app, { db, config, sendError, requireUser, requireJson });
+  registerJobRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
+  registerNotifyRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerEvidenceRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerJobPaperRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerPaymentRoutes(app, { db, config, sendError, requireUser, requireJson });
@@ -618,6 +620,7 @@ function contentPolicy(config) {
     "img-src 'self' data: blob: https://unpkg.com " + tiles,
     "font-src 'self'",
     "connect-src 'self' " + tiles,
+    "worker-src 'self'",
     "frame-src 'none'",
     "base-uri 'self'",
     "form-action 'self'"
