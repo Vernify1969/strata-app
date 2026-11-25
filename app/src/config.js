@@ -18,13 +18,15 @@ function loadEnvFile(file) {
   }
 }
 
-export const DEFAULT_MAP_TILE_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
-export const DEFAULT_MAP_TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+export const DEFAULT_MAP_TILE_URL = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}";
+export const DEFAULT_MAP_TILE_ATTRIBUTION = 'Tiles © <a href="https://www.esri.com/">Esri</a>';
 
 export function mapTiles(config = {}) {
+  const url = config.mapTileUrl || process.env.MAP_TILE_URL || DEFAULT_MAP_TILE_URL;
   return {
-    url: config.mapTileUrl || process.env.MAP_TILE_URL || DEFAULT_MAP_TILE_URL,
-    attribution: config.mapTileAttribution || process.env.MAP_TILE_ATTRIBUTION || DEFAULT_MAP_TILE_ATTRIBUTION
+    url,
+    attribution: config.mapTileAttribution || process.env.MAP_TILE_ATTRIBUTION || DEFAULT_MAP_TILE_ATTRIBUTION,
+    maxZoom: /arcgisonline\.com/.test(url) ? 19 : 20
   };
 }
 

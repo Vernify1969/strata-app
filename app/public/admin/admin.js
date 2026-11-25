@@ -214,15 +214,15 @@
     if (!el || !window.L) return;
     const map = L.map(el).setView([-37.8136, 144.9631], 11);
     fetch("/api/map-tiles").then((res) => res.json()).catch(() => ({})).then((tiles) => {
-      const url = tiles.url || "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
-      const layer = L.tileLayer(url, { maxZoom: 20, subdomains: url.indexOf("{s}") === -1 ? "a" : "abcd", attribution: tiles.attribution || "&copy; OpenStreetMap contributors &copy; CARTO" });
+      const url = tiles.url || "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}";
+      const layer = L.tileLayer(url, { maxZoom: tiles.maxZoom || 19, subdomains: url.indexOf("{s}") === -1 ? "a" : "abcd", attribution: tiles.attribution || "Tiles © Esri" });
       let failed = 0;
       layer.on("tileerror", () => { failed += 1; if (failed >= 4 && map.hasLayer(layer)) map.removeLayer(layer); });
       layer.addTo(map);
     });
     fetch("/maps/melbourne-lgas.geojson").then((res) => res.json()).then((data) => {
       const kept = { type: "FeatureCollection", features: (data.features || []).filter((feature) => METRO.indexOf(feature.properties && feature.properties.name) !== -1) };
-      const councils = L.geoJSON(kept, { style: { color: "#0F766E", weight: 1, fillColor: "#99F6E4", fillOpacity: 0.35 } }).addTo(map);
+      const councils = L.geoJSON(kept, { style: { color: "#0F766E", weight: 2, fillColor: "#99F6E4", fillOpacity: 0.12 } }).addTo(map);
       const label = () => councils.eachLayer((shape) => {
         const name = shape.feature && shape.feature.properties && shape.feature.properties.name;
         if (!name) return;

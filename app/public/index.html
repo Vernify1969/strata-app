@@ -1423,12 +1423,17 @@ const PHOTOS = {
     const points = JSON.parse(decodeURIComponent(el.dataset.points || "%5B%5D"));
     if (el._leaflet_id && window.liveMap) window.liveMap.remove();
     const map = L.map(el, { scrollWheelZoom: true }).setView([-37.8136, 144.9631], 11);
-    fetch("/api/map-tiles").then(res => res.json()).catch(() => ({})).then(tiles => {
-      const url = tiles.url || "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+    const bookedBtn = el.parentElement && el.parentElement.querySelector("[data-act=show-booked]");
+    const showBooked = bookedBtn && bookedBtn.getAttribute("aria-pressed") === "true";
+    Promise.all([
+      fetch("/api/map-tiles").then(res => res.ok ? res.json() : {}).catch(() => ({})),
+      fetch("/api/map-pins").then(res => res.ok ? res.json() : null).catch(() => null)
+    ]).then(([tiles, pins]) => {
+      const url = tiles.url || "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}";
       const layer = L.tileLayer(url, {
-        maxZoom: 20,
+        maxZoom: tiles.maxZoom || 19,
         subdomains: url.indexOf("{s}") === -1 ? "a" : "abcd",
-        attribution: tiles.attribution || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+        attribution: tiles.attribution || "Tiles © Esri"
       });
       let failed = 0;
       layer.on("tileerror", () => {
@@ -1436,24 +1441,32 @@ const PHOTOS = {
         if (failed >= 4 && map.hasLayer(layer)) map.removeLayer(layer);
       });
       layer.addTo(map);
+      const chosen = pins && Array.isArray(pins.points)
+        ? pins.points.concat(showBooked && Array.isArray(pins.booked) ? pins.booked : [])
+        : points;
+      let cover = null;
+      if (pins && pins.coverage && pins.coverage.lat != null) cover = pins.coverage;
+      else if (el.dataset.coverage) {
+        try { cover = JSON.parse(decodeURIComponent(el.dataset.coverage)); } catch (e) { cover = null; }
+      }
+      if (cover && cover.lat != null) L.circle([cover.lat, cover.lng], { radius: Number(cover.km || 12) * 1000, color: "#9A3412", weight: 2, fillColor: "#FDBA74", fillOpacity: 0.12 }).addTo(map);
+      drawLivePoints(map, chosen);
+      fetch("/maps/melbourne-lgas.geojson").then(res => res.json()).then(data => {
+        const kept = Object.assign({}, data, { features: (data.features || []).filter(feature => councilShown(feature, chosen)) });
+        const councils = L.geoJSON(kept, {
+          style: { color: "#0F766E", weight: 2, fillColor: "#99F6E4", fillOpacity: 0.12 }
+        }).addTo(map);
+        labelCouncils(map, councils);
+        map.on("zoomend", () => labelCouncils(map, councils));
+        setTimeout(() => { map.invalidateSize(); labelCouncils(map, councils); }, 0);
+      }).catch(() => {});
     });
-    fetch("/maps/melbourne-lgas.geojson").then(res => res.json()).then(data => {
-      const kept = Object.assign({}, data, { features: (data.features || []).filter(feature => councilShown(feature, points)) });
-      const councils = L.geoJSON(kept, {
-        style: { color: "#0F766E", weight: 1, fillColor: "#99F6E4", fillOpacity: 0.35 }
-      }).addTo(map);
-      labelCouncils(map, councils);
-      map.on("zoomend", () => labelCouncils(map, councils));
-      setTimeout(() => { map.invalidateSize(); labelCouncils(map, councils); }, 0);
-    }).catch(() => {});
-    if (el.dataset.coverage) {
-      try {
-        const cover = JSON.parse(decodeURIComponent(el.dataset.coverage));
-        if (cover.lat != null) L.circle([cover.lat, cover.lng], { radius: Number(cover.km || 8) * 1000, color: "#9A3412", weight: 2, fillColor: "#FDBA74", fillOpacity: 0.2 }).addTo(map);
-      } catch (e) { /* ignore a bad coverage value */ }
-    }
+    window.liveMap = map;
+    setTimeout(() => map.invalidateSize(), 0);
+  }
+  function drawLivePoints(map, points) {
     const bounds = [];
-    points.forEach(point => {
+    spreadMapPins(points).forEach(point => {
       if (point.lat == null || point.lng == null) return;
       const color = point.kind === "building" ? "#0E2A66" : point.kind === "contractor" ? "#0F766E" : "#1D4ED8";
       const marker = L.circleMarker([point.lat, point.lng], { radius: 8, color: color, fillColor: color, fillOpacity: 0.9, weight: 2 }).addTo(map);
@@ -1464,8 +1477,21 @@ const PHOTOS = {
     });
     if (bounds.length === 1) map.setView(bounds[0], 13);
     else if (bounds.length > 1) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 14 });
-    window.liveMap = map;
-    setTimeout(() => map.invalidateSize(), 0);
+  }
+  function spreadMapPins(points) {
+    const seen = {};
+    return (points || []).map(point => {
+      const key = Number(point.lat).toFixed(4) + "," + Number(point.lng).toFixed(4);
+      const n = seen[key] || 0;
+      seen[key] = n + 1;
+      if (!n || point.lat == null) return point;
+      const angle = n * 0.9;
+      const metres = 90 + n * 45;
+      return Object.assign({}, point, {
+        lat: point.lat + (metres / 111320) * Math.cos(angle),
+        lng: point.lng + (metres / (111320 * Math.cos(point.lat * Math.PI / 180))) * Math.sin(angle)
+      });
+    });
   }
 
   function goTab(screen) {
@@ -2779,21 +2805,30 @@ const PHOTOS = {
   function mapHtml(list) {
     const points = [];
     const seenBuildings = {};
-    function addJob(job) {
+    function addJob(job, booked) {
       const place = placeOf(job);
       if (!place || place.lat == null || place.lng == null) return;
-      points.push({ kind: "job", id: job.id, lat: place.lat, lng: place.lng, title: job.title, detail: (place.suburb || "") + (place.street ? " · " + place.street : "") });
+      const mine = booked || job.awardedTo === state.meId;
+      const approx = state.role === "contractor" && !mine;
+      points.push({ kind: "job", id: job.id, lat: place.lat, lng: place.lng, title: job.title, detail: approx ? (place.suburb || "") : ((place.suburb || "") + (place.street ? " · " + place.street : "")) });
       if (place.buildingId && !seenBuildings[place.buildingId]) {
         seenBuildings[place.buildingId] = true;
-        points.push({ kind: "building", id: place.buildingId, lat: place.lat, lng: place.lng, title: place.buildingName || place.suburb, detail: ((place.streetNumber ? place.streetNumber + " " : "") + (place.street || "")).trim() });
+        const street = approx ? "" : ((place.streetNumber ? place.streetNumber + " " : "") + (place.street || "")).trim();
+        points.push({ kind: "building", id: place.buildingId, lat: place.lat, lng: place.lng, title: approx ? (place.suburb || "Building") : (place.buildingName || place.suburb), detail: street });
       }
     }
-    list.forEach(addJob);
+    list.forEach(job => addJob(job, false));
+    (state.buildings || []).forEach(b => {
+      if (b.lat == null || seenBuildings[b.id]) return;
+      seenBuildings[b.id] = true;
+      const street = ((b.streetNumber ? b.streetNumber + " " : "") + (b.street || "")).trim();
+      points.push({ kind: "building", id: b.id, lat: b.lat, lng: b.lng, title: b.name || b.suburb, detail: [street, b.suburb].filter(Boolean).join(", ") });
+    });
     if (state.find.showBooked) {
       state.jobs.forEach(job => {
         if (job.awardedTo !== state.meId) return;
         if (["paid", "onsite", "fix1", "fix2", "review0", "review1"].indexOf(job.stage) === -1) return;
-        addJob(job);
+        addJob(job, true);
       });
     }
     (state.contractors || []).forEach(person => {
@@ -2810,7 +2845,7 @@ const PHOTOS = {
       const person = (state.contractors || []).find(item => item.id === state.meId);
       if (person && person.lat != null && person.lng != null) coverage = encodeURIComponent(JSON.stringify({ lat: person.lat, lng: person.lng, km: state.owner.radiusKm || 8 }));
     }
-    return '<div class="stack"><div class="map-card" id="live-map-card"><div id="live-map" class="live-map" role="region" aria-label="Map of Melbourne" data-points="' + encodeURIComponent(JSON.stringify(points)) + '" data-coverage="' + coverage + '"></div><div class="map-tools"><button class="chip" type="button" data-act="show-booked" aria-pressed="' + (state.find.showBooked ? "true" : "false") + '">Show my booked jobs</button><button class="chip" type="button" data-act="map-full">Full screen</button></div></div><p class="small">Map tiles © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>. Council areas: Australian Bureau of Statistics, ASGS Edition 3, Local Government Areas 2023, simplified, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Names appear when you are zoomed in, and on hover. Blue is a job, navy is a building, teal is a contractor. The amber circle is a contractor coverage area.</p>' + preview + "</div>";
+    return '<div class="stack"><div class="map-card" id="live-map-card"><div id="live-map" class="live-map" role="region" aria-label="Map of Melbourne" data-points="' + encodeURIComponent(JSON.stringify(points)) + '" data-coverage="' + coverage + '"></div><div class="map-tools"><button class="chip" type="button" data-act="show-booked" aria-pressed="' + (state.find.showBooked ? "true" : "false") + '">Show my booked jobs</button><button class="chip" type="button" data-act="map-full">Full screen</button></div></div><p class="small">Tiles © <a href="https://www.esri.com/">Esri</a>. Council areas: Australian Bureau of Statistics, ASGS Edition 3, Local Government Areas 2023, simplified, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Names appear when you are zoomed in, and on hover. Blue is a job, navy is a building, teal is a contractor. The amber circle is a contractor coverage area.</p>' + preview + "</div>";
   }
 
   function areaMap() {

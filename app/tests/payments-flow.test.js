@@ -177,7 +177,7 @@ test("payment requests can be sent, retried, released, closed, refunded and paus
     assert.match(page, /Try the payment again/);
     assert.match(page, /Close job/);
     assert.match(page, /Who pays/);
-    assert.match(page, /basemaps\.cartocdn\.com/);
+    assert.match(page, /server\.arcgisonline\.com/);
     assert.doesNotMatch(page, /tile\.openstreetmap\.org/);
   } finally {
     await server.close();
