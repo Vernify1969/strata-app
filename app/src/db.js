@@ -491,6 +491,11 @@ function migrate(db) {
     `);
   }
   if (userVersion(db) < 19) db.exec("PRAGMA user_version = 19");
+  const settingColumns = db.prepare("PRAGMA table_info(platform_settings)").all().map(column => column.name);
+  if (!settingColumns.includes("design_theme")) {
+    db.exec("ALTER TABLE platform_settings ADD COLUMN design_theme TEXT NOT NULL DEFAULT 'clear'");
+  }
+  if (userVersion(db) < 20) db.exec("PRAGMA user_version = 20");
 }
 
 function tableExists(db, name) {

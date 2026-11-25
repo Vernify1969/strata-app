@@ -11,6 +11,7 @@
     ["reports", "Reports"],
     ["documents", "Documents"],
     ["ai", "AI Assistant"],
+    ["map", "Map"],
     ["settings", "Settings"],
     ["audit", "Activity"]
   ];
@@ -61,11 +62,12 @@
     document.querySelectorAll(".side a").forEach((link) => {
       link.setAttribute("aria-current", link.getAttribute("href") === "#/" + section ? "page" : "false");
     });
-    const pages = { dashboard, users, organisations, buildings, jobs, payments, mail, messages, reports, documents, ai, settings, audit };
+    const pages = { dashboard, users, organisations, buildings, jobs, payments, mail, messages, reports, documents, ai, map, settings, audit };
     const fn = pages[section] || dashboard;
     screen.innerHTML = "<p>Loading…</p>";
-    try {
+      try {
       screen.innerHTML = await fn(id);
+      if (section === "map") mountAdminMap();
     } catch (err) {
       screen.innerHTML = '<p class="bad">The admin console could not load this section.</p>';
     }
@@ -202,11 +204,32 @@
       "<h2>Log</h2>" + table([{ key: "created_at", label: "When" }, { key: "helper", label: "Helper" }, { key: "demo", label: "Sample", value: (row) => row.demo ? "Yes" : "No" }], data.logs || []);
   }
 
+  function map() {
+    return "<h1>Map</h1><p>Melbourne council areas. Jobs and buildings in the main app use the same map.</p><div id=\"admin-map\" style=\"height:360px;border-radius:12px\"></div><p class=\"muted\">Council areas: Australian Bureau of Statistics, ASGS Edition 3, Local Government Areas 2023, simplified, CC BY 4.0. Map data © OpenStreetMap contributors.</p>";
+  }
+
+  function mountAdminMap() {
+    const el = document.getElementById("admin-map");
+    if (!el || !window.L) return;
+    const map = L.map(el).setView([-37.8136, 144.9631], 10);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
+    fetch("/maps/melbourne-lgas.geojson").then(res => res.json()).then(data => {
+      const layer = L.geoJSON(data, {
+        style: { color: "#0F766E", weight: 1, fillColor: "#99F6E4", fillOpacity: 0.35 },
+        onEachFeature: (feature, shape) => { if (feature.properties && feature.properties.name) shape.bindTooltip(feature.properties.name, { permanent: true, direction: "center" }); }
+      }).addTo(map);
+      if (layer.getBounds().isValid()) map.fitBounds(layer.getBounds());
+      setTimeout(() => map.invalidateSize(), 0);
+    });
+  }
+
   async function settings() {
     const res = await api("GET", "/api/admin/settings");
     if (!res.ok) return refused(res);
     const data = res.json;
     return "<h1>Settings</h1><p>Fee " + esc(data.commissionPercent) + "% · Deposit " + esc(data.depositHours) + "h · Urgent " + esc(data.urgentDepositHours) + "h · Reminder check every " + esc(data.reminderCheckHours) + "h.</p>" +
+      "<h2>Look</h2><p>One setting for the whole app. The current look is " + esc(data.designTheme || "clear") + ".</p>" +
+      '<p><button class="btn look-choice" type="button" data-look="clear">Clear &amp; Calm</button> <button class="btn look-choice" type="button" data-look="warm">Warm Professional</button> <button class="btn look-choice" type="button" data-look="modern">Modern Dark-Accent</button></p>' +
       "<h2>Chloe</h2><p>Default name " + esc(data.assistantName || "Chloe") + ". Greeting: " + esc(data.assistantGreeting || "") + ". Tone: " + esc(data.assistantTone || "friendly") + ".</p>" +
       "<p>Web search is " + (data.webSearchEnabled === false ? "paused" : "on") + ". Chloe chooses when to search. There is no domain list.</p>" +
       '<button class="btn" type="button" id="web-emergency">' + (data.webSearchEnabled === false ? "Turn web search back on" : "Emergency: pause web search") + "</button>" +
@@ -249,6 +272,14 @@
     if (button.id === "view" && id) {
       const res = await confirmed("/api/admin/users/" + id + "/view-as", {});
       if (res && res.ok) location.href = "/";
+    }
+    if (button.classList.contains("look-choice")) {
+      if (!window.confirm("Save this look for the whole app?")) return;
+      const reason = window.prompt("Reason") || "";
+      const res = await api("PATCH", "/api/admin/settings", { designTheme: button.dataset.look, confirm: true, reason });
+      if (!res.ok) window.alert((res.json && res.json.error) || "That look was not saved.");
+      else draw();
+      return;
     }
     if (button.id === "web-emergency") {
       const pause = button.textContent.indexOf("pause") !== -1;

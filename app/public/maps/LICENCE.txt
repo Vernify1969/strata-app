@@ -1,0 +1,9 @@
+Melbourne council areas in melbourne-lgas.geojson are a simplified extract of the Australian Bureau of Statistics Australian Statistical Geography Standard (ASGS) Edition 3 Local Government Areas 2023 digital boundary file.
+
+© Australian Bureau of Statistics. Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0).
+https://www.abs.gov.au/statistics/standards/australian-statistical-geography-standard-asgs
+https://creativecommons.org/licenses/by/4.0/
+
+The shapes were filtered to greater Melbourne and coordinates were rounded for display. The ABS is not responsible for this extract.
+
+Plus Jakarta Sans is used under the SIL Open Font License 1.1.

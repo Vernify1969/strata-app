@@ -42,8 +42,8 @@ swap(
 );
 
 swap(
-  "  body { background: #E4ECF6; }",
-  "  body { background: var(--bg); }",
+  "  body { background: var(--page); }",
+  "  body { background: var(--page); }",
   "full-bleed background"
 );
 
@@ -90,8 +90,8 @@ swap(
 );
 
 swap(
-  '"<p class=\\"small muted\\">Strata App holds the money until the job is finished, then releases 100%. There is no retention. Managers pay the approved quote and no service fee.</p></div></div>";',
-  '"<p class=\\"small muted\\">Stripe holds and moves the money. Strata App does not hold it. The fee is taken from the contractor only. Managers pay no fee. Refunds, disputes and unpaid-deposit expiry are not built yet.</p></div></div>";',
+  '"<p class=\\"small muted\\">Strata App holds the money until the job is finished, then releases 100%. There is no retention. Managers pay the approved quote and no service fee.</p></div>" +',
+  '"<p class=\\"small muted\\">Stripe holds and moves the money. Strata App does not hold it. The fee is taken from the contractor only. Managers pay no fee.</p></div>" +',
   "owner money sentence"
 );
 
@@ -127,23 +127,31 @@ swap(
 );
 
 swap(
-  `    const emergencyBtn = state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
-    return '<div class="shell" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
+  `    const askBtn = '<button class="btn btn-secondary ask-chloe" type="button" data-act="chloe-open">Ask ' + esc(askName) + "</button>";
+    const emergencyBtn = state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
+    const askTab = '<button class="tab ask-tab" type="button" data-act="chloe-open" aria-pressed="' + (state.chloeOpen ? "true" : "false") + '">' + icon("spark") + '<span class="tab-label">Ask ' + esc(askName) + "</span></button>";
+    const drawer = state.chloeOpen ? '<aside class="chloe-drawer">' + chloeDock() + "</aside>" : "";
+    return '<div class="shell' + (state.chloeOpen ? " chloe-open" : "") + '" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
       '<aside class="rail">' + brandMark() + tabsHtml("rail") + "</aside>" +
-      '<div><header class="topbar">' + bar + (detail ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + themeBtn + emergencyBtn + "</div></header><p class=\\"samplebar\\">Sample data. The people, buildings and jobs are fictional.</p>" +
-      '<main class="main" id="main"><div class="stage"><div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>' + screenHtml() + "</div></main></div></div>" +
-      '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>";`,
-  `    const emergencyBtn = onAuth || state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
+      '<div class="workspace"><header class="topbar">' + bar + (detail ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + askBtn + themeBtn + emergencyBtn + "</div></header><p class=\\"samplebar\\">Sample data. The people, buildings and jobs are fictional.</p>" +
+      '<main class="main" id="main"><div class="stage"><div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>' + screenHtml() + "</div></main></div>" +
+      drawer + "</div>" +
+      '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + askTab + "</nav>";`,
+  `    const askBtn = onAuth ? "" : '<button class="btn btn-secondary ask-chloe" type="button" data-act="chloe-open">Ask ' + esc(askName) + "</button>";
+    const emergencyBtn = onAuth || state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
+    const askTab = onAuth ? "" : '<button class="tab ask-tab" type="button" data-act="chloe-open" aria-pressed="' + (state.chloeOpen ? "true" : "false") + '">' + icon("spark") + '<span class="tab-label">Ask ' + esc(askName) + "</span></button>";
+    const drawer = !onAuth && state.chloeOpen ? '<aside class="chloe-drawer">' + chloeDock() + "</aside>" : "";
     const demoBanner = state.demo ? '<p class="samplebar">Demo, test data only. Payments are simulated and QR sheets cannot be printed.</p>' : "";
     const sample = demoBanner + (onAuth ? "" : '<p class="samplebar">' + (state.account ? esc(state.account.banner || "Signed in.") : "Sample data. The people, buildings and jobs are fictional.") + "</p>");
     const menuSignOut = state.account ? '<button class="tab sign-out-tab" type="button" data-act="sign-out" aria-label="Sign out of this device"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg><span class="tab-label">Sign out</span></button>' : "";
     const headerSignOut = state.account ? '<button class="btn btn-secondary header-sign-out" type="button" data-act="sign-out">Sign out</button>' : "";
     const rail = onAuth ? "" : '<aside class="rail">' + brandMark() + tabsHtml("rail") + menuSignOut + "</aside>";
-    const nav = onAuth ? "" : '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>" + chloeDock();
-    return '<div class="shell" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
+    const nav = onAuth ? "" : '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + askTab + "</nav>";
+    return '<div class="shell' + (state.chloeOpen ? " chloe-open" : "") + '" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
       rail +
-      '<div class="workspace"><header class="topbar">' + bar + (detail && !onAuth ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + themeBtn + headerSignOut + emergencyBtn + "</div></header>" + sample +
-      '<main class="main" id="main"><div class="stage"><div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>' + screenHtml() + "</div></main></div></div>" +
+      '<div class="workspace"><header class="topbar">' + bar + (detail && !onAuth ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + askBtn + themeBtn + headerSignOut + emergencyBtn + "</div></header>" + sample +
+      '<main class="main" id="main"><div class="stage"><div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>' + screenHtml() + "</div></main></div>" +
+      drawer + "</div>" +
       nav;`,
   "shell chrome"
 );
@@ -172,6 +180,10 @@ swap(
     const roleBtn = (id, label) => '<button class="chip" type="button" data-act="auth-role" data-role="' + id + '" aria-pressed="' + (a.role === id ? "true" : "false") + '">' + label + "</button>";
     if (state.screen === "welcome") {
       return '<div class="welcome-layout"><section class="hero"><p class="eyebrow">Strata App</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. Strata App does not.</p></section><div class="stack">' +
+        '<div class="card stack"><p><strong>Try a look</strong></p><p class="small">A temporary preview. The owner saves the look for everyone in settings.</p><div class="row">' +
+        '<button class="chip" type="button" data-act="try-look" data-look="clear" aria-pressed="' + (lookId() === "clear" ? "true" : "false") + '">Clear &amp; Calm</button>' +
+        '<button class="chip" type="button" data-act="try-look" data-look="warm" aria-pressed="' + (lookId() === "warm" ? "true" : "false") + '">Warm Professional</button>' +
+        '<button class="chip" type="button" data-act="try-look" data-look="modern" aria-pressed="' + (lookId() === "modern" ? "true" : "false") + '">Modern Dark-Accent</button></div></div>' +
         '<button class="btn btn-primary" type="button" data-act="auth-goto" data-screen="register">Create an account</button>' +
         '<button class="btn btn-secondary" type="button" data-act="auth-goto" data-screen="signin">Sign in</button>' +
         (state.demo ? '<div class="card stack"><p><strong>Five demo accounts. Pick one.</strong></p><div class="demo-pair"><div class="demo-account"><h2>Building manager</h2><p><strong>Mina Costa</strong></p><p class="small">mina.costa@harbour.example</p><p class="small">Password Harbour1</p><p class="small">Harbour View Apartments</p></div><div class="demo-account"><h2>Owners Corporation manager</h2><p><strong>Helen Tran</strong></p><p class="small">helen.tran@riverside.example</p><p class="small">Password Riverside1</p><p class="small">Riverside Court</p></div><div class="demo-account"><h2>Property manager</h2><p><strong>Leo Park</strong></p><p class="small">leo.park@southbanklets.example</p><p class="small">Password Lettings1</p><p class="small">12 Clarendon Street rental</p></div><div class="demo-account"><h2>Contractor</h2><p><strong>Sam Okonkwo</strong></p><p class="small">sam@plumbing.example</p><p class="small">Password Pipes123</p></div><div class="demo-account"><h2>Platform owner</h2><p><strong>Nick Owner</strong></p><p class="small">owner@taskspeck.example</p><p class="small">Password Ownerpass1</p><p class="small">Back office only</p></div></div><p class="small">A new account shows its confirmation link on this screen. No email is sent. The Lift 1 report page is /r/demo-lift-1.</p></div>' : "") +

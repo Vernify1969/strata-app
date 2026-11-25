@@ -8,7 +8,6 @@ import { approvalFor, depositAllowed, depositCents, hasContact, invoiceDecision,
 // TODO(owner): refunds are not built. A cancellation before arrival should refund through Stripe once you decide the policy.
 // TODO(owner): disputes are not built. TaskSpeck never decides who is right.
 // TODO(owner): the Strata administrator role is not defined, so it is not a role in this app.
-// TODO(owner): unpaid deposit expiry is not built. A deposit is not cancelled automatically.
 
 const MANAGER = new Set(["building_manager", "oc_manager", "property_manager"]);
 
