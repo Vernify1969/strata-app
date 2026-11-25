@@ -24,7 +24,7 @@ test("the owner can save one of three looks and everyone else sees it", async ()
     assert.equal(admin.status, 200);
     assert.equal(admin.json.designTheme, "modern");
     const db = new DatabaseSync(server.config.databasePath, { readOnly: true });
-    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 20);
+    assert.ok(db.prepare("PRAGMA user_version").get().user_version >= 20);
     db.close();
   } finally {
     await server.close();

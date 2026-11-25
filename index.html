@@ -813,6 +813,10 @@ const PHOTOS = {
     themeChoice: "auto",
     look: "clear",
     lookTry: "",
+    jobQuery: "",
+    editingJobId: "",
+    declineReason: {},
+    cancelReason: "",
     toast: "",
     manager: {
       role: "",
@@ -1979,9 +1983,19 @@ const PHOTOS = {
       ["progress", "In progress"],
       ["done", "Done"]
     ];
-    let body = '<div class="stack"><h1>Jobs</h1>' + noticeNeeds(needsManagerCount(), "jobs");
+    const query = String(state.jobQuery || "").trim().toLowerCase();
+    let body = '<div class="stack"><h1>Jobs</h1>' + noticeNeeds(needsManagerCount(), "jobs") +
+      '<label class="field" for="job-q">Search your jobs<input id="job-q" type="search" data-field="jobQuery" value="' + esc(state.jobQuery || "") + '" placeholder="Title, building, trade or place"></label>';
+    const owned = state.jobs.filter(job => {
+      if (!query) return true;
+      const place = placeOf(job);
+      const hay = [job.title, job.area, job.instructions, job.tradeId, statusLabel(job), place.buildingName, place.suburb].join(" ").toLowerCase();
+      return hay.indexOf(query) !== -1;
+    });
+    if (query && !owned.length) body += emptyState("No jobs match.", "Try a building, a trade, or words from the title.");
     groups.forEach(g => {
-      const items = state.jobs.filter(j => managerBucket(j) === g[0]);
+      const items = owned.filter(j => managerBucket(j) === g[0]);
+      if (query && !items.length) return;
       body += "<h2>" + g[1] + "</h2>";
       body += items.length ? items.map(jobCardManager).join("") : emptyState("Nothing in this group.", "Post a job from Home when you are ready.");
     });
@@ -2084,7 +2098,7 @@ const PHOTOS = {
     if (state.step === 3) body = step3(d);
     if (state.step === 4) body = step4(d);
     if (state.step === 5) body = step5(d);
-    const nextLabel = state.step === 5 ? "Post request" : "Continue";
+    const nextLabel = state.step === 5 ? (state.editingJobId ? "Save changes" : "Post request") : "Continue";
     return '<div class="stack">' + bar + body +
       '<div class="row"><button class="btn btn-secondary auto" type="button" data-act="step-back">Back</button><button class="btn btn-primary" type="button" data-act="step-next" style="flex:1">' + nextLabel + "</button></div></div>";
   }
@@ -2241,8 +2255,39 @@ const PHOTOS = {
     }
     return "";
   }
+  function draftFromJob(job) {
+    const d = blankDraft({ buildingId: job.buildingId, tradeId: job.tradeId, date: job.date });
+    d.area = job.area || "";
+    d.title = job.title || "";
+    d.instructions = job.instructions || "";
+    d.urgency = job.urgency || "standard";
+    d.date = job.date || "";
+    return d;
+  }
+  function activeQuotes(jobId) {
+    return quotesFor(jobId).filter(quote => (quote.status || "open") !== "withdrawn");
+  }
   function postDraft() {
     const d = state.draft;
+    if (state.editingJobId) {
+      const job = jobById(state.editingJobId);
+      if (!job) { toast("That request is not here."); return; }
+      job.title = d.title.trim();
+      job.area = d.area.trim();
+      job.tradeId = d.tradeId;
+      job.instructions = d.instructions.trim();
+      job.urgency = d.urgency;
+      job.date = d.date;
+      state.editingJobId = "";
+      state.draft = null;
+      toast("Request updated.");
+      state.history = [];
+      state.screen = "job";
+      state.ctx = { id: job.id };
+      state.title = job.title;
+      render();
+      return;
+    }
     for (let s = 1; s <= 5; s++) {
       state.step = s;
       const err = validateStep(d);
@@ -2305,15 +2350,29 @@ const PHOTOS = {
     if (job.contractorAlert && !job.alertSeen) {
       stage += '<div class="notice notice-bad" role="alert"><strong>The contractor has sent an emergency alert.</strong><p>It is saved in the evidence record.</p><button class="btn btn-emergency" type="button" data-act="seen-alert" data-id="' + job.id + '">I have seen it</button></div>';
     }
-    if (job.stage === "open" && quotesFor(job.id).length === 0) stage += '<div class="card"><h2>Waiting for quotes</h2><p>Contractors in the area can make an offer.</p></div>';
-    if (job.stage === "open" && quotesFor(job.id).length) stage += compareQuotes(job);
-    if (job.stage === "approved") stage += '<div class="card stack"><h2>Pay to start</h2><p>The quote is approved. The job starts once the money is held.</p><button class="btn btn-primary" type="button" data-act="open-pay" data-id="' + job.id + '">Pay to start</button></div>';
+    if (job.stage === "open") {
+      stage += quoteWindow(job);
+      if (!activeQuotes(job.id).length) {
+        stage += '<div class="card stack"><h2>Waiting for quotes</h2><p>Contractors in the area can make an offer.</p><button class="btn btn-secondary" type="button" data-act="edit-job" data-id="' + job.id + '">Edit this request</button><p class="small">You can edit a request until the first quote arrives.</p></div>';
+      } else stage += compareQuotes(job);
+    }
+    if (job.stage === "approved") stage += '<div class="card stack"><h2>Pay to start</h2><p>The quote is approved. The job starts once the money is held.</p><button class="btn btn-primary" type="button" data-act="open-pay" data-id="' + job.id + '">Pay to start</button></div>' + managerCancel(job);
+    if (job.stage === "paid") stage += managerCancel(job);
     if (["paid", "onsite", "fix1", "fix2"].indexOf(job.stage) !== -1) stage += arrivalCard(job) + accessCard(job);
     if (job.stage === "review0" || job.stage === "review1") stage += reviewPanel(job);
     if (job.stage === "released") stage += releasedManager(job);
     return '<div class="stack">' + head + stage +
       '<button class="btn btn-secondary" type="button" data-act="open-evidence" data-id="' + job.id + '">View evidence record</button>' +
       '<div class="card">' + timelineHtml(job) + "</div></div>";
+  }
+  function cancelBeforeArrival(job) {
+    const reasons = ["I can no longer do the job", "I was sick or had an emergency", "The site was unsafe", "The manager changed the job or the access", "Another reason"];
+    return '<div class="card stack"><h2>Cancel before arrival</h2><label class="field" for="cancel-why">Why are you cancelling?<select id="cancel-why" data-field="cancelReason"><option value="">Choose a reason</option>' +
+      reasons.map(reason => '<option' + (state.cancelReason === reason ? " selected" : "") + ">" + esc(reason) + "</option>").join("") +
+      '</select></label><button class="btn btn-ghost" type="button" data-act="cancel-job" data-id="' + job.id + '">Cancel this job</button><p class="small">Cancelling after you accepted counts as a strike, unless the site was unsafe or the manager changed the job or the access. A payment that Stripe is already holding cannot be cancelled here.</p></div>';
+  }
+  function managerCancel(job) {
+    return '<div class="card stack"><h2>Cancel before arrival</h2><label class="field" for="mgr-cancel">Why are you cancelling?<input id="mgr-cancel" type="text" data-field="cancelReason" value="' + esc(state.cancelReason || "") + '" placeholder="We no longer need this work"></label><button class="btn btn-ghost" type="button" data-act="cancel-job" data-id="' + job.id + '">Cancel this job</button><p class="small">The job opens for new quotes. Cancelling as the manager does not give the contractor a strike. A payment that Stripe is already holding cannot be cancelled here.</p></div>';
   }
   function accessCard(job) {
     return '<div class="card stack"><h2>Access</h2><p>' + esc(job.access || "No access note.") + "</p><p>Site contact: " + esc(state.manager.name) + " · " + esc(job.phone) + "</p><p class=\"small muted\">If the contractor does not attend or add evidence, the money stays held.</p></div>";
@@ -2327,10 +2386,19 @@ const PHOTOS = {
     if (job.arrival === "cannot_get_in") actions = '<div class="notice notice-bad"><strong>The contractor cannot get in.</strong></div><button class="btn btn-primary" type="button" data-act="let-in" data-id="' + job.id + '">I have let them in</button>';
     return '<div class="card stack"><h2>Arrival</h2><p>Booked for ' + esc(when) + '.</p><p><strong>Live status: ' + esc(liveStatus(job)) + "</strong></p>" + actions + "</div>";
   }
+  function quoteWindow(job) {
+    if (!job.quoteDeadline) return '<p class="small">No quote deadline is set.</p><button class="btn btn-secondary" type="button" data-act="extend-deadline" data-id="' + job.id + '">Extend by 2 days</button>';
+    const past = job.quoteDeadline < todayISO();
+    if (past) return '<div class="notice notice-warn"><strong>The quote deadline has passed</strong><p>It was ' + esc(job.quoteDeadline) + '. Contractors can no longer send offers.</p><button class="btn btn-secondary" type="button" data-act="extend-deadline" data-id="' + job.id + '">Extend by 2 days</button></div>';
+    return '<p class="small">Quotes wanted by ' + esc(job.quoteDeadline) + '.</p><button class="btn btn-secondary" type="button" data-act="extend-deadline" data-id="' + job.id + '">Extend by 2 days</button>';
+  }
   function compareQuotes(job) {
     const p = placeOf(job);
-    const cards = quotesFor(job.id).map(q => {
+    const cards = activeQuotes(job.id).map(q => {
       const c = person(q.contractorId);
+      if ((q.status || "open") === "declined") {
+        return '<article class="card stack quote"><h3>' + esc(c.name) + '</h3><p>Declined' + (q.declineReason ? ": " + esc(q.declineReason) : "") + '.</p><button class="btn btn-secondary" type="button" data-act="undo-decline" data-id="' + q.id + '">Undo</button></article>';
+      }
       const over = q.price > p.limit;
       const clashes = clashForQuote(job, q);
       const gst = c.gst ? "Includes GST " + money(gstPart(q.price)) : "No GST (contractor not registered)";
@@ -2346,6 +2414,8 @@ const PHOTOS = {
         (over && !q.committeeApproved ? '<button class="btn btn-secondary" type="button" data-act="committee" data-id="' + q.id + '">Record committee approval <span class="demo">Demo</span></button>' : "") +
         (q.committeeApproved ? '<p class="small">Committee approval recorded <span class="demo">Demo</span></p>' : "") +
         '<button class="btn btn-ghost" type="button" data-act="open-person" data-id="' + c.id + '">View profile</button>' +
+        '<label class="field" for="decline-' + q.id + '">Decline this quote<select id="decline-' + q.id + '" data-field="decline.' + q.id + '"><option value="">No reason given</option><option>Price too high</option><option>Scope does not match</option><option>Another contractor suits better</option></select></label>' +
+        '<button class="btn btn-ghost" type="button" data-act="decline-quote" data-id="' + q.id + '">Decline this quote</button>' +
         '<button class="btn btn-primary" type="button" data-act="approve" data-id="' + q.id + '"' + (canApprove ? "" : " disabled") + ">Approve " + moneyShort(q.price) + " of " + moneyShort(p.limit) + "</button></article>";
     }).join("");
     return '<div class="stack"><h2>Compare quotes</h2><div class="quote-grid">' + cards + "</div></div>";
@@ -2583,8 +2653,8 @@ const PHOTOS = {
     }
     top += "</div>";
     let work = "";
-    if (awarded && job.stage === "approved") work = '<div class="card"><h2>Waiting for payment</h2><p>The manager has approved your offer. You will see the address after they pay.</p></div>';
-    if (awarded && job.stage === "paid") work = gettingThere(job);
+    if (awarded && job.stage === "approved") work = '<div class="card"><h2>Waiting for payment</h2><p>The manager has approved your offer. You will see the address after they pay.</p></div>' + cancelBeforeArrival(job);
+    if (awarded && job.stage === "paid") work = gettingThere(job) + cancelBeforeArrival(job);
     if (awarded && (job.stage === "onsite" || job.stage === "fix1" || job.stage === "fix2")) work = evidenceCapture(job);
     if (awarded && (job.stage === "review0" || job.stage === "review1")) work = '<div class="card"><h2>Waiting for the manager</h2><p>They have 48 hours to accept or challenge.</p></div>';
     if (awarded && job.stage === "released") work = releasedContractor(job);
@@ -2615,8 +2685,14 @@ const PHOTOS = {
   }
   function offerBlock(job) {
     const sent = state.quotes.find(q => q.jobId === job.id && q.contractorId === state.meId);
+    if (sent && (sent.status || "open") === "declined") {
+      return '<div class="card stack"><h2>Offer declined</h2><p>' + (sent.declineReason ? esc(sent.declineReason) : "The manager declined this offer.") + "</p></div>";
+    }
     if (sent) {
-      return '<div class="card stack"><h2>Offer sent</h2><p>' + money(sent.price) + " · " + esc(rangeText(sent.date, sent.time, sent.duration, placeOf(job).open, placeOf(job).close)) + "</p><ul class=\"clean\">" + sent.scope.map(s => "<li>" + esc(s) + "</li>").join("") + "</ul></div>";
+      return '<div class="card stack"><h2>Offer sent</h2><p>' + money(sent.price) + " · " + esc(rangeText(sent.date, sent.time, sent.duration, placeOf(job).open, placeOf(job).close)) + "</p><ul class=\"clean\">" + sent.scope.map(s => "<li>" + esc(s) + "</li>").join("") + '</ul><button class="btn btn-ghost" type="button" data-act="withdraw-offer" data-id="' + sent.id + '">Withdraw my offer</button><p class="small">You can withdraw until the manager accepts it.</p></div>';
+    }
+    if (job.quoteDeadline && job.quoteDeadline < todayISO()) {
+      return '<div class="notice notice-warn"><strong>The quote deadline has passed</strong><p>The manager is no longer taking offers for this job.</p></div>';
     }
     const reason = blockReason(job);
     const outside = reason.indexOf("licence") !== -1;
@@ -2872,6 +2948,12 @@ const PHOTOS = {
 
   function applyField(field, value) {
     if (field === "find.q") { state.find.q = value; return false; }
+    if (field === "jobQuery") { state.jobQuery = value; return true; }
+    if (field.indexOf("decline.") === 0) {
+      state.declineReason[field.slice(8)] = value;
+      return false;
+    }
+    if (field === "cancelReason") { state.cancelReason = value; return false; }
     if (field === "note.draft") { state.noteDraft = value; return false; }
     if (field.indexOf("qr.") === 0) {
       state.qrDraft = state.qrDraft || { buildingId: "", name: "", level: "" };
@@ -2984,6 +3066,62 @@ const PHOTOS = {
     if (act === "chloe-open") { state.chloeOpen = true; render({ keepScroll: true }); return; }
     if (act === "chloe-close") { state.chloeOpen = false; render({ keepScroll: true }); return; }
     if (act === "back") { back(); return; }
+    if (act === "edit-job") {
+      const job = jobById(t.dataset.id);
+      if (!job || activeQuotes(job.id).length) { toast("Quotes have been received, so this request can no longer be edited."); return; }
+      state.editingJobId = job.id;
+      state.draft = draftFromJob(job);
+      state.step = 2;
+      push("request", {}, "Edit request");
+      return;
+    }
+    if (act === "decline-quote") {
+      const quote = quoteById(t.dataset.id);
+      if (!quote) return;
+      quote.status = "declined";
+      quote.declineReason = state.declineReason[quote.id] || "";
+      toast("Quote declined.");
+      render({ keepScroll: true });
+      return;
+    }
+    if (act === "undo-decline") {
+      const quote = quoteById(t.dataset.id);
+      if (!quote) return;
+      quote.status = "open";
+      quote.declineReason = "";
+      toast("Quote restored.");
+      render({ keepScroll: true });
+      return;
+    }
+    if (act === "withdraw-offer") {
+      state.quotes = state.quotes.filter(quote => quote.id !== t.dataset.id);
+      toast("Offer withdrawn.");
+      render({ keepScroll: true });
+      return;
+    }
+    if (act === "cancel-job") {
+      const job = jobById(t.dataset.id);
+      if (!job) return;
+      if (!state.cancelReason || String(state.cancelReason).trim().length < 3) { toast("Add the reason for cancelling."); return; }
+      job.stage = "open";
+      job.awardedTo = null;
+      job.awardedQuoteId = null;
+      state.cancelReason = "";
+      toast("Job cancelled. It is open for quotes again.");
+      render();
+      return;
+    }
+    if (act === "extend-deadline") {
+      const job = jobById(t.dataset.id);
+      if (!job) return;
+      const base = job.quoteDeadline && job.quoteDeadline >= todayISO() ? job.quoteDeadline : todayISO();
+      const next = new Date(base + "T00:00:00");
+      next.setDate(next.getDate() + 2);
+      job.quoteDeadline = next.getFullYear() + "-" + pad(next.getMonth() + 1) + "-" + pad(next.getDate());
+      toast("Quotes now wanted by " + job.quoteDeadline + ".");
+      render({ keepScroll: true });
+      return;
+    }
     if (act === "new-request") { startRequest({ tradeId: t.dataset.trade || "plumbing" }); return; }
     if (act === "owner") { push("owner", {}, "Owner settings"); return; }
     if (act === "add-building") {
