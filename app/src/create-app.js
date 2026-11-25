@@ -526,7 +526,7 @@ export async function createApp(config) {
       feePercent: settings.commissionPercent,
       gstOnFee: settings.gstOnFee,
       maxPayDays: settings.maxPayDays,
-      overduePauseDays: settings.overduePauseDays,
+      reminderEveryDays: settings.reminderEveryDays,
       urgentFeeCents: settings.urgentFeeCents,
       apartmentFeeCents: settings.apartmentFeeCents,
       apartmentFeeEnabled: settings.apartmentFeeEnabled,
@@ -563,7 +563,7 @@ export async function createApp(config) {
     const designTheme = cleanDesignTheme(req.body?.designTheme, current.designTheme);
     const gstOnFee = req.body?.gstOnFee == null ? current.gstOnFee : !!req.body.gstOnFee;
     const maxPayDays = req.body?.maxPayDays == null ? current.maxPayDays : Number(req.body.maxPayDays);
-    const overduePauseDays = req.body?.overduePauseDays == null ? current.overduePauseDays : Number(req.body.overduePauseDays);
+    const reminderEveryDays = req.body?.reminderEveryDays == null ? current.reminderEveryDays : Number(req.body.reminderEveryDays);
     if (req.body?.assistantName != null && !assistantName) return sendError(res, 400, "The assistant name is 1 to 20 letters and spaces.");
     if (!Number.isInteger(commission) || commission < 0 || commission > 30) return sendError(res, 400, "Commission is a whole number from 0 to 30.");
     if (!Number.isInteger(urgent) || urgent < 0) return sendError(res, 400, "The urgent fee is a number of cents.");
@@ -574,9 +574,9 @@ export async function createApp(config) {
     if (!Number.isInteger(contractorAiCapCents) || contractorAiCapCents < 0 || contractorAiCapCents > 100000) return sendError(res, 400, "The contractor allowance is a whole number of cents.");
     if (!Number.isInteger(minCoverCents) || minCoverCents < 0) return sendError(res, 400, "The cover minimum is a whole number of cents.");
     if (!Number.isInteger(maxPayDays) || maxPayDays < 1 || maxPayDays > 90) return sendError(res, 400, "The longest payment terms are a whole number of days from 1 to 90.");
-    if (!Number.isInteger(overduePauseDays) || overduePauseDays < 1 || overduePauseDays > 60) return sendError(res, 400, "The overdue pause is a whole number of days from 1 to 60.");
-    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, apartment_fee_cents = ?, apartment_fee_enabled = ?, deposit_hours = ?, urgent_deposit_hours = ?, ai_cap_cents = ?, contractor_ai_cap_cents = ?, min_cover_cents = ?, assistant_name = ?, assistant_greeting = ?, assistant_tone = ?, design_theme = ?, gst_on_fee = ?, max_pay_days = ?, overdue_pause_days = ? WHERE id = 'main'`)
-      .run(commission, urgent, apartment, enabled ? 1 : 0, depositHours, urgentDepositHours, aiCapCents, contractorAiCapCents, minCoverCents, assistantName, assistantGreeting, assistantTone, designTheme, gstOnFee ? 1 : 0, maxPayDays, overduePauseDays);
+    if (!Number.isInteger(reminderEveryDays) || reminderEveryDays < 1 || reminderEveryDays > 60) return sendError(res, 400, "The reminder gap is a whole number of days from 1 to 60.");
+    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, apartment_fee_cents = ?, apartment_fee_enabled = ?, deposit_hours = ?, urgent_deposit_hours = ?, ai_cap_cents = ?, contractor_ai_cap_cents = ?, min_cover_cents = ?, assistant_name = ?, assistant_greeting = ?, assistant_tone = ?, design_theme = ?, gst_on_fee = ?, max_pay_days = ?, reminder_every_days = ? WHERE id = 'main'`)
+      .run(commission, urgent, apartment, enabled ? 1 : 0, depositHours, urgentDepositHours, aiCapCents, contractorAiCapCents, minCoverCents, assistantName, assistantGreeting, assistantTone, designTheme, gstOnFee ? 1 : 0, maxPayDays, reminderEveryDays);
     res.json({ ...moneySettings(db, config), apartmentFeeCharged: false });
   });
 

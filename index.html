@@ -1889,7 +1889,7 @@ const PHOTOS = {
   function officeScreen() {
     const data = state.officeData || {};
     const section = state.officeSection || "overview";
-    const names = [["overview", "overview"], ["users", "users"], ["buildings", "buildings"], ["jobs", "jobs"], ["payments", "payments"], ["documents", "documents"], ["places", "places"], ["ai", "AI Assistant"], ["settings", "settings"], ["audit", "audit"]];
+    const names = [["overview", "overview"], ["users", "users"], ["buildings", "buildings"], ["jobs", "jobs"], ["payments", "payments"], ["overdue", "Overdue payments"], ["documents", "documents"], ["places", "places"], ["ai", "AI Assistant"], ["settings", "settings"], ["audit", "audit"]];
     const nav = names.map(name => '<button class="chip" type="button" data-act="office-section" data-section="' + name[0] + '" aria-pressed="' + (section === name[0] ? "true" : "false") + '">' + name[1] + "</button>").join("");
     let body = "<p>Choose a section.</p>";
     if (section === "overview" && data.managers != null) {
@@ -1898,6 +1898,10 @@ const PHOTOS = {
       body = data.users.map(user => '<article class="card stack"><h2>' + esc(user.name) + "</h2><p>" + esc(user.email) + " · " + esc(user.role) + (user.suspended ? " · Suspended" : "") + "</p>" +
         '<button class="btn btn-secondary" type="button" data-act="office-suspend" data-id="' + esc(user.id) + '" data-on="' + (user.suspended ? "0" : "1") + '">' + (user.suspended ? "Reactivate" : "Suspend") + "</button>" +
         '<button class="btn btn-ghost" type="button" data-act="office-reset" data-id="' + esc(user.id) + '">Send password reset email</button></article>').join("") || "<p>No accounts.</p>";
+    } else if (section === "overdue") {
+      const rows = data.overdue || [];
+      body = '<div class="card stack"><h2>Overdue payments</h2><p>' + esc(data.note || "Follow these up personally. A late payment never stops a new job.") + "</p>" +
+        (rows.map(row => "<p>" + esc(row.number) + " · " + esc(row.buildingName) + " · " + esc(row.jobTitle) + " · due " + esc(row.dueOn) + " · " + esc(row.payerEmail) + "</p>").join("") || "<p>Nothing is overdue.</p>") + "</div>";
     } else if (section === "payments" && data.payments) {
       body = '<p>' + esc(data.refunds || "") + "</p>" + data.payments.map(row => '<article class="card"><p>' + esc(row.ledger) + " · " + row.amount_cents + " cents · fee " + row.fee_cents + "</p>" +
         (row.released_at ? "" : '<button class="btn btn-secondary" type="button" data-act="office-pause" data-id="' + esc(row.id) + '" data-on="' + (row.payout_paused ? "0" : "1") + '">' + (row.payout_paused ? "Resume payout" : "Pause payout") + "</button>") + "</article>").join("");
@@ -1977,7 +1981,7 @@ const PHOTOS = {
         '<label class="check"><input type="checkbox" data-field="building.' + b.id + '.weekends"' + (b.weekends ? " checked" : "") + "> <span>Contractors can work weekends</span></label>" +
         areaField("Saved access details", "building." + b.id + ".access", b.access) +
         field("How close a contractor must be for evidence (metres)", "number", "building." + b.id + ".captureM", b.captureM) +
-        (b.paymentsPaused ? '<p class="notice notice-bad">New jobs are paused because a payment is overdue.</p>' : "") +
+        (b.overdueCount ? '<p class="notice notice-warn"><strong>A payment is overdue.</strong> A reminder has been sent to the payer. You can still post new jobs for this building.</p>' : "") +
         '<label class="field">Who pays<select data-field="building.' + b.id + '.payer"><option value="accounts"' + ((b.payer || "accounts") === "accounts" ? " selected" : "") + ">OC or agency accounts</option><option value=\"owner\"" + (b.payer === "owner" ? " selected" : "") + ">The lot owner</option><option value=\"manager\"" + (b.payer === "manager" ? " selected" : "") + ">The manager</option></select></label>" +
         field("Payment email", "email", "building." + b.id + ".paymentEmail", b.paymentEmail || "", "Leave blank to use your email") +
         field("Payment terms (days)", "number", "building." + b.id + ".paymentTermsDays", b.paymentTermsDays == null ? 14 : b.paymentTermsDays) +
@@ -2769,7 +2773,8 @@ const PHOTOS = {
       const failed = item.status === "failed" ? '<div class="notice notice-bad" role="alert"><strong>Payment failed</strong><p>' + esc(item.failureReason || "The card was declined.") + " Nothing was taken.</p><button class=\"btn btn-primary\" type=\"button\" data-act=\"retry-request\" data-id=\"" + item.id + "\" data-job=\"" + job.id + "\">Try the payment again</button></div>" : "";
       const send = item.status === "draft" || item.status === "sent" || item.status === "failed" ? '<button class="btn btn-secondary" type="button" data-act="send-request" data-id="' + item.id + '" data-job="' + job.id + '">' + (item.status === "draft" ? "Send payment request" : "Send again") + "</button>" : "";
       const pay = item.status === "sent" ? '<button class="btn btn-primary" type="button" data-act="pay-request" data-id="' + item.id + '" data-job="' + job.id + '">Record payment</button>' : "";
-      return "<p>" + esc(item.number) + " · " + money(item.amount) + " · " + esc(item.status) + " · due " + esc(item.dueOn) + "</p>" + send + pay + failed;
+      const late = item.status === "sent" && item.dueOn && item.dueOn < todayISO() ? '<p class="notice notice-warn"><strong>This payment is overdue.</strong> A polite reminder goes to the payer. You can still post new jobs.</p>' : "";
+      return "<p>" + esc(item.number) + " · " + money(item.amount) + " · " + esc(item.status) + " · due " + esc(item.dueOn) + "</p>" + late + send + pay + failed;
     }).join("");
     const close = job.closeState === "ready"
       ? '<button class="btn btn-primary" type="button" data-act="close-job" data-id="' + job.id + '">Close job</button>'

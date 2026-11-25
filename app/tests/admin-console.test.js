@@ -24,6 +24,7 @@ const paths = [
   ["GET", "/api/admin/jobs/x"],
   ["GET", "/api/admin/jobs.csv"],
   ["GET", "/api/admin/payments"],
+  ["GET", "/api/admin/overdue"],
   ["GET", "/api/admin/payments/x"],
   ["GET", "/api/admin/payments.csv"],
   ["GET", "/api/admin/mail"],

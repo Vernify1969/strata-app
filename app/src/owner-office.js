@@ -2,6 +2,7 @@ import { audit } from "./db.js";
 import { newId } from "./ids.js";
 import { sendDueAlerts } from "./documents.js";
 import { moneySettings } from "./payments.js";
+import { listOverdue } from "./payment-requests.js";
 
 const USER_FIELDS = `id, organisation_id, email, role, name, mobile, business_name, abn, payment_method, consent, email_verified_at, created_at, suspended, suspended_reason, stripe_account_id`;
 
@@ -163,6 +164,14 @@ export function registerOwnerOffice(app, { db, mail, sendError, requireUser, req
     const timeline = db.prepare("SELECT at, actor_name, body FROM job_events WHERE job_id = ? ORDER BY id").all(job.id);
     const quotes = db.prepare("SELECT id, price_cents, status, deposit_type, created_at FROM quotes WHERE job_id = ?").all(job.id);
     res.json({ job, timeline, quotes });
+  });
+
+  app.get("/api/owner/overdue-payments", requireUser, (req, res) => {
+    if (!guard(req, res)) return;
+    res.json({
+      overdue: listOverdue(db),
+      note: "These payments are overdue. Follow them up personally. A late payment never stops a building from posting a new job."
+    });
   });
 
   app.get("/api/owner/payments", requireUser, (req, res) => {

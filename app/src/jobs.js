@@ -50,7 +50,6 @@ export function registerJobRoutes(app, { db, config = {}, mail, sendError, requi
       WHERE buildings.id = ? AND buildings.organisation_id = ? AND building_assignments.user_id = ? AND buildings.archived = 0`)
       .get(req.body?.buildingId, req.user.organisation_id, req.user.id);
     if (!building) return sendError(res, 404, "That building is not on your account.");
-    if (building.payments_paused) return sendError(res, 400, "Payments for this building are overdue. New jobs are paused until they are paid.");
     const served = db.prepare("SELECT postcode FROM service_postcodes WHERE postcode = ?").get(building.postcode);
     if (!served) return sendError(res, 400, "We do not cover this area yet.");
     const title = String(req.body?.title || "").trim();

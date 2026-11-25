@@ -2,6 +2,7 @@ import { audit } from "./db.js";
 import { cleanAssistantName } from "./chloe.js";
 import { abnOk, mobileOk, newId } from "./ids.js";
 import { cleanDesignTheme, moneySettings } from "./payments.js";
+import { listOverdue } from "./payment-requests.js";
 import { readObject } from "./storage.js";
 
 const USER_FIELDS = "id, organisation_id, email, role, name, mobile, business_name, abn, payment_method, consent, email_verified_at, created_at, suspended, suspended_reason, stripe_account_id";
@@ -439,6 +440,14 @@ export function registerAdminRoutes(app, { db, mail, config, sendError, requireJ
     res.send(csv(rows, ["id", "ledger", "amount_cents", "fee_cents", "status", "provider_ref"]));
   });
 
+  app.get("/api/admin/overdue", (req, res) => {
+    if (!owner(req, res)) return;
+    res.json({
+      overdue: listOverdue(db),
+      note: "These payments are overdue. Follow them up personally. A late payment never stops a building from posting a new job."
+    });
+  });
+
   app.get("/api/admin/payments", (req, res) => {
     if (!owner(req, res)) return;
     let rows = paymentRows(db);
@@ -709,6 +718,8 @@ function attentionList(db) {
   if (docs) items.push({ text: `${docs} document${docs === 1 ? "" : "s"} close to expiry and not checked`, href: "#/documents" });
   const paused = db.prepare("SELECT COUNT(*) AS n FROM payments WHERE payout_paused = 1 AND released_at = ''").get().n;
   if (paused) items.push({ text: `${paused} payout${paused === 1 ? "" : "s"} paused`, href: "#/payments" });
+  const overdue = listOverdue(db).length;
+  if (overdue) items.push({ text: `${overdue} overdue payment${overdue === 1 ? "" : "s"} to follow up`, href: "#/overdue" });
   return items;
 }
 

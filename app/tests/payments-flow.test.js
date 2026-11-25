@@ -35,7 +35,8 @@ test("payment requests can be sent, retried, released, closed, refunded and paus
     const before = await owner("GET", "/api/owner/settings");
     assert.equal(before.json.gstOnFee, false);
     assert.equal(before.json.maxPayDays, 14);
-    assert.equal(before.json.overduePauseDays, 7);
+    assert.equal(before.json.reminderEveryDays, 7);
+    assert.equal(before.json.overduePauseDays, undefined);
     await signIn(alex, server, {
       kind: "manager", role: "building_manager", name: "Alex Nguyen", email: "alex@harbour.example",
       mobile: "0418220184", password: "Harbour1", confirm: "Harbour1", agree: true
@@ -159,24 +160,36 @@ test("payment requests can be sent, retried, released, closed, refunded and paus
     const lateRequest = await alex("POST", "/api/jobs/" + lateJob.json.job.id + "/payment-requests", {});
     await alex("POST", "/api/jobs/" + lateJob.json.job.id + "/payment-requests/" + lateRequest.json.id + "/send", {});
     db.prepare("UPDATE payment_requests SET due_on = '2020-01-01' WHERE id = ?").run(lateRequest.json.id);
-    assert.equal(await chaseOverdueRequests(db, server.app.locals.mail, server.config, new Date("2020-01-10T00:00:00Z")), 1);
-    assert.equal(db.prepare("SELECT payments_paused FROM buildings WHERE id = ?").get(buildingId).payments_paused, 1);
-    const blocked = await alex("POST", "/api/jobs", { buildingId, title: "Another tap", area: "Kitchen", tradeId: "plumbing" });
-    assert.equal(blocked.status, 400);
-    assert.match(blocked.json.error, /overdue/);
-    assert.equal((await alex("POST", "/api/jobs/" + lateJob.json.job.id + "/payment-requests/" + lateRequest.json.id + "/pay", { idempotencyKey: "late-key-1" })).status, 201);
-    assert.equal(await chaseOverdueRequests(db, server.app.locals.mail, server.config, new Date("2020-01-11T00:00:00Z")), 0);
+    assert.equal(await chaseOverdueRequests(db, server.app.locals.mail, server.config, new Date("2020-01-01T12:00:00Z")), 1);
+    assert.equal(await chaseOverdueRequests(db, server.app.locals.mail, server.config, new Date("2020-01-03T12:00:00Z")), 0);
+    assert.equal(await chaseOverdueRequests(db, server.app.locals.mail, server.config, new Date("2020-01-08T12:00:00Z")), 1);
+    const reminders = outbox(server).filter(message => message.subject === "A reminder about " + lateRequest.json.number);
+    assert.equal(reminders.length, 2);
+    assert.match(reminders[0].text, /polite reminder/);
+    assert.match(reminders[0].text, /can still be posted/);
     assert.equal(db.prepare("SELECT payments_paused FROM buildings WHERE id = ?").get(buildingId).payments_paused, 0);
+    const overdue = await owner("GET", "/api/owner/overdue-payments");
+    assert.equal(overdue.status, 200);
+    assert.ok(overdue.json.overdue.some(row => row.number === lateRequest.json.number));
+    assert.match(overdue.json.note, /never stops a building/);
+    assert.equal((await alex("GET", "/api/owner/overdue-payments")).status, 403);
+    const adminList = await owner("GET", "/api/admin/overdue");
+    assert.equal(adminList.status, 200);
+    assert.ok(adminList.json.overdue.some(row => row.number === lateRequest.json.number));
     assert.equal((await alex("POST", "/api/jobs", { buildingId, title: "Another tap", area: "Kitchen", tradeId: "plumbing" })).status, 201);
+    assert.equal((await alex("POST", "/api/jobs/" + lateJob.json.job.id + "/payment-requests/" + lateRequest.json.id + "/pay", { idempotencyKey: "late-key-1" })).status, 201);
+    assert.equal((await owner("GET", "/api/owner/overdue-payments")).json.overdue.some(row => row.number === lateRequest.json.number), false);
 
     const version = new DatabaseSync(server.config.databasePath, { readOnly: true });
-    assert.ok(version.prepare("PRAGMA user_version").get().user_version >= 24);
+    assert.equal(version.prepare("PRAGMA user_version").get().user_version, 26);
     version.close();
     const page = await (await fetch(server.base + "/")).text();
     assert.match(page, /Payment failed/);
     assert.match(page, /Try the payment again/);
     assert.match(page, /Close job/);
     assert.match(page, /Who pays/);
+    assert.match(page, /You can still post new jobs/);
+    assert.doesNotMatch(page, /New jobs are paused/);
     assert.match(page, /server\.arcgisonline\.com/);
     assert.doesNotMatch(page, /tile\.openstreetmap\.org/);
   } finally {

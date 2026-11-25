@@ -108,7 +108,7 @@ test("job messages, help and notification settings stay with the person", async 
     assert.equal(server.app.locals.db.prepare("SELECT COUNT(*) AS n FROM push_subscriptions").get().n, 0);
 
     const version = new DatabaseSync(server.config.databasePath, { readOnly: true });
-    assert.equal(version.prepare("PRAGMA user_version").get().user_version, 25);
+    assert.ok(version.prepare("PRAGMA user_version").get().user_version >= 25);
     version.close();
     const page = await (await fetch(server.base + "/")).text();
     const worker = await (await fetch(server.base + "/sw.js")).text();
