@@ -36,23 +36,8 @@ swap(
   .shell[data-screen="reset"],
   .shell[data-screen="terms"] { grid-template-columns: minmax(0, 1fr); }
   .workspace { min-width: 0; width: 100%; }
-  .shell[data-screen="welcome"] { min-height: 100dvh; background: var(--canvas); }
-  .shell[data-screen="welcome"] .workspace { min-height: 100dvh; display: flex; flex-direction: column; }
-  .shell[data-screen="welcome"] .topbar, .shell[data-screen="welcome"] .samplebar { display: none; }
-  .shell[data-screen="welcome"] .main { flex: 1; padding: 0; display: flex; }
-  .shell[data-screen="welcome"] .stage { flex: 1; display: flex; min-height: 100%; }
-  .welcome-layout { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr); width: 100%; min-height: 100%; align-items: stretch; }
-  .welcome-brand { background: var(--brand); color: var(--on-brand); display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 48px 40px; min-height: 100%; }
-  .welcome-brand h1, .welcome-brand p { color: var(--on-brand); margin: 0; }
-  .welcome-brand .wordmark { font-family: "Bricolage Grotesque", Figtree, sans-serif; font-weight: 800; font-size: 21px; letter-spacing: -0.03em; }
-  .welcome-side { background: var(--bg); padding: 28px 24px 40px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-  .welcome-side .demo-pair { display: grid; gap: 12px; }
-  @media (min-width: 720px) { .welcome-side .demo-pair { grid-template-columns: 1fr 1fr; } }
-  @media (max-width: 800px) {
-    .welcome-layout { grid-template-columns: 1fr; }
-    .welcome-brand { min-height: auto; padding: 28px 20px; }
-    .shell[data-screen="welcome"] { padding-bottom: env(safe-area-inset-bottom); }
-  }`,
+  .welcome-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr); gap: 28px; width: 100%; align-items: stretch; }
+  .welcome-layout .hero { min-height: 280px; display: flex; flex-direction: column; justify-content: center; }`,
   "desktop content column"
 );
 
@@ -75,8 +60,8 @@ swap(
 );
 
 swap(
-  ".hero h1 { font-size: 33px; line-height: 1.04; text-shadow: none; }",
-  ".hero h1 { font-size: 33px; line-height: 1.04; text-shadow: none; overflow-wrap: break-word; }\n.hero p { overflow-wrap: break-word; }\n.auth-panel { width: 100%; margin: 0; }\n.auth-panel .card { max-width: 720px; }\n.signed-as { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }\n.role-pill { flex: none; }\n.demo-account { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--surface); }\n.demo-account h2 { font-size: 1.05rem; }\n.ask-line { width: 100%; min-height: 58px; text-align: left; border: 1.5px solid var(--line); border-radius: 14px; background: var(--surface); padding: 13px 14px; color: var(--muted); }\n.btn.big { min-height: 58px; }\n.home-shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }\n.home-shortcut { min-height: 88px; text-decoration: none; color: inherit; }\n@media (max-width: 700px) { .home-shortcuts { grid-template-columns: 1fr 1fr; } }\n.rail .sign-out-tab { color: var(--ink); font-weight: 700; margin-top: 8px; }\n.header-sign-out { width: auto; flex: none; min-height: 36px; padding: 0 10px; font-size: 0.85rem; }\n@media (min-width: 900px) { .header-sign-out { display: none; } }\n@media (max-width: 899px) { .topbar:has(.signed-as) .brand > span:last-child { display: none; } .signed-label { display: none; } .topbar .roles { display: none; } .topbar { flex-wrap: wrap; row-gap: 6px; } .role-pill { flex: 1 0 100%; justify-content: flex-start; } }",
+  ".hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); }",
+  ".hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); overflow-wrap: break-word; }\n.hero p { overflow-wrap: break-word; }\n.auth-panel { width: 100%; margin: 0; }\n.auth-panel .card { max-width: 720px; }\n.signed-as { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }\n.role-pill { flex: none; }\n.demo-pair { display: grid; gap: 12px; }\n@media (min-width: 640px) { .demo-pair { grid-template-columns: 1fr 1fr; } }\n.demo-account { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--field); }\n.demo-account h2 { font-size: 1.05rem; }\n.rail .sign-out-tab { color: var(--ink); font-weight: 700; margin-top: 8px; }\n.header-sign-out { width: auto; flex: none; min-height: 36px; padding: 0 10px; font-size: 0.85rem; }\n@media (min-width: 900px) { .header-sign-out { display: none; } }\n@media (max-width: 899px) { .topbar:has(.signed-as) .brand > span:last-child { display: none; } .signed-label { display: none; } .topbar .roles { display: none; } .topbar { flex-wrap: wrap; row-gap: 6px; } .role-pill { flex: 1 0 100%; justify-content: flex-start; } }",
   "hero wrapping"
 );
 
@@ -195,8 +180,8 @@ swap(
     const kindBtn = (id, label) => '<button class="chip" type="button" data-act="auth-kind" data-kind="' + id + '" aria-pressed="' + (a.kind === id ? "true" : "false") + '">' + label + "</button>";
     const roleBtn = (id, label) => '<button class="chip" type="button" data-act="auth-role" data-role="' + id + '" aria-pressed="' + (a.role === id ? "true" : "false") + '">' + label + "</button>";
     if (state.screen === "welcome") {
-      return '<div class="welcome-layout"><section class="welcome-brand"><p class="wordmark">TaskSpeck Strata</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. TaskSpeck Strata does not.</p></section><div class="welcome-side stack">' +
-        '<div class="card stack"><p><strong>Try a look</strong></p><p class="small">A temporary preview. It recolours this whole page. The owner saves the look for everyone.</p><div class="row">' +
+      return '<div class="welcome-layout"><section class="hero"><p class="eyebrow">Strata App</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. Strata App does not.</p></section><div class="stack">' +
+        '<div class="card stack"><p><strong>Try a look</strong></p><p class="small">A temporary preview. The owner saves the look for everyone in settings.</p><div class="row">' +
         '<button class="chip" type="button" data-act="try-look" data-look="grove" aria-pressed="' + (lookId() === "grove" ? "true" : "false") + '">Grove</button>' +
         '<button class="chip" type="button" data-act="try-look" data-look="harbour" aria-pressed="' + (lookId() === "harbour" ? "true" : "false") + '">Harbour</button>' +
         '<button class="chip" type="button" data-act="try-look" data-look="daylight" aria-pressed="' + (lookId() === "daylight" ? "true" : "false") + '">Daylight</button></div></div>' +
