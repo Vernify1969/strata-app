@@ -270,6 +270,8 @@
         api.state.quotes = [];
         api.state.contractors = [];
         applyAccount();
+        const overdue = await call("GET", "/api/owner/overdue-payments");
+        api.state.overdue = overdue.ok ? (overdue.json.overdue || []) : [];
       } else {
         api.state.jobs = [];
         api.state.quotes = [];

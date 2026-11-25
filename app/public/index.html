@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en-AU" data-look="clear">
+<html lang="en-AU" data-look="grove" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,37 +9,45 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>
 :root {
-  --bg: #F6F8FB;
+  --canvas: #D3DCD7;
+  --bg: #EEF2EF;
   --surface: #FFFFFF;
-  --ink: #0F172A;
-  --muted: #475569;
-  --line: #E2E8F0;
-  --brand: #1D4ED8;
+  --ink: #15201C;
+  --muted: #5B6863;
+  --line: #D9E1DD;
+  --brand: #0E5A4B;
   --brand-ink: #FFFFFF;
-  --accent: #1D4ED8;
-  --accent-bg: #EFF6FF;
-  --gold: #1D4ED8;
-  --gold-ink: #1E3A8A;
-  --field: #F8FAFC;
-  --ok: #047857;
-  --ok-bg: #ECFDF5;
-  --warn: #92400E;
-  --warn-bg: #FFFBEB;
-  --bad: #9F1239;
-  --bad-bg: #FFF1F2;
-  --emergency: #BE123C;
+  --on-brand: #FFFFFF;
+  --accent: #0E5A4B;
+  --accent-bg: #DDF3E6;
+  --gold: #FFC93C;
+  --gold-ink: #1B1600;
+  --on-gold: #1B1600;
+  --field: #FFFFFF;
+  --ok: #0B5B36;
+  --ok-bg: #DDF3E6;
+  --ok-ink: #0B5B36;
+  --warn: #6B4B00;
+  --warn-bg: #FFF0C7;
+  --warn-ink: #6B4B00;
+  --bad: #9A2A14;
+  --bad-bg: #FCE1DB;
+  --bad-ink: #9A2A14;
+  --emergency: #9A2A14;
   --emergency-ink: #FFFFFF;
-  --sample-bg: #F1F5F9;
-  --sample-ink: #334155;
-  --shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.06);
-  --map: #EEF3F9;
-  --river: #93B4D4;
-  --grid: #D9E3EE;
+  --sample-bg: #E7EEEA;
+  --sample-ink: #15201C;
+  --shadow: none;
+  --shadow-md: none;
+  --map: #E7EEEA;
+  --river: #9BB8AE;
+  --grid: #D9E1DD;
   --chrome: var(--surface);
   --chrome-ink: var(--ink);
   --chrome-muted: var(--muted);
-  --page: #E4ECF6;
+  --page: var(--canvas);
+  --tint-s: 80%;
+  --tint-l: 91%;
 }
 @font-face {
   font-family: "Plus Jakarta Sans";
@@ -69,109 +77,84 @@
   font-display: swap;
   src: url("/fonts/plus-jakarta-sans-700.woff2") format("woff2");
 }
-:root[data-look="clear"] {
-  --bg: #F4F6F8;
-  --surface: #FFFFFF;
-  --ink: #0B1F44;
-  --muted: #3E4C63;
-  --line: #D5DDE6;
-  --brand: #0F766E;
-  --brand-ink: #FFFFFF;
-  --accent: #0F766E;
-  --accent-bg: #F0FDFA;
-  --gold: #0F766E;
-  --gold-ink: #134E4A;
-  --field: #F8FAFC;
-  --chrome: #FFFFFF;
-  --chrome-ink: #0B1F44;
-  --chrome-muted: #3E4C63;
-  --page: #E7EDF2;
+@font-face {
+  font-family: Figtree;
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/figtree-400.woff2") format("woff2");
 }
-:root[data-look="warm"] {
-  --bg: #F6F1EA;
-  --surface: #FFFBF6;
-  --ink: #1C1917;
-  --muted: #44403C;
-  --line: #E7D8C9;
-  --brand: #9A3412;
-  --brand-ink: #FFFFFF;
-  --accent: #9A3412;
-  --accent-bg: #FFF7ED;
-  --gold: #9A3412;
-  --gold-ink: #7C2D12;
-  --field: #FFF7ED;
-  --chrome: #FFFBF6;
-  --chrome-ink: #1C1917;
-  --chrome-muted: #44403C;
-  --page: #EFE4D6;
-  --ok: #047857;
-  --warn: #9A3412;
-  --warn-bg: #FFF7ED;
+@font-face {
+  font-family: Figtree;
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/figtree-500.woff2") format("woff2");
 }
-:root[data-look="modern"] {
-  --bg: #F8FAFC;
-  --surface: #FFFFFF;
-  --ink: #0F172A;
-  --muted: #334155;
-  --line: #E2E8F0;
-  --brand: #1D4ED8;
-  --brand-ink: #FFFFFF;
-  --accent: #1D4ED8;
-  --accent-bg: #EFF6FF;
-  --gold: #1D4ED8;
-  --gold-ink: #1E3A8A;
-  --field: #F8FAFC;
-  --chrome: #0F172A;
-  --chrome-ink: #F8FAFC;
-  --chrome-muted: #CBD5E1;
-  --page: #E2E8F0;
+@font-face {
+  font-family: Figtree;
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/figtree-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: Figtree;
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/figtree-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("/fonts/bricolage-grotesque-800.woff2") format("woff2");
+}
+:root[data-look="grove"], :root[data-look="clear"] {
+  --canvas: #D3DCD7; --bg: #EEF2EF; --surface: #FFFFFF; --ink: #15201C; --muted: #5B6863; --line: #D9E1DD;
+  --brand: #0E5A4B; --brand-ink: #FFFFFF; --on-brand: #FFFFFF; --accent: #0E5A4B; --accent-bg: #DDF3E6;
+  --page: var(--canvas);
+}
+:root[data-look="harbour"], :root[data-look="warm"] {
+  --canvas: #D7E4E0; --bg: #F3F8F6; --surface: #FFFFFF; --ink: #10231F; --muted: #4A5C57; --line: #D3E0DB;
+  --brand: #0C6B5E; --brand-ink: #FFFFFF; --on-brand: #FFFFFF; --accent: #0C6B5E; --accent-bg: #DDF3E6;
+  --page: var(--canvas);
+}
+:root[data-look="daylight"], :root[data-look="modern"] {
+  --canvas: #E8E4D6; --bg: #F7F4EA; --surface: #FFFDF7; --ink: #1C1910; --muted: #5A5548; --line: #E4DDC8;
+  --brand: #0E5A4B; --brand-ink: #FFFFFF; --on-brand: #FFFFFF; --accent: #0E5A4B; --accent-bg: #DDF3E6;
+  --page: var(--canvas);
 }
 :root[data-theme="dark"] {
-  --bg: #071422;
-  --surface: #0E1E36;
-  --ink: #E8F0FA;
-  --muted: #C5D4E8;
-  --line: #1E3A5C;
-  --brand: #93C5FD;
-  --brand-ink: #071422;
-  --accent: #93C5FD;
-  --accent-bg: #132844;
-  --gold: #E4C36A;
-  --gold-ink: #3A2C0A;
-  --field: #091628;
-  --ok: #6EE7B7;
-  --ok-bg: #064E3B;
-  --warn: #FCD34D;
-  --warn-bg: #422006;
-  --bad: #FECDD3;
-  --bad-bg: #4C0519;
-  --emergency: #BE123C;
-  --emergency-ink: #FFFFFF;
-  --sample-bg: #172033;
-  --sample-ink: #CBD5E1;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 12px 28px rgba(0, 0, 0, 0.35);
-  --map: #0E1524;
-  --river: #3D6490;
-  --grid: #1E2A3E;
+  --canvas: #050908; --bg: #0B120F; --surface: #141F1A; --ink: #EAF2EE; --muted: #9DAEA6; --line: #25342D;
+  --brand: #5FD3B6; --brand-ink: #06231B; --on-brand: #06231B; --accent: #5FD3B6; --accent-bg: #12382A;
+  --gold: #FFC93C; --gold-ink: #1B1600; --on-gold: #1B1600; --field: #141F1A;
+  --ok: #8BE3B4; --ok-bg: #12382A; --ok-ink: #8BE3B4;
+  --warn: #F5D57A; --warn-bg: #3B2F0C; --warn-ink: #F5D57A;
+  --bad: #FFB4A3; --bad-bg: #3D1A13; --bad-ink: #FFB4A3;
+  --emergency: #FFB4A3; --emergency-ink: #3D1A13;
+  --sample-bg: #141F1A; --sample-ink: #EAF2EE;
+  --map: #0B120F; --page: var(--canvas); --tint-s: 32%; --tint-l: 22%;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
-  font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: Figtree, "Plus Jakarta Sans", system-ui, sans-serif;
   font-size: 16px;
-  line-height: 1.55;
+  line-height: 1.45;
   color: var(--ink);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
 }
-h1, h2 {
-  font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-weight: 500;
-  letter-spacing: -0.02em;
+h1, h2, .display, .brand, .price, .stat-v {
+  font-family: "Bricolage Grotesque", Figtree, system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.03em;
   margin: 0;
 }
-h1 { font-size: 2.15rem; line-height: 1.15; }
+h1, .display { font-size: 33px; line-height: 1.04; }
 h2 { font-size: 1.55rem; line-height: 1.25; }
 h3, .brand, .top-title, .price {
   font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -283,7 +266,7 @@ button.notice {
   padding: 10px 16px; font-weight: 600; width: 100%;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: center;
 }
-.btn-primary { background: var(--brand); color: var(--brand-ink); }
+.btn-primary { background: var(--gold); color: var(--on-gold); font-weight: 700; }
 .btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--line); }
 .btn-ghost { background: transparent; color: var(--brand); }
 .btn-emergency { background: var(--emergency); color: var(--emergency-ink); }
@@ -373,11 +356,29 @@ textarea { min-height: 120px; resize: vertical; }
   background: var(--surface); box-shadow: 0 0 0 2px var(--brand);
 }
 .map-card { position: relative; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
-.live-map { height: 360px; width: 100%; background: var(--map); }
-.map-card.full { position: fixed; inset: 12px; z-index: 50; display: flex; flex-direction: column; }
-.map-card.full .live-map { height: auto; flex: 1; }
+.live-map { height: 100%; min-height: 0; width: 100%; background: var(--map); }
+.home-map .live-map { height: 280px; min-height: 280px; }
+.shell[data-screen="area"] .main { padding: 0 0 16px; display: flex; flex-direction: column; min-height: 0; }
+.shell[data-screen="area"] .stage, .shell[data-screen="area"] .stage > .stack { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.shell[data-screen="area"] .map-card { flex: 1; min-height: 0; display: flex; flex-direction: column; border-radius: 0; border: 0; }
+.welcome-layout { display: grid; grid-template-columns: 1fr; width: 100%; min-height: 100dvh; }
+.welcome-brand { background: var(--brand); color: var(--on-brand); display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 32px 20px; }
+.welcome-brand h1, .welcome-brand p { color: var(--on-brand); margin: 0; }
+.welcome-brand .wordmark { font-family: "Bricolage Grotesque", Figtree, sans-serif; font-weight: 800; font-size: 21px; }
+.welcome-side { background: var(--bg); padding: 20px 16px 32px; display: flex; flex-direction: column; gap: 12px; }
+.shell[data-screen="welcome"] { min-height: 100dvh; background: var(--canvas); }
+.shell[data-screen="welcome"] .topbar, .shell[data-screen="welcome"] .samplebar { display: none; }
+.shell[data-screen="welcome"] .main { padding: 0; }
+@media (min-width: 900px) {
+  .welcome-layout { grid-template-columns: minmax(0, 1.05fr) minmax(340px, 0.95fr); min-height: 100dvh; align-items: start; }
+  .welcome-brand { position: sticky; top: 0; height: 100dvh; padding: 48px 40px; }
+  .welcome-side { padding: 28px 24px 40px; }
+}
+.shell[data-screen="area"] .live-map { height: 100%; min-height: 420px; }
+.map-card.full { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; }
+.map-card.full .live-map { height: auto; flex: 1; min-height: 0; }
 .map-tools { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; }
-@media (max-width: 700px) { .live-map { height: 220px; } }
+@media (max-width: 700px) { .home-map .live-map { height: 240px; min-height: 240px; } .shell[data-screen="area"] .live-map { min-height: 320px; } }
 .pin {
   position: absolute; width: 36px; height: 36px; margin: 0; padding: 0;
   border-radius: 50%; border: 2px solid #fff; transform: translate(-50%, -50%);
@@ -455,7 +456,7 @@ textarea { min-height: 120px; resize: vertical; }
 .badge.dot { min-width: 8px; width: 8px; height: 8px; padding: 0; right: 12px; top: 8px; }
 .rail { display: none; }
 .toast {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: 92px; z-index: 60;
+  position: fixed; left: 50%; transform: translateX(-50%); top: 16px; z-index: 80;
   background: var(--ink); color: var(--bg); padding: 12px 16px; border-radius: 12px;
   max-width: min(420px, calc(100% - 32px)); font-weight: 500; box-shadow: var(--shadow-md);
 }
@@ -485,8 +486,23 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   .shell[data-screen="reset"],
   .shell[data-screen="terms"] { grid-template-columns: minmax(0, 1fr); }
   .workspace { min-width: 0; width: 100%; }
-  .welcome-layout { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr); gap: 28px; width: 100%; align-items: stretch; }
-  .welcome-layout .hero { min-height: 280px; display: flex; flex-direction: column; justify-content: center; }
+  .shell[data-screen="welcome"] { min-height: 100dvh; background: var(--canvas); }
+  .shell[data-screen="welcome"] .workspace { min-height: 100dvh; display: flex; flex-direction: column; }
+  .shell[data-screen="welcome"] .topbar, .shell[data-screen="welcome"] .samplebar { display: none; }
+  .shell[data-screen="welcome"] .main { flex: 1; padding: 0; display: flex; }
+  .shell[data-screen="welcome"] .stage { flex: 1; display: flex; min-height: 100%; }
+  .welcome-layout { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr); width: 100%; min-height: 100%; align-items: stretch; }
+  .welcome-brand { background: var(--brand); color: var(--on-brand); display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 48px 40px; min-height: 100%; }
+  .welcome-brand h1, .welcome-brand p { color: var(--on-brand); margin: 0; }
+  .welcome-brand .wordmark { font-family: "Bricolage Grotesque", Figtree, sans-serif; font-weight: 800; font-size: 21px; letter-spacing: -0.03em; }
+  .welcome-side { background: var(--bg); padding: 28px 24px 40px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .welcome-side .demo-pair { display: grid; gap: 12px; }
+  @media (min-width: 720px) { .welcome-side .demo-pair { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 800px) {
+    .welcome-layout { grid-template-columns: 1fr; }
+    .welcome-brand { min-height: auto; padding: 28px 20px; }
+    .shell[data-screen="welcome"] { padding-bottom: env(safe-area-inset-bottom); }
+  }
   .shell.chloe-open { grid-template-columns: 248px minmax(0, 1fr) 380px; }
   .chloe-drawer { position: sticky; top: 0; height: 100vh; overflow: auto; border-left: 1px solid var(--line); }
   .header-actions .theme-label { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
@@ -508,7 +524,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   .tabbar { display: none; }
   .main { padding: 32px 32px 56px; max-width: none; width: 100%; }
   .section-label { display: block; }
-  .toast { bottom: 24px; }
+  .toast { top: 24px; }
   .trade-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .more-row { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .more-row .chip:last-child:nth-child(odd) { grid-column: auto; }
@@ -516,32 +532,24 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   .topbar .brand { display: none; }
 }
 .hero {
-  position: relative; overflow: hidden; border-radius: 22px; padding: 28px 24px 24px; color: #fff;
-  background:
-    radial-gradient(90% 80% at 100% 0%, rgba(147, 197, 253, 0.45), transparent 46%),
-    radial-gradient(70% 80% at 0% 100%, rgba(37, 99, 235, 0.35), transparent 50%),
-    linear-gradient(128deg, #06122E 0%, #0E2A66 52%, #1D4ED8 100%);
-  box-shadow: 0 18px 40px rgba(14, 42, 102, 0.28);
-}
-.hero::before {
-  content: ""; position: absolute; inset: 0; pointer-events: none;
-  background-image: radial-gradient(rgba(255,255,255,.22) 1px, transparent 1px);
-  background-size: 16px 16px;
-  mask-image: linear-gradient(180deg, rgba(0,0,0,.7), transparent 78%);
-  animation: drift 22s linear infinite;
+  position: relative; overflow: hidden; border-radius: 18px; padding: 24px; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line);
 }
 .hero > * { position: relative; }
-.hero h1, .hero p, .hero .lead { color: #fff; }
-.hero h1 { font-size: 2.45rem; text-shadow: 0 8px 24px rgba(0,0,0,.18); overflow-wrap: break-word; }
+.hero h1, .hero p, .hero .lead { color: var(--ink); }
+.hero h1 { font-size: 33px; line-height: 1.04; text-shadow: none; overflow-wrap: break-word; }
 .hero p { overflow-wrap: break-word; }
 .auth-panel { width: 100%; margin: 0; }
 .auth-panel .card { max-width: 720px; }
 .signed-as { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 .role-pill { flex: none; }
-.demo-pair { display: grid; gap: 12px; }
-@media (min-width: 640px) { .demo-pair { grid-template-columns: 1fr 1fr; } }
-.demo-account { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--field); }
+.demo-account { border: 1px solid var(--line); border-radius: 14px; padding: 14px; background: var(--surface); }
 .demo-account h2 { font-size: 1.05rem; }
+.ask-line { width: 100%; min-height: 58px; text-align: left; border: 1.5px solid var(--line); border-radius: 14px; background: var(--surface); padding: 13px 14px; color: var(--muted); }
+.btn.big { min-height: 58px; }
+.home-shortcuts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.home-shortcut { min-height: 88px; text-decoration: none; color: inherit; }
+@media (max-width: 700px) { .home-shortcuts { grid-template-columns: 1fr 1fr; } }
 .rail .sign-out-tab { color: var(--ink); font-weight: 700; margin-top: 8px; }
 .header-sign-out { width: auto; flex: none; min-height: 36px; padding: 0 10px; font-size: 0.85rem; }
 @media (min-width: 900px) { .header-sign-out { display: none; } }
@@ -589,9 +597,10 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
 .tile:hover { transform: translateY(-3px); box-shadow: 0 18px 36px rgba(29, 78, 216, 0.16); }
 .tile:active { transform: translateY(0) scale(0.985); }
 .btn, .chip, .card, .notice, .tile { transition: transform .18s ease, box-shadow .18s ease, background .18s ease, filter .18s ease; }
-.btn-primary {
-  background: linear-gradient(180deg, #3B82F6 0%, #1D4ED8 100%);
-  box-shadow: 0 8px 18px rgba(29, 78, 216, 0.28);
+.btn-primary, .btn.request-bar {
+  background: var(--gold);
+  color: var(--on-gold);
+  box-shadow: none;
 }
 .btn-primary:hover { filter: brightness(1.05); }
 .btn:active { transform: scale(0.985); }
@@ -600,7 +609,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   backdrop-filter: blur(18px) saturate(1.4);
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
 }
-.mark { background: #0E2A66; color: #F6E7C1; box-shadow: 0 6px 14px rgba(14, 42, 102, 0.28); }
+.mark { background: var(--gold); color: var(--on-gold); border-radius: 8px; box-shadow: none; }
 .mark .logo { width: 16px; height: 16px; display: block; }
 .quote {
   background: linear-gradient(180deg, #F5F9FF 0%, var(--surface) 38%);
@@ -633,11 +642,8 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   background: linear-gradient(180deg, #1E3A8A, #60A5FA);
 }
 .hero.hero-photo {
-  background-image:
-    linear-gradient(105deg, rgba(6, 18, 46, 0.92) 0%, rgba(14, 42, 102, 0.78) 48%, rgba(29, 78, 216, 0.42) 100%),
-    var(--hero);
-  background-size: cover;
-  background-position: center 40%;
+  background: var(--bg);
+  background-image: none;
 }
 .stat-grid { display: grid; gap: 12px; }
 @media (min-width: 800px) { .stat-grid { grid-template-columns: repeat(3, 1fr); } }
@@ -661,19 +667,16 @@ button.stat { cursor: pointer; }
   box-shadow: inset 0 0 0 1px hsl(var(--hue) 40% 70%);
 }
 .who { display: flex; gap: 12px; align-items: center; }
-.photo-banner { position: relative; min-height: 140px; background: #0E2A66; }
+.photo-banner { position: relative; min-height: 96px; background: var(--brand); color: var(--on-brand); }
 .photo-banner .skyline { position: absolute; inset: 0; }
 .photo-banner img { position: relative; z-index: 1; display: block; width: 100%; height: 156px; object-fit: cover; }
 .success {
   text-align: center; padding: 36px 24px;
-  background:
-    radial-gradient(80% 60% at 50% 0%, rgba(196, 161, 90, 0.2), transparent 60%),
-    linear-gradient(180deg, #0E2A66, #1D4ED8);
-  color: #fff; border-radius: 22px;
-  box-shadow: 0 18px 40px rgba(14, 42, 102, 0.28);
+  background: var(--surface);
+  color: var(--ink); border: 1px solid var(--line); border-radius: 18px;
 }
-.success h1, .success p { color: #fff; }
-.success .btn { margin-top: 16px; background: #fff; color: #0E2A66; }
+.success h1, .success p { color: var(--ink); }
+.success .btn { margin-top: 16px; }
 .stage { position: relative; animation: rise .32s ease; }
 .skel {
   position: absolute; left: 0; right: 0; top: 0; z-index: 2; pointer-events: none;
@@ -1325,18 +1328,22 @@ const PHOTOS = {
     state.offerCal.month = now.getMonth();
   }
 
-  const LOOKS = [["clear", "Clear & Calm"], ["warm", "Warm Professional"], ["modern", "Modern Dark-Accent"]];
+  const LOOKS = [["grove", "Grove"], ["harbour", "Harbour"], ["daylight", "Daylight"], ["clear", "Grove"], ["warm", "Harbour"], ["modern", "Daylight"]];
   function lookId() {
-    return state.lookTry || state.look || "clear";
+    const raw = state.lookTry || state.look || "grove";
+    if (raw === "clear") return "grove";
+    if (raw === "warm") return "harbour";
+    if (raw === "modern") return "daylight";
+    return raw;
   }
   function lookLabel() {
     const found = LOOKS.find(item => item[0] === lookId());
-    return found ? found[1] : "Clear & Calm";
+    return found ? found[1] : "Grove";
   }
   function loadTheme() {
     try {
       const t = sessionStorage.getItem("strata-look-try");
-      if (t === "clear" || t === "warm" || t === "modern") state.lookTry = t;
+      if (t === "grove" || t === "harbour" || t === "daylight" || t === "clear" || t === "warm" || t === "modern") state.lookTry = t;
     } catch (e) { /* storage unavailable */ }
   }
   function rememberLook(id) {
@@ -1681,11 +1688,11 @@ const PHOTOS = {
     const kindBtn = (id, label) => '<button class="chip" type="button" data-act="auth-kind" data-kind="' + id + '" aria-pressed="' + (a.kind === id ? "true" : "false") + '">' + label + "</button>";
     const roleBtn = (id, label) => '<button class="chip" type="button" data-act="auth-role" data-role="' + id + '" aria-pressed="' + (a.role === id ? "true" : "false") + '">' + label + "</button>";
     if (state.screen === "welcome") {
-      return '<div class="welcome-layout"><section class="hero"><p class="eyebrow">TaskSpeck Strata</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. TaskSpeck Strata does not.</p></section><div class="stack">' +
-        '<div class="card stack"><p><strong>Try a look</strong></p><p class="small">A temporary preview. The owner saves the look for everyone in settings.</p><div class="row">' +
-        '<button class="chip" type="button" data-act="try-look" data-look="clear" aria-pressed="' + (lookId() === "clear" ? "true" : "false") + '">Clear &amp; Calm</button>' +
-        '<button class="chip" type="button" data-act="try-look" data-look="warm" aria-pressed="' + (lookId() === "warm" ? "true" : "false") + '">Warm Professional</button>' +
-        '<button class="chip" type="button" data-act="try-look" data-look="modern" aria-pressed="' + (lookId() === "modern" ? "true" : "false") + '">Modern Dark-Accent</button></div></div>' +
+      return '<div class="welcome-layout"><section class="welcome-brand"><p class="wordmark">TaskSpeck Strata</p><h1>Maintenance quotes for buildings and properties</h1><p>Managers post the work. Licensed contractors nearby make an offer. Stripe holds any money. TaskSpeck Strata does not.</p></section><div class="welcome-side stack">' +
+        '<div class="card stack"><p><strong>Try a look</strong></p><p class="small">A temporary preview. It recolours this whole page. The owner saves the look for everyone.</p><div class="row">' +
+        '<button class="chip" type="button" data-act="try-look" data-look="grove" aria-pressed="' + (lookId() === "grove" ? "true" : "false") + '">Grove</button>' +
+        '<button class="chip" type="button" data-act="try-look" data-look="harbour" aria-pressed="' + (lookId() === "harbour" ? "true" : "false") + '">Harbour</button>' +
+        '<button class="chip" type="button" data-act="try-look" data-look="daylight" aria-pressed="' + (lookId() === "daylight" ? "true" : "false") + '">Daylight</button></div></div>' +
         '<button class="btn btn-primary" type="button" data-act="auth-goto" data-screen="register">Create an account</button>' +
         '<button class="btn btn-secondary" type="button" data-act="auth-goto" data-screen="signin">Sign in</button>' +
         (state.demo ? '<div class="card stack"><p><strong>Five demo accounts. Pick one.</strong></p><div class="demo-pair"><div class="demo-account"><h2>Building manager</h2><p><strong>Mina Costa</strong></p><p class="small">mina.costa@harbour.example</p><p class="small">Password Harbour1</p><p class="small">Harbour View Apartments</p></div><div class="demo-account"><h2>Owners Corporation manager</h2><p><strong>Helen Tran</strong></p><p class="small">helen.tran@riverside.example</p><p class="small">Password Riverside1</p><p class="small">Riverside Court</p></div><div class="demo-account"><h2>Property manager</h2><p><strong>Leo Park</strong></p><p class="small">leo.park@southbanklets.example</p><p class="small">Password Lettings1</p><p class="small">12 Clarendon Street rental</p></div><div class="demo-account"><h2>Contractor</h2><p><strong>Sam Okonkwo</strong></p><p class="small">sam@plumbing.example</p><p class="small">Password Pipes123</p></div><div class="demo-account"><h2>Platform owner</h2><p><strong>Nick Owner</strong></p><p class="small">owner@taskspeck.example</p><p class="small">Password Ownerpass1</p><p class="small">Back office only</p></div></div><p class="small">A new account shows its confirmation link on this screen. No email is sent. The Lift 1 report page is /r/demo-lift-1.</p></div>' : "") +
@@ -1801,7 +1808,6 @@ const PHOTOS = {
   }
   function skyline(id) {
     const n = String(id).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-    const gid = "sky" + String(id).replace(/[^a-z0-9]/gi, "");
     const towers = [0, 1, 2, 3, 4].map(i => {
       const h = 26 + ((n + i * 19) % 40);
       const x = 16 + i * 60;
@@ -1813,7 +1819,7 @@ const PHOTOS = {
       }
       return '<rect x="' + x + '" y="' + y + '" width="42" height="' + h + '" rx="3" fill="rgba(255,255,255,.18)"/>' + windows;
     }).join("");
-    return '<div class="skyline" aria-hidden="true"><svg viewBox="0 0 320 84" preserveAspectRatio="xMidYMax slice"><defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#071633"/><stop offset="58%" stop-color="#163A86"/><stop offset="100%" stop-color="#3B82F6"/></linearGradient></defs><rect width="320" height="84" fill="url(#' + gid + ')"/><circle cx="262" cy="20" r="14" fill="rgba(255,255,255,.2)"/>' + towers + "</svg></div>";
+    return '<div class="skyline" aria-hidden="true"><svg viewBox="0 0 320 84" preserveAspectRatio="xMidYMax slice"><rect width="320" height="84" fill="currentColor"/><circle cx="262" cy="20" r="14" fill="rgba(255,255,255,.35)"/>' + towers + "</svg></div>";
   }
   function buildingBanner(b) {
     const src = (typeof PHOTOS !== "undefined" && PHOTOS[b.id]) || "";
@@ -1847,32 +1853,46 @@ const PHOTOS = {
       return date && date >= todayISO();
     });
   }
+  function statusPill(job) {
+    const label = statusLabel(job);
+    const bad = /cancel|unsafe|overdue/i.test(label);
+    const ok = /accepted|released|complete|paid/i.test(label);
+    const kind = bad ? "pill-bad" : ok ? "pill-ok" : "pill-warn";
+    return '<span class="pill ' + kind + '">' + esc(label) + "</span>";
+  }
+  function jobHomeCard(job) {
+    return '<article class="card stack"><div class="between"><h2>' + esc(job.title) + "</h2>" + statusPill(job) + '</div><p class="small muted">' + esc(placeOf(job).suburb || "") + " · " + esc(job.area || "") + '</p><button class="btn btn-secondary" type="button" data-act="open-job" data-id="' + job.id + '">Open</button></article>';
+  }
   function managerHome() {
-    const tiles = TRADES.map(t => '<button class="tile" type="button" data-act="new-request" data-trade="' + t.id + '" style="--hue:' + tileHue(t.id) + '"><span class="bubble">' + icon(t.id) + '</span><span class="tile-name">' + esc(t.name) + "</span></button>").join("");
-    const more = MORE.map(t => '<button class="chip" type="button" data-act="new-request" data-trade="' + t.id + '">' + esc(t.name) + "</button>").join("");
-    const owned = ownJobs();
-    const needs = needsManagerCount();
-    const upcoming = upcomingOwn();
-    const held = quoteTotal(owned.filter(j => heldStages().indexOf(j.stage) !== -1));
-    const released = quoteTotal(owned.filter(j => j.stage === "released"));
-    const heldRatio = (held + released) > 0 ? held / (held + released) : 0;
-    const heroPhoto = (typeof PHOTOS !== "undefined" && PHOTOS.hero) ? ' hero-photo" style="--hero:url(\'' + PHOTOS.hero + '\')"' : '"';
-    const stats = '<div class="stat-grid">' +
-      '<button class="stat" type="button" data-act="tab" data-screen="jobs">' + ring(owned.length ? needs / owned.length : 0, "") + '<span><p class="stat-k">Needs you</p><p class="stat-v">' + needs + "</p><p class=\"small\">" + (needs === 1 ? "1 job needs you" : needs + " jobs need you") + "</p></span></button>" +
-      '<button class="stat" type="button" data-act="tab" data-screen="calendar">' + ring(owned.length ? upcoming.length / owned.length : 0, "teal") + '<span><p class="stat-k">Upcoming</p><p class="stat-v">' + upcoming.length + '</p><p class="small">Booked on your buildings</p></span></button>' +
-      '<div class="stat">' + ring(heldRatio, "gold") + '<span><p class="stat-k">Money held</p><p class="stat-v">' + moneyShort(held) + '</p><p class="small">Held until the work is finished</p></span></div>' +
-      "</div>";
-    const primary = '<div class="home-primary stack"><section class="hero' + heroPhoto + '><p class="eyebrow">For managers</p><h1>What do you need?</h1><p>Describe the job. A licensed contractor can make an offer.</p></section>' +
-      '<p class="small">Ask Chloe from the top of the page, or the Ask tab on a phone. Drafts only.</p>' +
-      '<button class="btn btn-primary request-bar" type="button" data-act="new-request">New request</button>' +
-      '<button class="btn btn-secondary" type="button" data-act="tab" data-screen="area">See the map</button>' +
-      (state.account && state.account.role === "platform_owner" ? '<button class="btn btn-secondary" type="button" data-act="open-office">Back office</button><a class="btn btn-secondary" href="/admin">Admin console</a>' : "") +
-      (state.manager.role === "property" ? "" : '<button class="btn btn-secondary" type="button" data-act="open-reports">Resident reports</button>') +
-      stats +
-      '<div class="dash">' + noticeProfile() + "</div>" +
-      '<div class="trade-grid">' + tiles + "</div>" +
-      '<h2>More services</h2><div class="more-row">' + more + "</div></div>";
-    return '<div class="home-layout">' + primary + diaryPanel() + "</div>";
+    if (state.account && state.account.role === "platform_owner") return ownerHome();
+    const tiles = [
+      ["area", "Map"],
+      ["jobs", "Jobs"],
+      ["reports", "Resident reports"],
+      ["contractors", "Contractors"]
+    ].map(item => '<button class="tile home-shortcut" type="button" data-act="' + (item[0] === "reports" ? "open-reports" : "tab") + '" data-screen="' + item[0] + '"><span class="tile-name">' + item[1] + "</span></button>").join("");
+    const cards = ownJobs().slice(0, 4).map(jobHomeCard).join("") || '<p class="small muted">No jobs yet. Post a request when you are ready.</p>';
+    const services = TRADES.slice(0, 6).map(t => '<button class="tile" type="button" data-act="new-request" data-trade="' + t.id + '" style="--hue:' + tileHue(t.id) + '"><span class="tile-name">' + esc(t.name) + "</span></button>").join("");
+    return '<div class="stack"><h1 class="display">What do you need?</h1>' +
+      '<button class="ask-line" type="button" data-act="new-request">Describe the job</button>' +
+      '<button class="btn btn-primary big" type="button" data-act="new-request">New request</button>' +
+      '<div class="home-shortcuts">' + tiles + "</div>" +
+      noticeProfile() +
+      "<h2>Jobs</h2>" + cards +
+      '<div class="home-map">' + mapHtml(ownJobs()) + "</div>" +
+      '<div class="trade-grid">' + services + "</div>" +
+      '<div class="card stack">' + diaryPanel() + "</div></div>";
+  }
+  function ownerHome() {
+    const rows = (state.overdue || []).slice(0, 5).map(row => "<p>" + esc(row.number) + " · " + esc(row.buildingName) + " · due " + esc(row.dueOn) + "</p>").join("") || "<p>Nothing is overdue.</p>";
+    return '<div class="stack"><h1 class="display">What needs attention?</h1><p>Late payments are reminders only. A building is never blocked from posting a job.</p>' +
+      '<div class="home-shortcuts">' +
+      '<button class="tile home-shortcut" type="button" data-act="office-section" data-section="overdue"><span class="tile-name">Overdue payments</span></button>' +
+      '<button class="tile home-shortcut" type="button" data-act="open-office"><span class="tile-name">Disputes</span></button>' +
+      '<a class="tile home-shortcut" href="/admin"><span class="tile-name">Pending checks</span></a>' +
+      '<button class="tile home-shortcut" type="button" data-act="tab" data-screen="area"><span class="tile-name">All buildings</span></button></div>' +
+      '<div class="card stack"><h2>Overdue payments</h2>' + rows + "</div>" +
+      '<div class="home-map">' + mapHtml(state.jobs || []) + "</div></div>";
   }
   function loadNotes() {
     try {
@@ -2713,17 +2733,16 @@ const PHOTOS = {
     const tiles = popular.map(x => '<button class="tile" type="button" data-act="find-trade" data-trade="' + x.t.id + '" style="--hue:' + tileHue(x.t.id) + '"><span class="bubble">' + icon(x.t.id) + '</span><span class="tile-name">' + esc(x.t.name) + '</span><span class="count">' + x.n + "</span><span class=\"small\">open " + (x.n === 1 ? "job" : "jobs") + "</span></button>").join("");
     const list = sortFound(opens).slice(0, 6).map(contractorCard).join("");
     const emergencies = opens.some(isEmergency);
-    return '<div class="stack"><section class="hero"><p class="eyebrow">For contractors</p><h1>Find work</h1><p class="hero-stat"><strong>' + opens.length + "</strong> open " + (opens.length === 1 ? "job" : "jobs") + "</p></section>" +
-      '<p class="small">Ask Chloe from the top of the page, or the Ask tab on a phone. Drafts only.</p>' +
+    const distances = [3, 5, 8, 12].map(n => '<button class="chip" type="button" data-act="distance" data-v="' + n + '" aria-pressed="' + (state.find.distance === n ? "true" : "false") + '">' + n + " km</button>").join("");
+    return '<div class="stack"><h1 class="display">Jobs near you</h1><div class="row">' + distances + "</div>" +
       (!c.guideDone ? '<button class="notice notice-warn" type="button" data-act="open-guide" style="text-align:left"><strong>Read the safety guide before you start work.</strong></button>' : "") +
       noticeNeeds(needsContractorCount(), "active") +
-      (emergencies ? '<button class="notice notice-bad" type="button" data-act="tab" data-screen="find" style="text-align:left"><strong>An emergency job is open.</strong><span class="small">Contractors have been alerted. <span class="demo">Demo</span></span></button>' : "") +
-      '<label class="field" for="home-q">Search jobs<input id="home-q" type="text" data-field="find.q" value="' + esc(state.find.q) + '" placeholder="Try leak, light, old sofa"></label>' +
-      '<button class="btn btn-primary" type="button" data-act="search">Search jobs</button>' +
-      '<button class="btn btn-secondary" type="button" data-act="see-map">See jobs on the map</button>' +
-      "<h2>Popular services</h2><div class=\"trade-grid\">" + tiles + "</div>" +
-      "<h2>Available jobs</h2>" + list +
-      '<div class="row"><button class="btn btn-secondary auto" type="button" data-act="tab" data-screen="find">See all jobs</button><button class="btn btn-ghost auto" type="button" data-act="tab" data-screen="offers">My offers</button></div></div>';
+      (emergencies ? '<button class="notice notice-bad" type="button" data-act="tab" data-screen="find" style="text-align:left"><strong>An emergency job is open.</strong></button>' : "") +
+      '<button class="btn btn-primary big" type="button" data-act="tab" data-screen="find">Find jobs</button>' +
+      "<h2>Available jobs</h2>" + (list || '<p class="small muted">No jobs in this distance.</p>') +
+      '<div class="home-map">' + mapHtml(sortFound(opens)) + "</div>" +
+      "<h2>Trades</h2><div class=\"trade-grid\">" + tiles + "</div>" +
+      '<button class="btn btn-secondary" type="button" data-act="tab" data-screen="offers">Offers sent</button></div>';
   }
 
   function foundJobs() {
