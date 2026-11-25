@@ -566,6 +566,39 @@ function migrate(db) {
     `);
   }
   if (userVersion(db) < 23) db.exec("PRAGMA user_version = 23");
+  if (!columnExists(db, "platform_settings", "gst_on_fee")) {
+    db.exec("ALTER TABLE platform_settings ADD COLUMN gst_on_fee INTEGER NOT NULL DEFAULT 0");
+    db.exec("ALTER TABLE platform_settings ADD COLUMN overdue_pause_days INTEGER NOT NULL DEFAULT 7");
+    db.exec("ALTER TABLE platform_settings ADD COLUMN max_pay_days INTEGER NOT NULL DEFAULT 14");
+    db.exec("ALTER TABLE buildings ADD COLUMN payer TEXT NOT NULL DEFAULT 'accounts'");
+    db.exec("ALTER TABLE buildings ADD COLUMN payment_email TEXT NOT NULL DEFAULT ''");
+    db.exec("ALTER TABLE buildings ADD COLUMN payment_terms_days INTEGER NOT NULL DEFAULT 14");
+    db.exec("ALTER TABLE buildings ADD COLUMN payments_paused INTEGER NOT NULL DEFAULT 0");
+    db.exec("ALTER TABLE jobs ADD COLUMN closed_at TEXT NOT NULL DEFAULT ''");
+    db.exec("ALTER TABLE payments ADD COLUMN release_on TEXT NOT NULL DEFAULT ''");
+    db.exec("ALTER TABLE payments ADD COLUMN refunded_cents INTEGER NOT NULL DEFAULT 0");
+    db.exec("ALTER TABLE payments ADD COLUMN dispute_status TEXT NOT NULL DEFAULT ''");
+    db.exec(`
+      CREATE TABLE payment_requests (
+        id TEXT PRIMARY KEY,
+        job_id TEXT NOT NULL,
+        number TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL,
+        due_on TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'draft',
+        payer_email TEXT NOT NULL DEFAULT '',
+        sent_at TEXT NOT NULL DEFAULT '',
+        paid_at TEXT NOT NULL DEFAULT '',
+        payment_id TEXT NOT NULL DEFAULT '',
+        reminders INTEGER NOT NULL DEFAULT 0,
+        last_reminded_at TEXT NOT NULL DEFAULT '',
+        failure_reason TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+    `);
+  }
+  if (userVersion(db) < 24) db.exec("PRAGMA user_version = 24");
 }
 
 function tableExists(db, name) {

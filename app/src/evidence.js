@@ -1,5 +1,6 @@
 import { audit } from "./db.js";
 import { newId } from "./ids.js";
+import { releasePrepaidOnArrival } from "./payments.js";
 import { saveObject, readObject } from "./storage.js";
 
 const MANAGER = new Set(["building_manager", "oc_manager", "property_manager"]);
@@ -33,12 +34,13 @@ export function registerEvidenceRoutes(app, { db, config, sendError, requireUser
     res.json({ status, distanceM: distance, eta });
   });
 
-  app.post("/api/jobs/:id/confirm-arrival", requireJson, requireUser, (req, res) => {
+  app.post("/api/jobs/:id/confirm-arrival", requireJson, requireUser, async (req, res) => {
     const job = managerJob(db, req.user, req.params.id);
     if (!job) return sendError(res, 404, "That job is not on your account.");
     if (job.arrival_status !== "arrived") return sendError(res, 400, "The contractor has not recorded an arrival.");
     db.prepare("UPDATE jobs SET arrival_confirmed = 1 WHERE id = ?").run(job.id);
     addEvent(db, job.id, req.user.name, "Arrival confirmed.");
+    await releasePrepaidOnArrival(db, config, db.prepare("SELECT * FROM jobs WHERE id = ?").get(job.id));
     res.json({ confirmed: true });
   });
 

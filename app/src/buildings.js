@@ -1,5 +1,6 @@
 import { audit } from "./db.js";
 import { centreOf } from "./area.js";
+import { moneySettings } from "./payments.js";
 import { locateAddress, locatePostcode } from "./geo.js";
 import { newId } from "./ids.js";
 
@@ -168,12 +169,25 @@ export function registerBuildingRoutes(app, { db, config = {}, sendError, requir
       next.tier3_quotes = tiers.quotes[2];
       next.tiers_confirmed = 1;
     }
+    if (body.payer != null || body.paymentEmail != null || body.paymentTermsDays != null) {
+      const payer = ["accounts", "owner", "manager"].includes(body.payer) ? body.payer : (row.payer || "accounts");
+      const email = body.paymentEmail == null ? (row.payment_email || "") : String(body.paymentEmail).trim().slice(0, 120);
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return sendError(res, 400, "The payment email is not a valid address.");
+      const maxDays = moneySettings(db).maxPayDays || 14;
+      const terms = body.paymentTermsDays == null ? Number(row.payment_terms_days || maxDays) : Number(body.paymentTermsDays);
+      if (!Number.isInteger(terms) || terms < 0 || terms > maxDays) return sendError(res, 400, "Payment terms are a whole number of days from 0 to " + maxDays + ".");
+      next.payer = payer;
+      next.payment_email = email;
+      next.payment_terms_days = terms;
+    }
     db.prepare(`UPDATE buildings SET name=?, street_number=?, street=?, suburb=?, postcode=?, lat=?, lng=?, oc_plan=?, quotes_wanted=?,
       tier1_cents=?, tier1_quotes=?, tier2_cents=?, tier2_quotes=?, tier3_cents=?, tier3_quotes=?, tiers_confirmed=?,
-      open_time=?, close_time=?, weekends=?, access_note=?, capture_m=?, region_id=?, building_use=?, building_class=? WHERE id=? AND organisation_id=?`).run(
+      open_time=?, close_time=?, weekends=?, access_note=?, capture_m=?, region_id=?, building_use=?, building_class=?, payer=?, payment_email=?, payment_terms_days=? WHERE id=? AND organisation_id=?`).run(
       next.name, next.street_number, next.street, next.suburb, next.postcode, next.lat, next.lng, next.oc_plan, next.quotes_wanted,
       next.tier1_cents, next.tier1_quotes, next.tier2_cents, next.tier2_quotes, next.tier3_cents, next.tier3_quotes, next.tiers_confirmed,
-      next.open_time, next.close_time, next.weekends, next.access_note, next.capture_m, next.region_id, next.building_use || "", next.building_class || "", row.id, req.user.organisation_id
+      next.open_time, next.close_time, next.weekends, next.access_note, next.capture_m, next.region_id, next.building_use || "", next.building_class || "",
+      next.payer || row.payer || "accounts", next.payment_email == null ? (row.payment_email || "") : next.payment_email, next.payment_terms_days == null ? (row.payment_terms_days || 14) : next.payment_terms_days,
+      row.id, req.user.organisation_id
     );
     audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "building.updated", subjectType: "building", subjectId: row.id, detail: {} });
     res.json({ building: publicBuilding(assignedBuilding(db, req.user, row.id)) });
@@ -272,6 +286,10 @@ export function publicBuilding(row) {
     regionId: row.region_id,
     buildingUse: row.building_use || "",
     buildingClass: row.building_class || "",
+    payer: row.payer || "accounts",
+    paymentEmail: row.payment_email || "",
+    paymentTermsDays: row.payment_terms_days == null ? 14 : row.payment_terms_days,
+    paymentsPaused: row.payments_paused === 1,
     sample: false
   };
 }

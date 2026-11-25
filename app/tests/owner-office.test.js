@@ -53,7 +53,7 @@ test("other roles are refused on every owner endpoint", async () => {
     assert.equal((await owner("POST", "/api/login", { email: "owner@taskspeck.example", password: "Ownerpass1" })).status, 200);
     const overview = await owner("GET", "/api/owner/overview");
     assert.equal(overview.status, 200);
-    assert.match(overview.json.refunds, /not available yet/);
+    assert.match(overview.json.refunds, /refund a payment in full or in part/);
     const users = await owner("GET", "/api/owner/users?role=building_manager");
     assert.equal(JSON.stringify(users.json).includes("password_hash"), false);
     const person = users.json.users.find(item => item.email === "alex@harbour.example");

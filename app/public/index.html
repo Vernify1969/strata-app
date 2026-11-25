@@ -2029,7 +2029,8 @@ const PHOTOS = {
       body = "<div class=\"card stack\"><h2>AI Assistant</h2><p>Managers " + dollars(data.managerCapCents || data.capCents) + " · Contractors " + dollars(data.contractorCapCents || 200) + " · The platform owner has no monthly cap.</p><h3>Managers</h3>" + ((data.managers || []).map(line).join("") || "<p>No manager use yet.</p>") + "<h3>Contractors</h3>" + ((data.contractors || []).map(line).join("") || "<p>No contractor use yet.</p>") + "<p>Feedback, with no names: " + ((data.feedback && data.feedback.up) || 0) + " helpful, " + ((data.feedback && data.feedback.down) || 0) + " not helpful, " + ((data.feedback && data.feedback.corrections) || 0) + " corrections.</p><p class=\"small\">Web search is on unless you use the emergency stop. Chloe chooses when to search. Learning means saved notes, past jobs and feedback. The model is not retrained.</p><button class=\"btn btn-secondary\" type=\"button\" data-act=\"web-emergency\">Emergency: pause web search</button></div>";
     } else if (section === "settings") {
       const looks = LOOKS.map(item => '<button class="chip" type="button" data-act="save-look" data-look="' + item[0] + '" aria-pressed="' + ((state.look || "clear") === item[0] ? "true" : "false") + '">' + esc(item[1]) + "</button>").join("");
-      body = '<div class="card stack"><h2>Look</h2><p>One setting for the whole app. Clear &amp; Calm, Warm Professional, and Modern Dark-Accent each meet WCAG AA.</p><div class="row">' + looks + "</div></div>" +
+      body = '<div class="card stack"><h2>GST on the fee</h2><p>GST on the platform fee stays off until you turn it on. When it is on, the fee invoice adds 10% of the fee and becomes a tax invoice.</p><button class="btn btn-secondary" type="button" data-act="toggle-gst">' + (state.owner.gstOnFee ? "Turn GST on the fee off" : "Turn GST on the fee on") + "</button></div>" +
+        '<div class="card stack"><h2>Look</h2><p>One setting for the whole app. Clear &amp; Calm, Warm Professional, and Modern Dark-Accent each meet WCAG AA.</p><div class="row">' + looks + "</div></div>" +
         ((data.holidays || []).slice(0, 12).map(day => "<p>" + esc(day.day) + " " + esc(day.name) + (day.note ? " · " + esc(day.note) : "") + "</p>").join(""));
     } else if (section === "audit" && data.events) {
       body = '<a class="btn btn-secondary" href="/api/owner/audit.csv">Export CSV</a>' + data.events.slice(0, 20).map(event => "<p>" + esc(event.action) + " · " + esc(event.at) + "</p>").join("");
@@ -2095,6 +2096,10 @@ const PHOTOS = {
         '<label class="check"><input type="checkbox" data-field="building.' + b.id + '.weekends"' + (b.weekends ? " checked" : "") + "> <span>Contractors can work weekends</span></label>" +
         areaField("Saved access details", "building." + b.id + ".access", b.access) +
         field("How close a contractor must be for evidence (metres)", "number", "building." + b.id + ".captureM", b.captureM) +
+        (b.paymentsPaused ? '<p class="notice notice-bad">New jobs are paused because a payment is overdue.</p>' : "") +
+        '<label class="field">Who pays<select data-field="building.' + b.id + '.payer"><option value="accounts"' + ((b.payer || "accounts") === "accounts" ? " selected" : "") + ">OC or agency accounts</option><option value=\"owner\"" + (b.payer === "owner" ? " selected" : "") + ">The lot owner</option><option value=\"manager\"" + (b.payer === "manager" ? " selected" : "") + ">The manager</option></select></label>" +
+        field("Payment email", "email", "building." + b.id + ".paymentEmail", b.paymentEmail || "", "Leave blank to use your email") +
+        field("Payment terms (days)", "number", "building." + b.id + ".paymentTermsDays", b.paymentTermsDays == null ? 14 : b.paymentTermsDays) +
         "</div></article>";
     }).join("");
     const wait = state.waiting.map(b => '<article class="card stack"><h2>' + esc(b.name) + '</h2><p class="small">Waiting list · ' + esc(b.suburb) + " · " + kmText(kmFromCbd(b.lat, b.lng)) + " from Flinders Street Station</p><p>We do not cover this area yet. The details are saved.</p></article>").join("");
@@ -2553,6 +2558,7 @@ const PHOTOS = {
     return '<div class="stack">' + head + stage +
       '<button class="btn btn-secondary" type="button" data-act="open-evidence" data-id="' + job.id + '">View evidence record</button>' +
       documentsCard(job, "manager") +
+      paymentsCard(job) +
       '<div class="card">' + timelineHtml(job) + "</div></div>";
   }
   function cancelBeforeArrival(job) {
@@ -2866,6 +2872,20 @@ const PHOTOS = {
     const ret = who === "manager" && job.invoice && (job.invoice.status === "received" || job.invoice.status === "held") ? '<label class="field">Why it needs correcting<input data-field="invoiceNote" value="' + esc(state.invoiceNote || "") + '"></label><button class="btn btn-secondary" type="button" data-act="return-invoice" data-id="' + job.invoice.id + '" data-job="' + job.id + '">Send the invoice back</button>' : "";
     const fee = who === "contractor" ? '<a class="btn btn-secondary" href="' + base + 'fee">View the TaskSpeck fee invoice</a>' : "";
     return '<div class="card stack"><h2>Job documents</h2><p>Work order ' + esc(job.workOrder) + '</p><a class="btn btn-secondary" href="' + base + 'work-order">View work order</a><a class="btn btn-secondary" href="' + base + 'quote">View quote</a>' + variations + invoice + ret + ask + fee + '<p class="small">Print or save as PDF from the document page. The fee invoice goes to the contractor only, and GST is not added until the platform is registered.</p></div>';
+  }
+  function paymentsCard(job) {
+    if (!job.workOrder) return "";
+    const rows = (job.paymentRequests || []).map(item => {
+      const failed = item.status === "failed" ? '<div class="notice notice-bad" role="alert"><strong>Payment failed</strong><p>' + esc(item.failureReason || "The card was declined.") + " Nothing was taken.</p><button class=\"btn btn-primary\" type=\"button\" data-act=\"retry-request\" data-id=\"" + item.id + "\" data-job=\"" + job.id + "\">Try the payment again</button></div>" : "";
+      const send = item.status === "draft" || item.status === "sent" || item.status === "failed" ? '<button class="btn btn-secondary" type="button" data-act="send-request" data-id="' + item.id + '" data-job="' + job.id + '">' + (item.status === "draft" ? "Send payment request" : "Send again") + "</button>" : "";
+      const pay = item.status === "sent" ? '<button class="btn btn-primary" type="button" data-act="pay-request" data-id="' + item.id + '" data-job="' + job.id + '">Record payment</button>' : "";
+      return "<p>" + esc(item.number) + " · " + money(item.amount) + " · " + esc(item.status) + " · due " + esc(item.dueOn) + "</p>" + send + pay + failed;
+    }).join("");
+    const close = job.closeState === "ready"
+      ? '<button class="btn btn-primary" type="button" data-act="close-job" data-id="' + job.id + '">Close job</button>'
+      : (job.closeState === "closed" ? "<p>Closed. The quote, work order, invoice and payments stay on the record.</p>" : "");
+    return '<div class="card stack"><h2>Payment requests</h2>' + (rows || "<p>No payment request yet.</p>") +
+      '<button class="btn btn-secondary" type="button" data-act="make-request" data-id="' + job.id + '">Prepare a payment request</button>' + close + "</div>";
   }
   function requirementLines(job) {
     const p = placeOf(job);
@@ -3793,6 +3813,7 @@ const PHOTOS = {
     if (!el.dataset || !el.dataset.field) return;
     if (el.type !== "checkbox" && el.tagName !== "SELECT") return;
     applyField(el.dataset.field, el.type === "checkbox" ? el.checked : el.value);
+    if (el.dataset.field === "owner.gstOnFee" && state.remote && window.StrataWire) window.StrataWire.saveGst(!!el.checked);
     render({ keepScroll: true, keepFocus: true });
   });
   document.addEventListener("keydown", e => {
