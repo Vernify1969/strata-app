@@ -2606,7 +2606,7 @@ const PHOTOS = {
     const after = job.evidence.after || [];
     const fix = job.stage === "review1" ? (job.evidence.fix1 || []) : [];
     return '<div class="card stack"><h2>' + (job.stage === "review0" ? "Review the work" : "Review the first fix") + "</h2>" +
-      "<p>You have 72 hours (" + about + ") to accept or challenge. No response counts as acceptance.</p>" +
+      "<p>You have 72 hours (" + about + ") to accept or challenge. A reminder is sent when 24 hours are left. No response counts as acceptance.</p>" +
       "<h3>Before</h3><div class=\"thumbs\">" + (mediaThumbs(before, tradeById(job.tradeId).hue) || '<p class="muted">No before photos.</p>') + "</div>" +
       "<h3>After</h3><div class=\"thumbs\">" + (mediaThumbs(after, tradeById(job.tradeId).hue) || '<p class="muted">No after photos.</p>') + "</div>" +
       (job.stage === "review1" ? "<h3>First fix</h3><div class=\"thumbs\">" + (mediaThumbs(fix, 20) || "") + "</div>" : "") +
@@ -2901,7 +2901,7 @@ const PHOTOS = {
     const qs = ONSITE_Q.map((q, i) => '<div class="stack"><p>' + esc(q) + '</p><div class="row"><button class="chip" type="button" data-act="onsite" data-i="' + i + '" data-v="yes" aria-pressed="' + (answers[i] === "yes" ? "true" : "false") + '">Yes</button><button class="chip" type="button" data-act="onsite" data-i="' + i + '" data-v="no" aria-pressed="' + (answers[i] === "no" ? "true" : "false") + '">No</button></div></div>').join("");
     const canStart = arrived && allYes && c.guideDone;
     return '<div class="card stack"><h2>Getting there</h2><p><strong>Live status: ' + esc(liveStatus(job)) + "</strong></p>" +
-      '<p class="small"><span class="demo">Demo</span> Location and time are checked only when you tap Just arrived.</p>' +
+      '<p class="small">Just arrived checks you are within ' + (placeOf(job).captureM || 150) + " m of the building. The update is saved for the manager.</p>" +
       '<div class="row"><span class="field">On my way</span>' + [10, 20, 30, 45].map(n => '<button class="chip" type="button" data-act="on-way" data-v="' + n + '" data-id="' + job.id + '">' + n + " minutes</button>").join("") + "</div>" +
       '<div class="row"><span class="field">Running late</span><button class="chip" type="button" data-act="late" data-v="15" data-id="' + job.id + '">+15 minutes</button><button class="chip" type="button" data-act="late" data-v="30" data-id="' + job.id + '">+30 minutes</button></div>' +
       '<label class="check"><input type="checkbox" data-field="job.far"' + (job.farDemo ? " checked" : "") + "> <span>Demo: pretend I am far from the building</span></label>" +
@@ -2938,9 +2938,10 @@ const PHOTOS = {
       const items = job.evidence[key] || [];
       const photos = items.filter(i => i.kind === "photo").length;
       return '<div class="card stack"><div class="between"><h3>' + title + "</h3>" + needPill(items, minPhotos, needVideo) + "</div>" +
-        '<p class="small">Do not film people or belongings. <span class="demo">Demo</span> The camera, time and distance are simulated.</p>' +
+        '<p class="small">Do not film people or belongings. The photo is kept, with the time and how far you were from the building. The limit here is ' + (placeOf(job).captureM || 150) + " m.</p>" +
         '<div class="thumbs">' + mediaThumbs(items, hue) + "</div>" +
-        '<div class="row"><button class="btn btn-secondary auto" type="button" data-act="take-photo" data-stage="' + key + '" data-id="' + job.id + '"' + (photos >= 10 ? " disabled" : "") + '>Take a photo</button>' +
+        '<div class="row"><label class="btn btn-secondary auto">Take a photo<input class="sr" type="file" accept="image/*" capture="environment" data-capture="photo" data-stage="' + key + '" data-id="' + job.id + '"' + (photos >= 10 ? " disabled" : "") + '></label>' +
+        '<button class="btn btn-secondary auto" type="button" data-act="take-photo" data-stage="' + key + '" data-id="' + job.id + '"' + (photos >= 10 ? " disabled" : "") + '>Save a photo</button>' +
         '<button class="btn btn-secondary auto" type="button" data-act="take-video" data-stage="' + key + '" data-id="' + job.id + '"' + (items.some(i => i.kind === "video") ? " disabled" : "") + ">Take a video</button></div></div>";
     }
     let blocks = "";
@@ -3039,7 +3040,7 @@ const PHOTOS = {
       sec("Before", job.evidence.before) + sec("After", job.evidence.after) + sec("First fix", job.evidence.fix1) + sec("Final fix", job.evidence.fix2) +
       "<h3>On-site safety answers</h3>" + (answers ? "<ul class=\"clean\">" + answers + "</ul>" : '<p class="muted">Not answered yet.</p>') +
       timelineHtml(job) +
-      '<button class="btn btn-secondary" type="button" data-act="export" data-id="' + job.id + '">Export <span class="demo">Demo</span></button></div>' +
+      '<button class="btn btn-secondary" type="button" data-act="export" data-id="' + job.id + '">Export the evidence record</button></div>' +
       (state.exportText ? '<div class="card"><h3>Export preview</h3><pre style="white-space:pre-wrap;font-family:inherit">' + esc(state.exportText) + "</pre></div>" : "") +
       "</div>";
   }
@@ -3720,6 +3721,10 @@ const PHOTOS = {
   });
   document.addEventListener("change", e => {
     const el = e.target;
+    if (el.dataset && el.dataset.capture && state.remote && window.StrataWire) {
+      window.StrataWire.captureFile(el);
+      return;
+    }
     if (!el.dataset || !el.dataset.field) return;
     if (el.type !== "checkbox" && el.tagName !== "SELECT") return;
     applyField(el.dataset.field, el.type === "checkbox" ? el.checked : el.value);
