@@ -18,6 +18,16 @@ function loadEnvFile(file) {
   }
 }
 
+export const DEFAULT_MAP_TILE_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+export const DEFAULT_MAP_TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+export function mapTiles(config = {}) {
+  return {
+    url: config.mapTileUrl || process.env.MAP_TILE_URL || DEFAULT_MAP_TILE_URL,
+    attribution: config.mapTileAttribution || process.env.MAP_TILE_ATTRIBUTION || DEFAULT_MAP_TILE_ATTRIBUTION
+  };
+}
+
 export function loadConfig(overrides = {}) {
   const root = overrides.root || path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
   if (!overrides.skipEnvFile) loadEnvFile(path.join(root, ".env"));
@@ -63,6 +73,8 @@ export function loadConfig(overrides = {}) {
       accessKeyId: process.env.S3_ACCESS_KEY_ID || "",
       secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || ""
     },
-    anthropicApiKey: overrides.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY ?? ""
+    anthropicApiKey: overrides.anthropicApiKey ?? process.env.ANTHROPIC_API_KEY ?? "",
+    mapTileUrl: overrides.mapTileUrl || process.env.MAP_TILE_URL || DEFAULT_MAP_TILE_URL,
+    mapTileAttribution: overrides.mapTileAttribution || process.env.MAP_TILE_ATTRIBUTION || DEFAULT_MAP_TILE_ATTRIBUTION
   };
 }

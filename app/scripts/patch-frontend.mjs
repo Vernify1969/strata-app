@@ -141,8 +141,9 @@ swap(
     const emergencyBtn = onAuth || state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
     const askTab = onAuth ? "" : '<button class="tab ask-tab" type="button" data-act="chloe-open" aria-pressed="' + (state.chloeOpen ? "true" : "false") + '">' + icon("spark") + '<span class="tab-label">Ask ' + esc(askName) + "</span></button>";
     const drawer = !onAuth && state.chloeOpen ? '<aside class="chloe-drawer">' + chloeDock() + "</aside>" : "";
-    const demoBanner = state.demo ? '<p class="samplebar">Demo, test data only. Payments are simulated and QR sheets cannot be printed.</p>' : "";
-    const sample = demoBanner + (onAuth ? "" : '<p class="samplebar">' + (state.account ? esc(state.account.banner || "Signed in.") : "Sample data. The people, buildings and jobs are fictional.") + "</p>");
+    const signedLine = state.account ? (state.account.banner || "Signed in.") : "";
+    const demoBanner = state.demo && !signedLine ? '<p class="samplebar">Demo, test data only. Payments are simulated and QR sheets cannot be printed.</p>' : "";
+    const sample = demoBanner + (onAuth ? "" : '<p class="samplebar">' + esc(signedLine || "Sample data. The people, buildings and jobs are fictional.") + "</p>");
     const menuSignOut = state.account ? '<button class="tab sign-out-tab" type="button" data-act="sign-out" aria-label="Sign out of this device"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg><span class="tab-label">Sign out</span></button>' : "";
     const headerSignOut = state.account ? '<button class="btn btn-secondary header-sign-out" type="button" data-act="sign-out">Sign out</button>' : "";
     const rail = onAuth ? "" : '<aside class="rail">' + brandMark() + tabsHtml("rail") + menuSignOut + "</aside>";

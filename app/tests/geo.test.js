@@ -46,6 +46,25 @@ test("the map page uses OpenStreetMap and a short map card", async () => {
     assert.match(html, /leaflet@1\.9\.4/);
     assert.match(html, /live-map/);
     assert.match(html, /OpenStreetMap/);
+    assert.match(html, /basemaps\.cartocdn\.com/);
+    assert.doesNotMatch(html, /tile\.openstreetmap\.org/);
+    assert.match(html, /getZoom\(\) >= 11/);
+    const tiles = await fetch(server.base + "/api/map-tiles");
+    const spec = await tiles.json();
+    assert.match(spec.url, /basemaps\.cartocdn\.com/);
+    assert.match(spec.attribution, /OpenStreetMap/);
+    assert.match(spec.attribution, /CARTO/);
+    assert.match(tiles.headers.get("content-security-policy"), /basemaps\.cartocdn\.com/);
+    const custom = await startApp({ mapTileUrl: "https://example.test/tiles/{z}/{x}/{y}.png", mapTileAttribution: "Example tiles" });
+    try {
+      const swapped = await (await fetch(custom.base + "/api/map-tiles")).json();
+      assert.equal(swapped.url, "https://example.test/tiles/{z}/{x}/{y}.png");
+      assert.equal(swapped.attribution, "Example tiles");
+      const policy = (await fetch(custom.base + "/")).headers.get("content-security-policy");
+      assert.match(policy, /example\.test/);
+    } finally {
+      await custom.close();
+    }
     assert.match(html, /height: 360px/);
     assert.match(html, /height: 220px/);
     assert.match(html, /Full screen/);
