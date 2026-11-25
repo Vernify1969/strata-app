@@ -208,18 +208,33 @@
     return "<h1>Map</h1><p>Melbourne council areas. Jobs and buildings in the main app use the same map.</p><div id=\"admin-map\" style=\"height:360px;border-radius:12px\"></div><p class=\"muted\">Council areas: Australian Bureau of Statistics, ASGS Edition 3, Local Government Areas 2023, simplified, CC BY 4.0. Map data © OpenStreetMap contributors.</p>";
   }
 
+  const METRO = ["Banyule", "Bayside", "Boroondara", "Brimbank", "Cardinia", "Casey", "Darebin", "Frankston", "Glen Eira", "Greater Dandenong", "Hobsons Bay", "Hume", "Kingston", "Knox", "Manningham", "Maribyrnong", "Maroondah", "Melbourne", "Melton", "Merri-bek", "Monash", "Moonee Valley", "Mornington Peninsula", "Nillumbik", "Port Phillip", "Stonnington", "Whitehorse", "Whittlesea", "Wyndham", "Yarra", "Yarra Ranges"];
   function mountAdminMap() {
     const el = document.getElementById("admin-map");
     if (!el || !window.L) return;
-    const map = L.map(el).setView([-37.8136, 144.9631], 10);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(map);
-    fetch("/maps/melbourne-lgas.geojson").then(res => res.json()).then(data => {
-      const layer = L.geoJSON(data, {
-        style: { color: "#0F766E", weight: 1, fillColor: "#99F6E4", fillOpacity: 0.35 },
-        onEachFeature: (feature, shape) => { if (feature.properties && feature.properties.name) shape.bindTooltip(feature.properties.name, { permanent: true, direction: "center" }); }
-      }).addTo(map);
-      if (layer.getBounds().isValid()) map.fitBounds(layer.getBounds());
-      setTimeout(() => map.invalidateSize(), 0);
+    const map = L.map(el).setView([-37.8136, 144.9631], 11);
+    fetch("/api/map-tiles").then((res) => res.json()).catch(() => ({})).then((tiles) => {
+      const url = tiles.url || "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+      const layer = L.tileLayer(url, { maxZoom: 20, subdomains: url.indexOf("{s}") === -1 ? "a" : "abcd", attribution: tiles.attribution || "&copy; OpenStreetMap contributors &copy; CARTO" });
+      let failed = 0;
+      layer.on("tileerror", () => { failed += 1; if (failed >= 4 && map.hasLayer(layer)) map.removeLayer(layer); });
+      layer.addTo(map);
+    });
+    fetch("/maps/melbourne-lgas.geojson").then((res) => res.json()).then((data) => {
+      const kept = { type: "FeatureCollection", features: (data.features || []).filter((feature) => METRO.indexOf(feature.properties && feature.properties.name) !== -1) };
+      const councils = L.geoJSON(kept, { style: { color: "#0F766E", weight: 1, fillColor: "#99F6E4", fillOpacity: 0.35 } }).addTo(map);
+      const label = () => councils.eachLayer((shape) => {
+        const name = shape.feature && shape.feature.properties && shape.feature.properties.name;
+        if (!name) return;
+        const box = shape.getBounds();
+        const nw = map.latLngToContainerPoint(box.getNorthWest());
+        const se = map.latLngToContainerPoint(box.getSouthEast());
+        const roomy = Math.abs(se.x - nw.x) > 80 && Math.abs(se.y - nw.y) > 36;
+        shape.unbindTooltip();
+        shape.bindTooltip(name, map.getZoom() >= 11 && roomy ? { permanent: true, direction: "center" } : { sticky: true });
+      });
+      map.on("zoomend", label);
+      setTimeout(() => { map.invalidateSize(); label(); }, 0);
     });
   }
 

@@ -19,6 +19,7 @@ import { cleanAssistantName, registerChloeRoutes } from "./chloe.js";
 import { registerOwnerOffice } from "./owner-office.js";
 import { seedDemo } from "./demo-seed.js";
 import { registerAdminRoutes } from "./admin.js";
+import { mapTiles } from "./config.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -93,6 +94,7 @@ export async function createApp(config) {
     res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader("X-Frame-Options", "DENY");
     res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Security-Policy", contentPolicy(config));
     next();
   });
 
@@ -204,6 +206,10 @@ export async function createApp(config) {
 
   app.get("/api/health", (_req, res) => {
     res.json({ ok: true, service: "strata-app", demo: !!config.demoMode, designTheme: moneySettings(db, config).designTheme });
+  });
+
+  app.get("/api/map-tiles", (_req, res) => {
+    res.json(mapTiles(config));
   });
 
   app.post("/api/register", requireJson, async (req, res) => {
@@ -581,8 +587,35 @@ export async function createApp(config) {
   return app;
 }
 
+function tileSources(url) {
+  const raw = String(url || "");
+  try {
+    const sample = raw.replaceAll("{s}", "a").replaceAll("{z}", "1").replaceAll("{x}", "1").replaceAll("{y}", "1").replaceAll("{r}", "");
+    const parsed = new URL(sample);
+    const bare = parsed.host.replace(/^[a-d]\./, "");
+    return "https://" + bare + " https://*." + bare;
+  } catch {
+    return "https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com";
+  }
+}
+
+function contentPolicy(config) {
+  const tiles = tileSources(mapTiles(config).url);
+  return [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://unpkg.com",
+    "style-src 'self' 'unsafe-inline' https://unpkg.com",
+    "img-src 'self' data: blob: https://unpkg.com " + tiles,
+    "font-src 'self'",
+    "connect-src 'self' " + tiles,
+    "frame-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'"
+  ].join("; ");
+}
+
 function bannerFor(user, demoMode) {
-  const demo = demoMode ? "Demo, test data only. " : "";
+  const demo = demoMode ? "Demo, test data only. Payments are simulated and QR sheets cannot be printed. " : "";
   if (user.role === "contractor") {
     return demo + `Signed in as ${user.name}, contractor. Open jobs from other buildings are not loaded yet.`;
   }
@@ -590,8 +623,8 @@ function bannerFor(user, demoMode) {
     return demo + "Signed in as the platform owner. Buildings belong to manager accounts, not to this one.";
   }
   const place = user.role === "property_manager" ? "Properties" : "Buildings";
-  const pay = demoMode ? "Payments are simulated. No card is charged." : "Stripe is not taking payments yet.";
-  return demo + `Signed in as ${user.name}, ${publicUser(user).roleLabel}. ${place} and jobs are stored for your organisation only. ${pay}`;
+  const pay = demoMode ? "" : " Stripe is not taking payments yet.";
+  return demo + `Signed in as ${user.name}, ${publicUser(user).roleLabel}. ${place} and jobs are stored for your organisation only.` + pay;
 }
 
 async function ensureOwner(db, config) {

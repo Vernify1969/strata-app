@@ -1383,28 +1383,68 @@ const PHOTOS = {
     mountLiveMap();
   }
 
+  const METRO_COUNCILS = ["Banyule", "Bayside", "Boroondara", "Brimbank", "Cardinia", "Casey", "Darebin", "Frankston", "Glen Eira", "Greater Dandenong", "Hobsons Bay", "Hume", "Kingston", "Knox", "Manningham", "Maribyrnong", "Maroondah", "Melbourne", "Melton", "Merri-bek", "Monash", "Moonee Valley", "Mornington Peninsula", "Nillumbik", "Port Phillip", "Stonnington", "Whitehorse", "Whittlesea", "Wyndham", "Yarra", "Yarra Ranges"];
+  function featureBox(geometry) {
+    let minLng = 180, maxLng = -180, minLat = 90, maxLat = -90;
+    const walk = (node) => {
+      if (!node) return;
+      if (typeof node[0] === "number") {
+        minLng = Math.min(minLng, node[0]); maxLng = Math.max(maxLng, node[0]);
+        minLat = Math.min(minLat, node[1]); maxLat = Math.max(maxLat, node[1]);
+        return;
+      }
+      node.forEach(walk);
+    };
+    walk(geometry && geometry.coordinates);
+    return { minLng: minLng, maxLng: maxLng, minLat: minLat, maxLat: maxLat };
+  }
+  function councilShown(feature, points) {
+    const name = feature.properties && feature.properties.name;
+    if (METRO_COUNCILS.indexOf(name) !== -1) return true;
+    const box = featureBox(feature.geometry);
+    return points.some(point => point.lng >= box.minLng && point.lng <= box.maxLng && point.lat >= box.minLat && point.lat <= box.maxLat);
+  }
+  function labelCouncils(map, layer) {
+    layer.eachLayer(shape => {
+      const name = shape.feature && shape.feature.properties && shape.feature.properties.name;
+      if (!name) return;
+      const box = shape.getBounds();
+      const nw = map.latLngToContainerPoint(box.getNorthWest());
+      const se = map.latLngToContainerPoint(box.getSouthEast());
+      const roomy = Math.abs(se.x - nw.x) > 80 && Math.abs(se.y - nw.y) > 36;
+      shape.unbindTooltip();
+      if (map.getZoom() >= 11 && roomy) shape.bindTooltip(name, { permanent: true, direction: "center", className: "lga-label" });
+      else shape.bindTooltip(name, { sticky: true, direction: "center" });
+    });
+  }
   function mountLiveMap() {
     const el = document.getElementById("live-map");
     if (!el || !window.L) return;
     const points = JSON.parse(decodeURIComponent(el.dataset.points || "%5B%5D"));
-    if (el._leaflet_id && window.liveMap) {
-      window.liveMap.remove();
-    }
+    if (el._leaflet_id && window.liveMap) window.liveMap.remove();
     const map = L.map(el, { scrollWheelZoom: true }).setView([-37.8136, 144.9631], 11);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
+    fetch("/api/map-tiles").then(res => res.json()).catch(() => ({})).then(tiles => {
+      const url = tiles.url || "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+      const layer = L.tileLayer(url, {
+        maxZoom: 20,
+        subdomains: url.indexOf("{s}") === -1 ? "a" : "abcd",
+        attribution: tiles.attribution || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+      });
+      let failed = 0;
+      layer.on("tileerror", () => {
+        failed += 1;
+        if (failed >= 4 && map.hasLayer(layer)) map.removeLayer(layer);
+      });
+      layer.addTo(map);
+    });
     fetch("/maps/melbourne-lgas.geojson").then(res => res.json()).then(data => {
-      const layer = L.geoJSON(data, {
-        style: { color: "#0F766E", weight: 1, fillColor: "#99F6E4", fillOpacity: 0.35 },
-        onEachFeature: (feature, shape) => {
-          const name = feature.properties && feature.properties.name;
-          if (name) shape.bindTooltip(name, { permanent: true, direction: "center", className: "lga-label" });
-        }
+      const kept = Object.assign({}, data, { features: (data.features || []).filter(feature => councilShown(feature, points)) });
+      const councils = L.geoJSON(kept, {
+        style: { color: "#0F766E", weight: 1, fillColor: "#99F6E4", fillOpacity: 0.35 }
       }).addTo(map);
-      if (!bounds.length && layer.getBounds().isValid()) map.fitBounds(layer.getBounds(), { padding: [12, 12] });
-      setTimeout(() => map.invalidateSize(), 0);
+      labelCouncils(map, councils);
+      map.on("zoomend", () => labelCouncils(map, councils));
+      setTimeout(() => { map.invalidateSize(); labelCouncils(map, councils); }, 0);
     }).catch(() => {});
     if (el.dataset.coverage) {
       try {
@@ -1422,7 +1462,8 @@ const PHOTOS = {
       marker.bindPopup(popup);
       bounds.push([point.lat, point.lng]);
     });
-    if (bounds.length) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 15 });
+    if (bounds.length === 1) map.setView(bounds[0], 13);
+    else if (bounds.length > 1) map.fitBounds(bounds, { padding: [28, 28], maxZoom: 14 });
     window.liveMap = map;
     setTimeout(() => map.invalidateSize(), 0);
   }
@@ -1594,8 +1635,9 @@ const PHOTOS = {
     const emergencyBtn = onAuth || state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
     const askTab = onAuth ? "" : '<button class="tab ask-tab" type="button" data-act="chloe-open" aria-pressed="' + (state.chloeOpen ? "true" : "false") + '">' + icon("spark") + '<span class="tab-label">Ask ' + esc(askName) + "</span></button>";
     const drawer = !onAuth && state.chloeOpen ? '<aside class="chloe-drawer">' + chloeDock() + "</aside>" : "";
-    const demoBanner = state.demo ? '<p class="samplebar">Demo, test data only. Payments are simulated and QR sheets cannot be printed.</p>' : "";
-    const sample = demoBanner + (onAuth ? "" : '<p class="samplebar">' + (state.account ? esc(state.account.banner || "Signed in.") : "Sample data. The people, buildings and jobs are fictional.") + "</p>");
+    const signedLine = state.account ? (state.account.banner || "Signed in.") : "";
+    const demoBanner = state.demo && !signedLine ? '<p class="samplebar">Demo, test data only. Payments are simulated and QR sheets cannot be printed.</p>' : "";
+    const sample = demoBanner + (onAuth ? "" : '<p class="samplebar">' + esc(signedLine || "Sample data. The people, buildings and jobs are fictional.") + "</p>");
     const menuSignOut = state.account ? '<button class="tab sign-out-tab" type="button" data-act="sign-out" aria-label="Sign out of this device"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg><span class="tab-label">Sign out</span></button>' : "";
     const headerSignOut = state.account ? '<button class="btn btn-secondary header-sign-out" type="button" data-act="sign-out">Sign out</button>' : "";
     const rail = onAuth ? "" : '<aside class="rail">' + brandMark() + tabsHtml("rail") + menuSignOut + "</aside>";
@@ -2757,7 +2799,7 @@ const PHOTOS = {
       const person = (state.contractors || []).find(item => item.id === state.meId);
       if (person && person.lat != null && person.lng != null) coverage = encodeURIComponent(JSON.stringify({ lat: person.lat, lng: person.lng, km: state.owner.radiusKm || 8 }));
     }
-    return '<div class="stack"><div class="map-card" id="live-map-card"><div id="live-map" class="live-map" role="region" aria-label="Map of Melbourne" data-points="' + encodeURIComponent(JSON.stringify(points)) + '" data-coverage="' + coverage + '"></div><div class="map-tools"><button class="chip" type="button" data-act="show-booked" aria-pressed="' + (state.find.showBooked ? "true" : "false") + '">Show my booked jobs</button><button class="chip" type="button" data-act="map-full">Full screen</button></div></div><p class="small">Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. Council areas: Australian Bureau of Statistics, ASGS Edition 3, Local Government Areas 2023, simplified, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Blue is a job, navy is a building, teal is a contractor. The amber circle is a contractor coverage area.</p>' + preview + "</div>";
+    return '<div class="stack"><div class="map-card" id="live-map-card"><div id="live-map" class="live-map" role="region" aria-label="Map of Melbourne" data-points="' + encodeURIComponent(JSON.stringify(points)) + '" data-coverage="' + coverage + '"></div><div class="map-tools"><button class="chip" type="button" data-act="show-booked" aria-pressed="' + (state.find.showBooked ? "true" : "false") + '">Show my booked jobs</button><button class="chip" type="button" data-act="map-full">Full screen</button></div></div><p class="small">Map tiles © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>. Council areas: Australian Bureau of Statistics, ASGS Edition 3, Local Government Areas 2023, simplified, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Names appear when you are zoomed in, and on hover. Blue is a job, navy is a building, teal is a contractor. The amber circle is a contractor coverage area.</p>' + preview + "</div>";
   }
 
   function areaMap() {
