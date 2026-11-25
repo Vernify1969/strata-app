@@ -64,12 +64,32 @@ export async function watchDeposits(db, mail, config, now = new Date()) {
   return { reminded, lapsed };
 }
 
+export async function remindOpenReviews(db, mail, now = new Date()) {
+  const jobs = db.prepare(`SELECT * FROM jobs
+    WHERE stage IN ('review0', 'review1') AND review_ends_at != '' AND review_reminded_at = ''`).all();
+  let reminded = 0;
+  for (const job of jobs) {
+    const end = Date.parse(job.review_ends_at);
+    if (!Number.isFinite(end)) continue;
+    if (now.getTime() < end - 24 * 3600 * 1000 || now.getTime() >= end) continue;
+    const manager = db.prepare("SELECT email FROM users WHERE id = ?").get(job.created_by);
+    if (manager?.email) {
+      const note = applyTemplate(db, "review-reminder", "24 hours left to review the work", `You have about 24 hours left to accept or challenge "${job.title}". If you do nothing, the review window still ends at ${job.review_ends_at}.`, { title: job.title, due: job.review_ends_at });
+      await mail.send({ to: manager.email, subject: note.subject, text: note.text });
+    }
+    db.prepare("UPDATE jobs SET review_reminded_at = ? WHERE id = ?").run(now.toISOString(), job.id);
+    reminded += 1;
+  }
+  return reminded;
+}
+
 export async function runMaintenance(db, mail, config, now = new Date()) {
   const alerts = await sendDueAlerts(db, mail, todayIn("Australia/Melbourne", now));
+  const reviews = await remindOpenReviews(db, mail, now);
   const released = await releaseExpiredReviews(db, config, now);
   const deposits = await watchDeposits(db, mail, config, now);
   const captures = await captureExpiringHolds(db, config, now);
-  return { alerts, released, deposits, captures };
+  return { alerts, released, deposits, captures, reviews };
 }
 
 export function startMaintenance({ db, mail, config }) {

@@ -113,7 +113,7 @@ test("cancelling before arrival records a strike, unless the reason excuses it o
     assert.equal(byManager.json.strike, false);
 
     const db = new DatabaseSync(server.config.databasePath, { readOnly: true });
-    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 21);
+    assert.ok(db.prepare("PRAGMA user_version").get().user_version >= 21);
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM contractor_strikes WHERE kind = 'cancel'").get().n, 1);
     db.close();
   } finally {

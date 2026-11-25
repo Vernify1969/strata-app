@@ -507,6 +507,30 @@ function migrate(db) {
     db.exec("ALTER TABLE contractor_strikes ADD COLUMN kind TEXT NOT NULL DEFAULT 'note'");
   }
   if (userVersion(db) < 21) db.exec("PRAGMA user_version = 21");
+  if (!columnExists(db, "jobs", "arrival_status")) {
+    db.exec(`
+      ALTER TABLE jobs ADD COLUMN arrival_status TEXT NOT NULL DEFAULT '';
+      ALTER TABLE jobs ADD COLUMN arrival_eta INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE jobs ADD COLUMN arrival_at TEXT NOT NULL DEFAULT '';
+      ALTER TABLE jobs ADD COLUMN arrival_distance_m INTEGER;
+      ALTER TABLE jobs ADD COLUMN arrival_confirmed INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE jobs ADD COLUMN safety_answers TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE jobs ADD COLUMN stopped_unsafe INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE jobs ADD COLUMN review_reminded_at TEXT NOT NULL DEFAULT '';
+      ALTER TABLE jobs ADD COLUMN challenges TEXT NOT NULL DEFAULT '[]';
+      CREATE TABLE job_evidence (
+        id TEXT PRIMARY KEY,
+        job_id TEXT NOT NULL,
+        stage TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        distance_m INTEGER,
+        stored_name TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+    `);
+  }
+  if (userVersion(db) < 22) db.exec("PRAGMA user_version = 22");
 }
 
 function tableExists(db, name) {

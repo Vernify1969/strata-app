@@ -342,6 +342,18 @@
       if (act === "set-manager-role" && state.remote) { this.setRole(t.dataset.value); return true; }
       if (act === "add-note" && state.remote) { this.addNote(); return true; }
       if (act === "submit-work" && state.remote) { this.submitWork(t.dataset.id); return true; }
+      if (act === "on-way" && state.remote) { this.arrival(t.dataset.id, "on_way", t.dataset.v); return true; }
+      if (act === "late" && state.remote) { this.arrival(t.dataset.id, "late", t.dataset.v); return true; }
+      if (act === "arrived" && state.remote) { this.arrival(t.dataset.id, "arrived"); return true; }
+      if (act === "cannot" && state.remote) { this.arrival(t.dataset.id, "cannot_get_in"); return true; }
+      if (act === "confirm-arrival" && state.remote) { this.confirmArrival(t.dataset.id); return true; }
+      if (act === "let-in" && state.remote) { this.letIn(t.dataset.id); return true; }
+      if (act === "onsite" && state.remote) { this.answerSafety(t.dataset.i, t.dataset.v); return true; }
+      if (act === "start-work" && state.remote) { this.startWork(t.dataset.id); return true; }
+      if (act === "stop-unsafe" && state.remote) { this.stopUnsafe(t.dataset.id); return true; }
+      if ((act === "take-photo" || act === "take-video") && state.remote) { this.saveEvidence(t.dataset.id, t.dataset.stage, act === "take-photo" ? "photo" : "video"); return true; }
+      if (act === "challenge" && state.remote) { this.challengeWork(t.dataset.id); return true; }
+      if (act === "export" && state.remote) { this.exportEvidence(t.dataset.id); return true; }
       if (act === "accept" && state.remote) { this.acceptWork(t.dataset.id); return true; }
       if ((act === "save-building" || act === "join-wait") && state.remote) { this.saveBuilding(); return true; }
       if (act === "owner" && state.account && state.account.role !== "platform_owner") {
@@ -835,12 +847,113 @@
       api.toast("Offer sent.");
       api.render();
     },
+    placeOfJob(jobId) {
+      const job = hooks().state.jobs.find(item => item.id === jobId);
+      return job && job.place ? job.place : {};
+    },
+    async arrival(jobId, status, eta) {
+      const api = hooks();
+      const job = api.state.jobs.find(item => item.id === jobId) || {};
+      const place = this.placeOfJob(jobId);
+      const res = await call("POST", "/api/jobs/" + jobId + "/arrival", {
+        status, eta: Number(eta) || job.eta || 0, lat: place.lat, lng: place.lng, far: !!job.farDemo
+      });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The arrival was not saved."); return; }
+      await loadJobs();
+      api.toast(status === "arrived" ? "Arrival saved. You were " + res.json.distanceM + " m from the building." : "The manager can see this update.");
+      api.render();
+    },
+    async confirmArrival(jobId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/confirm-arrival", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The arrival was not confirmed."); return; }
+      await loadJobs();
+      api.toast("Arrival confirmed.");
+      api.render();
+    },
+    async letIn(jobId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/let-in", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "That update was not saved."); return; }
+      await loadJobs();
+      api.toast("They can start the safety check.");
+      api.render();
+    },
+    async answerSafety(index, value) {
+      const api = hooks();
+      const job = api.state.jobs.find(item => item.id === api.state.ctx.id);
+      if (!job) return;
+      job.safetyOnSite = job.safetyOnSite || [null, null, null, null, null];
+      job.safetyOnSite[Number(index)] = value;
+      const res = await call("POST", "/api/jobs/" + job.id + "/safety", { answers: job.safetyOnSite });
+      if (!res.ok) api.toast((res.json && res.json.error) || "The safety answer was not saved.");
+      else await loadJobs();
+      api.render();
+    },
+    async startWork(jobId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/start", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The work was not started."); return; }
+      await loadJobs();
+      api.toast("Work started. The safety answers are saved.");
+      api.render();
+    },
+    async stopUnsafe(jobId) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + jobId + "/unsafe", {});
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The job was not stopped."); return; }
+      await loadJobs();
+      api.toast("Work stopped. There is no penalty and no strike.");
+      api.render();
+    },
+    async saveEvidence(jobId, stage, kind, data) {
+      const api = hooks();
+      const job = api.state.jobs.find(item => item.id === jobId) || {};
+      const place = this.placeOfJob(jobId);
+      const res = await call("POST", "/api/jobs/" + jobId + "/evidence", {
+        stage, kind, lat: place.lat, lng: place.lng, far: !!job.farDemo, data: data || ""
+      });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The evidence was not saved."); return; }
+      await loadJobs();
+      api.toast("Saved, " + res.json.distanceM + " m from the building.");
+      api.render();
+    },
+    captureFile(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => this.saveEvidence(input.dataset.id, input.dataset.stage, input.dataset.capture, reader.result);
+      reader.readAsDataURL(file);
+    },
+    async challengeWork(jobId) {
+      const api = hooks();
+      const job = api.state.jobs.find(item => item.id === jobId);
+      const quote = (api.state.quotes || []).find(item => job && item.id === job.awardedQuoteId);
+      const picks = [];
+      ((quote && quote.scope) || []).forEach((item, index) => {
+        if (api.state.challengePicks && api.state.challengePicks[index]) picks.push(item);
+      });
+      const res = await call("POST", "/api/jobs/" + jobId + "/challenge", { items: picks, note: api.state.challengeNote || "" });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "The challenge was not saved."); return; }
+      api.state.challengePicks = {};
+      api.state.challengeNote = "";
+      await loadJobs();
+      api.toast(res.json.stage === "fix2" ? "Final fix requested." : "Fix requested.");
+      api.render();
+    },
+    async exportEvidence(jobId) {
+      const api = hooks();
+      const res = await fetch("/api/jobs/" + jobId + "/evidence.txt", { headers: { "x-requested-with": "StrataApp" } });
+      if (!res.ok) { api.toast("The evidence record could not be exported."); return; }
+      api.state.exportText = await res.text();
+      api.render();
+    },
     async submitWork(jobId) {
       const api = hooks();
       const res = await call("POST", "/api/jobs/" + jobId + "/submit-work", {});
       if (!res.ok) { api.toast((res.json && res.json.error) || "The work was not handed in."); return; }
       await loadJobs();
-      api.toast("Work submitted. The manager has 72 hours.");
+      api.toast(res.json.stage === "accepted" ? "Final fix submitted. The work counts as accepted." : "Work submitted. A reminder goes out when 24 hours are left.");
       api.render();
     },
     async acceptWork(jobId) {

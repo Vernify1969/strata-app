@@ -157,6 +157,7 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
     const job = visibleJob(db, req.user, req.params.id);
     if (!job) return sendError(res, 404, "That job is not on your account.");
     if (job.stage !== "approved" && job.stage !== "paid") return sendError(res, 400, "This job can only be cancelled before the contractor arrives.");
+    if (job.arrival_status === "arrived") return sendError(res, 400, "This job can no longer be cancelled here. The contractor has arrived.");
     if (!job.contractor_user_id) return sendError(res, 400, "This job has no booked contractor.");
     const held = db.prepare("SELECT 1 AS ok FROM payments WHERE job_id = ? AND status NOT IN ('failed', 'canceled', 'cancelled')").get(job.id);
     if (held) return sendError(res, 409, "A payment is already recorded. Refunds are not available yet, so this job cannot be cancelled from here.");
@@ -303,18 +304,29 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
   app.post("/api/jobs/:id/challenge", requireJson, requireUser, (req, res) => {
     const job = visibleJob(db, req.user, req.params.id);
     if (!job || job.organisation_id !== req.user.organisation_id) return sendError(res, 404, "That job is not on your account.");
-    const photos = Number(req.body?.photoCount || 0);
-    if (photos < 1) return sendError(res, 400, "Add at least 1 photo showing what is wrong.");
+    if (job.stage !== "review0" && job.stage !== "review1") return sendError(res, 400, "The work is not in review.");
     if (!Array.isArray(req.body?.items) || !req.body.items.length) return sendError(res, 400, "Choose at least one item to challenge.");
+    const items = req.body.items.map(item => String(item).slice(0, 200)).slice(0, 20);
+    const note = String(req.body?.note || "").slice(0, 500);
+    const rounds = JSON.parse(job.challenges || "[]");
+    rounds.push({ items, note, at: new Date().toISOString() });
     const next = job.stage === "review0" ? "fix1" : "fix2";
-    db.prepare("UPDATE jobs SET stage = ? WHERE id = ?").run(next, job.id);
-    addEvent(db, job.id, req.user.name, "Manager challenged the work with " + photos + " photo" + (photos === 1 ? "" : "s") + ".");
-    res.json({ stage: next });
+    db.prepare("UPDATE jobs SET stage = ?, challenges = ? WHERE id = ?").run(next, JSON.stringify(rounds), job.id);
+    addEvent(db, job.id, req.user.name, "Manager challenged: " + items.join(", ") + ".");
+    res.json({ stage: next, round: rounds.length });
   });
 
   app.post("/api/jobs/:id/submit-work", requireJson, requireUser, (req, res) => {
     const job = visibleJob(db, req.user, req.params.id);
     if (!job || job.contractor_user_id !== req.user.id) return sendError(res, 403, "Only the booked contractor can hand in the work.");
+    if (!["onsite", "fix1", "fix2"].includes(job.stage)) return sendError(res, 400, "The work is not ready to hand in.");
+    const missing = evidenceGap(db, job);
+    if (missing) return sendError(res, 400, missing);
+    if (job.stage === "fix2") {
+      db.prepare("UPDATE jobs SET stage = 'accepted' WHERE id = ?").run(job.id);
+      addEvent(db, job.id, req.user.name, "The final fix was submitted. The work counts as accepted. The money is not released by this button.");
+      return res.json({ stage: "accepted", paid: false });
+    }
     const building = db.prepare("SELECT * FROM buildings WHERE id = ?").get(job.building_id);
     const region = regionOf(db, building);
     const holidays = db.prepare("SELECT day FROM public_holidays WHERE region_id = ?").all(region.id).map(row => row.day);
@@ -324,6 +336,47 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
     addEvent(db, job.id, req.user.name, "Work submitted. The review stays open until " + end.at + (end.extended ? " because the 72 hours land on a weekend or public holiday." : "."));
     res.json({ stage, reviewEndsAt: end.at, extended: end.extended });
   });
+}
+
+function safetyAnswers(raw) {
+  let list = [];
+  try { list = JSON.parse(raw || "[]"); } catch { list = []; }
+  if (!Array.isArray(list)) list = [];
+  const answers = list.slice(0, 5);
+  while (answers.length < 5) answers.push(null);
+  return answers;
+}
+
+function evidenceBundle(db, jobId) {
+  const bundle = { before: [], after: [], fix1: [], fix2: [] };
+  const rows = db.prepare("SELECT * FROM job_evidence WHERE job_id = ? ORDER BY created_at").all(jobId);
+  for (const row of rows) {
+    if (!bundle[row.stage]) continue;
+    bundle[row.stage].push({
+      id: row.id,
+      kind: row.kind,
+      at: Date.parse(row.created_at) || Date.now(),
+      distanceM: row.distance_m,
+      seconds: row.kind === "video" ? 1 : 0
+    });
+  }
+  return bundle;
+}
+
+function evidenceGap(db, job) {
+  const count = (stage) => {
+    const rows = db.prepare("SELECT kind FROM job_evidence WHERE job_id = ? AND stage = ?").all(job.id, stage);
+    return { photos: rows.filter(row => row.kind === "photo").length, video: rows.some(row => row.kind === "video") };
+  };
+  if (job.stage === "onsite") {
+    const before = count("before");
+    const after = count("after");
+    if (before.photos < 3 || after.photos < 3 || !after.video) return "Add the before photos, the after photos, and an after video.";
+  } else {
+    const fix = count(job.stage);
+    if (fix.photos < 2 || !fix.video) return "Add the fix photos and a video.";
+  }
+  return "";
 }
 
 function jobById(db, id) {
@@ -472,9 +525,15 @@ function clientJob(db, job, user, quotes = [], contractors = new Map()) {
     fundsStatus: fundsStatus(db, job),
     approved: (job.approved_cents || 0) / 100,
     timeline: db.prepare("SELECT at, actor_name, body FROM job_events WHERE job_id = ? ORDER BY id").all(job.id).map(event => ({ t: event.at, who: event.actor_name, text: event.body, x: event.body })),
-    evidence: { before: [], after: [], fix1: [], fix2: [] },
-    challenges: [],
-    arrival: null,
+    evidence: evidenceBundle(db, job.id),
+    challenges: JSON.parse(job.challenges || "[]"),
+    arrival: job.arrival_status || null,
+    eta: job.arrival_eta || null,
+    arrivalAt: job.arrival_at ? Date.parse(job.arrival_at) : null,
+    arrivalDistance: job.arrival_distance_m,
+    arrivalConfirmed: job.arrival_confirmed === 1,
+    safetyOnSite: safetyAnswers(job.safety_answers),
+    stoppedUnsafe: job.stopped_unsafe === 1,
     place: {
       buildingName: showAddress ? building.name : building.suburb,
       streetNumber: showAddress ? building.street_number : "",
