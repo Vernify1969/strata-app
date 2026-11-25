@@ -17,6 +17,7 @@ import { registerJobPaperRoutes } from "./job-papers.js";
 import { registerPaymentRequestRoutes } from "./payment-requests.js";
 import { registerNotifyRoutes } from "./notify.js";
 import { registerMapPinRoutes } from "./map-pins.js";
+import { registerReportPackRoutes } from "./reports-pack.js";
 import { registerQrRoutes } from "./qr.js";
 import { registerAssistantRoutes } from "./assistant.js";
 import { cleanAssistantName, registerChloeRoutes } from "./chloe.js";
@@ -503,6 +504,7 @@ export async function createApp(config) {
   registerJobRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
   registerNotifyRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerMapPinRoutes(app, { db, requireUser });
+  registerReportPackRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
   registerEvidenceRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerJobPaperRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerPaymentRoutes(app, { db, config, sendError, requireUser, requireJson });

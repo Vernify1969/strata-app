@@ -1800,6 +1800,7 @@ const PHOTOS = {
       owner: ownerScreen,
       "building-new": buildingNewScreen,
       reports: reportsScreen,
+      pack: packScreen,
       office: officeScreen,
       emergency: emergencyScreen,
       guide: guideScreen,
@@ -1896,11 +1897,39 @@ const PHOTOS = {
       '<button class="btn btn-secondary" type="button" data-act="tab" data-screen="area">See the map</button>' +
       (state.account && state.account.role === "platform_owner" ? '<button class="btn btn-secondary" type="button" data-act="open-office">Back office</button><a class="btn btn-secondary" href="/admin">Admin console</a>' : "") +
       (state.manager.role === "property" ? "" : '<button class="btn btn-secondary" type="button" data-act="open-reports">Resident reports</button>') +
+      '<button class="btn btn-secondary" type="button" data-act="open-pack">Maintenance reports</button>' +
       stats +
-      '<div class="dash">' + noticeProfile() + "</div>" +
+      '<div class="dash">' + noticeProfile() + noticeReports() + "</div>" +
       '<div class="trade-grid">' + tiles + "</div>" +
       '<h2>More services</h2><div class="more-row">' + more + "</div></div>";
     return '<div class="home-layout">' + primary + diaryPanel() + "</div>";
+  }
+  function noticeReports() {
+    const due = state.reportDue || {};
+    const count = (due.committee || []).length + (due.statements || []).length;
+    if (!count) return "";
+    const word = count === 1 ? "report is" : "reports are";
+    return '<button class="notice notice-warn dash-card" type="button" data-act="open-pack"><span class="dash-badge">' + icon("clipboard") + "</span><span><strong>" + count + " " + word + ' ready</strong><span class="small">Open maintenance reports for ' + esc(due.month || "last month") + ".</span></span></button>";
+  }
+  function packScreen() {
+    const kind = state.packKind || "monthly";
+    const kinds = ["weekly", "fortnightly", "monthly", "quarterly"].map(item =>
+      '<button class="chip" type="button" data-act="pack-kind" data-kind="' + item + '" aria-pressed="' + (kind === item ? "true" : "false") + '">' + item.charAt(0).toUpperCase() + item.slice(1) + "</button>").join("");
+    const schedule = state.reportSchedule || "off";
+    const schedules = ["off", "weekly", "fortnightly", "monthly"].map(item =>
+      '<button class="chip" type="button" data-act="pack-schedule" data-schedule="' + item + '" aria-pressed="' + (schedule === item ? "true" : "false") + '">' + item.charAt(0).toUpperCase() + item.slice(1) + "</button>").join("");
+    const query = "kind=" + encodeURIComponent(kind);
+    const buildings = (state.buildings || []).map(building => {
+      if (building.world === "private") {
+        return '<article class="card stack"><h2>' + esc(building.name) + '</h2><label class="field">Owner name<input data-field="ownerName.' + building.id + '" value="' + esc(building.ownerName || "") + '"></label><label class="field">Owner email<input data-field="ownerEmail.' + building.id + '" value="' + esc(building.ownerEmail || "") + '"></label><button class="btn btn-secondary" type="button" data-act="save-owner" data-id="' + building.id + '">Save owner</button><a class="btn btn-secondary" href="/api/buildings/' + building.id + '/owner-statement" target="_blank">Open the statement</a><a class="btn btn-secondary" href="/api/buildings/' + building.id + '/owner-statement.pdf" target="_blank">Download PDF</a><button class="btn btn-primary" type="button" data-act="send-statement" data-id="' + building.id + '">Email the statement</button><p class="small">Payment terms stay within the 14 day limit.</p></article>';
+      }
+      return '<article class="card stack"><h2>' + esc(building.name) + '</h2><label class="field">Committee emails<input data-field="committee.' + building.id + '" value="' + esc(building.committeeEmails || "") + '" placeholder="one@example.com, two@example.com"></label><button class="btn btn-secondary" type="button" data-act="save-committee" data-id="' + building.id + '">Save committee</button><a class="btn btn-secondary" href="/api/buildings/' + building.id + '/committee-report" target="_blank">Open the Monthly Maintenance Report</a><a class="btn btn-secondary" href="/api/buildings/' + building.id + '/committee-report.pdf" target="_blank">Download PDF</a><button class="btn btn-primary" type="button" data-act="submit-committee" data-id="' + building.id + '">Submit last month</button><p class="small">You can submit it once the month has ended. The sent copy stays as it was.</p></article>';
+    }).join("");
+    const jobs = (state.manager && state.manager.role === "property" ? ownJobs().filter(job => job.stage === "accepted" || job.stage === "released") : []).map(job =>
+      '<p><strong>' + esc(job.title) + '</strong> <a href="/api/jobs/' + job.id + '/job-report" target="_blank">View job report</a> <button class="btn btn-secondary" type="button" data-act="send-job-report" data-id="' + job.id + '">Email to the owner</button></p>').join("");
+    const sent = (state.submittedReports || []).slice(0, 8).map(row =>
+      '<p><a href="/api/reports/submitted/' + encodeURIComponent(row.id) + '" target="_blank">' + esc(row.kind) + " · " + esc(row.period) + "</a> <span class=\"small\">" + esc(row.sentTo || "") + "</span></p>").join("");
+    return '<div class="stack"><h1>Reports</h1><p>Weekly, fortnightly, monthly or quarterly. Print or save as PDF from the browser. A missing invoice never stops a building from posting a job.</p><div class="row">' + kinds + '</div><a class="btn btn-primary" href="/api/reports/summary?' + query + '" target="_blank">Open the summary</a><a class="btn btn-secondary" href="/api/reports/summary.csv?' + query + '">Download CSV</a><a class="btn btn-secondary" href="/api/reports/summary.pdf?' + query + '" target="_blank">Download PDF</a><h2>Email on a schedule</h2><div class="row">' + schedules + "</div>" + buildings + (jobs ? "<h2>Job reports</h2>" + jobs : "") + (sent ? "<h2>Submitted copies</h2>" + sent : "") + "</div>";
   }
   function loadNotes() {
     try {
@@ -3297,6 +3326,18 @@ const PHOTOS = {
   }
 
   function applyField(field, value) {
+    if (field.indexOf("committee.") === 0 || field.indexOf("ownerName.") === 0 || field.indexOf("ownerEmail.") === 0) {
+      const dot = field.indexOf(".");
+      const kind = field.slice(0, dot);
+      const id = field.slice(dot + 1);
+      const building = (state.buildings || []).find(item => item.id === id);
+      if (building) {
+        if (kind === "committee") building.committeeEmails = value;
+        if (kind === "ownerName") building.ownerName = value;
+        if (kind === "ownerEmail") building.ownerEmail = value;
+      }
+      return false;
+    }
     if (field === "find.q") { state.find.q = value; return false; }
     if (field === "jobQuery") { state.jobQuery = value; return true; }
     if (field.indexOf("decline.") === 0) {
@@ -3438,6 +3479,16 @@ const PHOTOS = {
     }
     if (act === "try-look") {
       rememberLook(t.dataset.look || "grove");
+      render({ keepScroll: true });
+      return;
+    }
+    if (act === "open-pack") {
+      push("pack", {}, "Reports");
+      if (state.remote && window.StrataWire && window.StrataWire.loadReports) window.StrataWire.loadReports();
+      return;
+    }
+    if (act === "pack-kind") {
+      state.packKind = t.dataset.kind || "monthly";
       render({ keepScroll: true });
       return;
     }
