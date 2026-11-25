@@ -3,6 +3,7 @@ import { complianceBlock } from "./documents.js";
 import { centreOf } from "./area.js";
 import { abnOk, newId } from "./ids.js";
 import { moneySettings, requestCapture } from "./payments.js";
+import { takeNumber } from "./job-papers.js";
 import { approvalFor, depositAllowed, depositCents, hasContact, invoiceDecision, reviewEndsAt } from "./rules.js";
 
 // TODO(owner): refunds are not built. A cancellation before arrival should refund through Stripe once you decide the policy.
@@ -250,7 +251,11 @@ export function registerJobRoutes(app, { db, config = {}, sendError, requireUser
       String(req.body?.fewerReason || ""), depositDue, job.id
     );
     db.prepare("UPDATE quotes SET status = 'awarded' WHERE id = ?").run(quote.id);
-    addEvent(db, job.id, req.user.name, prepay ? "Quote approved. Payment before the start is still unpaid." : "Quote approved. Nothing is paid before the work.");
+    const workOrder = job.work_order || takeNumber(db, "work-order", "WO-");
+    const quoteNumber = quote.quote_number || takeNumber(db, "quote", "Q-");
+    db.prepare("UPDATE jobs SET work_order = ? WHERE id = ?").run(workOrder, job.id);
+    db.prepare("UPDATE quotes SET quote_number = ? WHERE id = ?").run(quoteNumber, quote.id);
+    addEvent(db, job.id, req.user.name, (prepay ? "Quote approved. Payment before the start is still unpaid. " : "Quote approved. Nothing is paid before the work. ") + "Work order " + workOrder + ".");
     audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "job.approved", subjectType: "job", subjectId: job.id, detail: { prepay, quoteId: quote.id } });
     const urgent = job.urgency === "urgent" || job.urgency === "after_hours";
     res.json({
@@ -496,7 +501,8 @@ function clientJob(db, job, user, quotes = [], contractors = new Map()) {
       committeeApproved: false,
       depositType: quote.deposit_type,
       status: quote.status || "open",
-      declineReason: quote.decline_reason || ""
+      declineReason: quote.decline_reason || "",
+      number: quote.quote_number || ""
     });
   }
   return {
@@ -514,6 +520,14 @@ function clientJob(db, job, user, quotes = [], contractors = new Map()) {
     urgency: job.urgency,
     date: payload.date || "",
     quoteDeadline: job.quote_deadline || "",
+    workOrder: job.work_order || "",
+    variations: db.prepare("SELECT * FROM job_variations WHERE job_id = ? ORDER BY created_at").all(job.id).map(row => ({
+      id: row.id, number: row.number, amount: row.amount_cents / 100, reason: row.reason, status: row.status, declineReason: row.decline_reason
+    })),
+    invoice: (() => {
+      const row = db.prepare("SELECT * FROM job_invoices WHERE job_id = ? ORDER BY created_at DESC LIMIT 1").get(job.id);
+      return row ? { id: row.id, number: row.number, amount: row.amount_cents / 100, status: row.status, reason: row.return_reason, fileName: row.original_name } : null;
+    })(),
     stage: job.stage,
     postedAt: Date.parse(job.created_at) || Date.now(),
     access: showAddress ? building.access_note : "",

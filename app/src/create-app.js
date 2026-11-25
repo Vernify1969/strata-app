@@ -13,6 +13,7 @@ import { registerJobRoutes } from "./jobs.js";
 import { registerEvidenceRoutes } from "./evidence.js";
 import { handleStripeWebhook, ensureMoneySettings, moneySettings, cleanDesignTheme, registerPaymentRoutes } from "./payments.js";
 import { registerDocumentRoutes } from "./documents.js";
+import { registerJobPaperRoutes } from "./job-papers.js";
 import { registerQrRoutes } from "./qr.js";
 import { registerAssistantRoutes } from "./assistant.js";
 import { cleanAssistantName, registerChloeRoutes } from "./chloe.js";
@@ -86,7 +87,7 @@ export async function createApp(config) {
     handleStripeWebhook(req, res, { db, config: { ...config, mail }, mail });
   });
   app.use((req, res, next) => {
-    const photos = req.method === "POST" && (req.path === "/api/public/reports" || req.path.endsWith("/evidence"));
+    const photos = req.method === "POST" && (req.path === "/api/public/reports" || req.path.endsWith("/evidence") || req.path.endsWith("/invoice-file"));
     return express.json({ limit: photos ? "12mb" : "1mb" })(req, res, next);
   });
   app.use((req, res, next) => {
@@ -498,6 +499,7 @@ export async function createApp(config) {
   ensureMoneySettings(db, config);
   registerJobRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerEvidenceRoutes(app, { db, config, sendError, requireUser, requireJson });
+  registerJobPaperRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerPaymentRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerDocumentRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
   registerQrRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
