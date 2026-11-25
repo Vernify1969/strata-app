@@ -622,6 +622,34 @@ function migrate(db) {
     db.exec("UPDATE buildings SET payments_paused = 0");
     db.exec("PRAGMA user_version = 26");
   }
+  if (userVersion(db) < 27) {
+    if (!columnExists(db, "buildings", "committee_emails")) {
+      db.exec("ALTER TABLE buildings ADD COLUMN committee_emails TEXT NOT NULL DEFAULT ''");
+      db.exec("ALTER TABLE buildings ADD COLUMN owner_name TEXT NOT NULL DEFAULT ''");
+      db.exec("ALTER TABLE buildings ADD COLUMN owner_email TEXT NOT NULL DEFAULT ''");
+      db.exec("ALTER TABLE users ADD COLUMN report_schedule TEXT NOT NULL DEFAULT 'off'");
+      db.exec("ALTER TABLE users ADD COLUMN report_last_on TEXT NOT NULL DEFAULT ''");
+      db.exec(`
+        CREATE TABLE submitted_reports (
+          id TEXT PRIMARY KEY,
+          building_id TEXT NOT NULL,
+          organisation_id TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          period TEXT NOT NULL,
+          html TEXT NOT NULL,
+          sent_to TEXT NOT NULL,
+          sent_by TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE TABLE invoice_chases (
+          job_id TEXT PRIMARY KEY,
+          last_at TEXT NOT NULL,
+          count INTEGER NOT NULL DEFAULT 0
+        );
+      `);
+    }
+    db.exec("PRAGMA user_version = 27");
+  }
 }
 
 function tableExists(db, name) {

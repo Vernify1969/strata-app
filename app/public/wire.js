@@ -101,8 +101,22 @@
       paymentEmail: item.paymentEmail || "",
       paymentTermsDays: item.paymentTermsDays == null ? 14 : item.paymentTermsDays,
       overdueCount: Number(item.overdueCount || 0),
+      world: item.world || "",
+      committeeEmails: item.committeeEmails || "",
+      ownerName: item.ownerName || "",
+      ownerEmail: item.ownerEmail || "",
       sample: false
     };
+  }
+
+  async function loadReportState() {
+    const api = hooks();
+    const schedule = await call("GET", "/api/me/report-schedule");
+    if (schedule.ok) api.state.reportSchedule = schedule.json.schedule;
+    const due = await call("GET", "/api/reports/due");
+    if (due.ok) api.state.reportDue = due.json;
+    const submitted = await call("GET", "/api/reports/submitted");
+    if (submitted.ok) api.state.submittedReports = submitted.json.reports || [];
   }
 
   async function loadBuildings() {
@@ -281,6 +295,7 @@
         await loadBuildings();
         await loadJobs();
         await loadResident();
+        await loadReportState();
       }
       if (res.json.user.role === "contractor") await loadJobs();
       await loadNotes();
@@ -424,6 +439,12 @@
       if (act === "open-report" && state.remote) { this.openReport(t.dataset.id); return true; }
       if (act === "convert-report" && state.remote) { this.convertReport(t.dataset.id); return true; }
       if (act === "dismiss-report" && state.remote) { this.dismissReport(t.dataset.id); return true; }
+      if (act === "pack-schedule" && state.remote) { this.saveReportSchedule(t.dataset.schedule); return true; }
+      if (act === "save-committee" && state.remote) { this.saveCommittee(t.dataset.id); return true; }
+      if (act === "submit-committee" && state.remote) { this.submitCommittee(t.dataset.id); return true; }
+      if (act === "save-owner" && state.remote) { this.saveOwner(t.dataset.id); return true; }
+      if (act === "send-statement" && state.remote) { this.sendStatement(t.dataset.id); return true; }
+      if (act === "send-job-report" && state.remote) { this.sendJobReport(t.dataset.id); return true; }
       return false;
     },
     scheduleProfile() {
@@ -1255,6 +1276,53 @@
       link.download = "strata-app-my-data.json";
       link.click();
       api.toast("Your data file has been downloaded.");
+    },
+    async loadReports() {
+      await loadReportState();
+      hooks().render();
+    },
+    async saveReportSchedule(schedule) {
+      const api = hooks();
+      const res = await call("PATCH", "/api/me/report-schedule", { schedule: schedule });
+      api.toast(res.ok ? "Report schedule saved." : (res.json.error || "The schedule was not saved."));
+      if (res.ok) api.state.reportSchedule = res.json.schedule;
+      api.render();
+    },
+    async saveCommittee(id) {
+      const api = hooks();
+      const building = (api.state.buildings || []).find(item => item.id === id);
+      if (!building) return;
+      const res = await call("PATCH", "/api/buildings/" + id, { committeeEmails: building.committeeEmails || "" });
+      api.toast(res.ok ? "Committee emails saved." : (res.json.error || "The emails were not saved."));
+      if (res.ok) await loadBuildings();
+      api.render();
+    },
+    async submitCommittee(id) {
+      const api = hooks();
+      const res = await call("POST", "/api/buildings/" + id + "/committee-report/submit", {});
+      api.toast(res.ok ? "The Monthly Maintenance Report was sent. That copy stays as it was." : (res.json.error || "The report was not submitted."));
+      if (res.ok) await this.loadReports();
+    },
+    async saveOwner(id) {
+      const api = hooks();
+      const building = (api.state.buildings || []).find(item => item.id === id);
+      if (!building) return;
+      const res = await call("PATCH", "/api/buildings/" + id, { ownerName: building.ownerName || "", ownerEmail: building.ownerEmail || "" });
+      api.toast(res.ok ? "Owner details saved." : (res.json.error || "The owner details were not saved."));
+      if (res.ok) await loadBuildings();
+      api.render();
+    },
+    async sendStatement(id) {
+      const api = hooks();
+      const res = await call("POST", "/api/buildings/" + id + "/owner-statement/send", {});
+      api.toast(res.ok ? "The owner statement was emailed." : (res.json.error || "The statement was not sent."));
+      if (res.ok) await this.loadReports();
+    },
+    async sendJobReport(id) {
+      const api = hooks();
+      const res = await call("POST", "/api/jobs/" + id + "/job-report/send", {});
+      api.toast(res.ok ? "The job report was emailed to the owner." : (res.json.error || "The job report was not sent."));
+      if (res.ok) await this.loadReports();
     },
     async privacy(kind) {
       const api = hooks();

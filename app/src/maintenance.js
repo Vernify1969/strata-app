@@ -1,5 +1,6 @@
 import { sendDueAlerts } from "./documents.js";
 import { chaseOverdueRequests } from "./payment-requests.js";
+import { chaseMissingInvoices, sendScheduledReports } from "./reports-pack.js";
 import { applyTemplate } from "./mail.js";
 import { captureExpiringHolds, moneySettings, releaseJobPayments } from "./payments.js";
 
@@ -91,7 +92,9 @@ export async function runMaintenance(db, mail, config, now = new Date()) {
   const deposits = await watchDeposits(db, mail, config, now);
   const captures = await captureExpiringHolds(db, config, now);
   const overdue = await chaseOverdueRequests(db, mail, config, now);
-  return { alerts, released, deposits, captures, reviews, overdue };
+  const invoices = await chaseMissingInvoices(db, mail, now);
+  const reports = await sendScheduledReports(db, mail, now);
+  return { alerts, released, deposits, captures, reviews, overdue, invoices, reports };
 }
 
 export function startMaintenance({ db, mail, config }) {

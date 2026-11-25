@@ -2,7 +2,7 @@ import { audit } from "./db.js";
 import { centreOf } from "./area.js";
 import { moneySettings } from "./payments.js";
 import { locateAddress, locatePostcode } from "./geo.js";
-import { newId } from "./ids.js";
+import { emailOk, newId } from "./ids.js";
 
 const MANAGER_WORLDS = { common: "common", private: "private" };
 
@@ -189,6 +189,18 @@ export function registerBuildingRoutes(app, { db, config = {}, sendError, requir
       next.payer || row.payer || "accounts", next.payment_email == null ? (row.payment_email || "") : next.payment_email, next.payment_terms_days == null ? (row.payment_terms_days || 14) : next.payment_terms_days,
       row.id, req.user.organisation_id
     );
+    if (body.committeeEmails != null || body.ownerName != null || body.ownerEmail != null) {
+      let emails = row.committee_emails || "";
+      if (body.committeeEmails != null) {
+        const cleaned = cleanEmails(body.committeeEmails);
+        if (cleaned.error) return sendError(res, 400, cleaned.error);
+        emails = cleaned.value;
+      }
+      const ownerName = body.ownerName == null ? (row.owner_name || "") : String(body.ownerName).trim().slice(0, 80);
+      const ownerEmail = body.ownerEmail == null ? (row.owner_email || "") : String(body.ownerEmail).trim().slice(0, 120);
+      if (ownerEmail && !emailOk(ownerEmail)) return sendError(res, 400, "The owner email is not a valid address.");
+      db.prepare("UPDATE buildings SET committee_emails = ?, owner_name = ?, owner_email = ? WHERE id = ?").run(emails, ownerName, ownerEmail, row.id);
+    }
     audit(db, { actorId: req.user.id, organisationId: req.user.organisation_id, action: "building.updated", subjectType: "building", subjectId: row.id, detail: {} });
     res.json({ building: publicBuilding(assignedBuilding(db, req.user, row.id), db) });
   });
@@ -290,8 +302,17 @@ export function publicBuilding(row, db) {
     paymentEmail: row.payment_email || "",
     paymentTermsDays: row.payment_terms_days == null ? 14 : row.payment_terms_days,
     overdueCount: db ? countOverdue(db, row.id) : 0,
+    committeeEmails: row.committee_emails || "",
+    ownerName: row.owner_name || "",
+    ownerEmail: row.owner_email || "",
     sample: false
   };
+}
+
+function cleanEmails(value) {
+  const parts = String(value || "").split(/[,;\s]+/).map(item => item.trim()).filter(Boolean);
+  if (parts.some(item => !emailOk(item))) return { error: "One of the committee emails is not a valid address." };
+  return { value: parts.join(", ") };
 }
 
 function countOverdue(db, buildingId) {
