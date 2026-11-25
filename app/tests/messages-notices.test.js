@@ -126,7 +126,7 @@ test("job messages, help and notification settings stay with the person", async 
     }
     assert.match(page, /<details/);
     assert.match(worker, /showNotification/);
-    assert.match(page, /basemaps\.cartocdn\.com/);
+    assert.match(page, /server\.arcgisonline\.com/);
     assert.doesNotMatch(page, /tile\.openstreetmap\.org/);
   } finally {
     await server.close();

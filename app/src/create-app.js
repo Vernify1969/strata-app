@@ -16,6 +16,7 @@ import { registerDocumentRoutes } from "./documents.js";
 import { registerJobPaperRoutes } from "./job-papers.js";
 import { registerPaymentRequestRoutes } from "./payment-requests.js";
 import { registerNotifyRoutes } from "./notify.js";
+import { registerMapPinRoutes } from "./map-pins.js";
 import { registerQrRoutes } from "./qr.js";
 import { registerAssistantRoutes } from "./assistant.js";
 import { cleanAssistantName, registerChloeRoutes } from "./chloe.js";
@@ -501,6 +502,7 @@ export async function createApp(config) {
   ensureMoneySettings(db, config);
   registerJobRoutes(app, { db, config, mail, sendError, requireUser, requireJson });
   registerNotifyRoutes(app, { db, config, sendError, requireUser, requireJson });
+  registerMapPinRoutes(app, { db, requireUser });
   registerEvidenceRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerJobPaperRoutes(app, { db, config, sendError, requireUser, requireJson });
   registerPaymentRoutes(app, { db, config, sendError, requireUser, requireJson });
@@ -607,7 +609,7 @@ function tileSources(url) {
     const bare = parsed.host.replace(/^[a-d]\./, "");
     return "https://" + bare + " https://*." + bare;
   } catch {
-    return "https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com";
+    return "https://server.arcgisonline.com https://*.arcgisonline.com";
   }
 }
 

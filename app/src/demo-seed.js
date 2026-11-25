@@ -114,7 +114,7 @@ export async function seedDemo(db) {
     db.prepare(`INSERT INTO buildings (id, organisation_id, world, name, street_number, street, suburb, postcode, lat, lng, oc_plan,
       tier1_cents, tier1_quotes, tier2_cents, tier2_quotes, tier3_cents, tier3_quotes, tiers_confirmed, created_at)
       VALUES (?, ?, 'common', 'Riverside Court', '18', 'Flinders Lane', 'Melbourne', '3000', ?, ?, 'PS 22041', 99900, 1, 499900, 2, 3000000, 3, 1, ?)`).run(
-      ocBuildingId, ocOrg, centre ? centre.lat : null, centre ? centre.lng : null, now
+      ocBuildingId, ocOrg, centre ? centre.lat + 0.015 : null, centre ? centre.lng + 0.012 : null, now
     );
     db.prepare("INSERT INTO building_assignments (user_id, building_id) VALUES (?, ?)").run(ocId, ocBuildingId);
     db.prepare(`INSERT INTO buildings (id, organisation_id, world, name, street_number, street, suburb, postcode, lat, lng, quotes_wanted, created_at)

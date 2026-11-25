@@ -26,7 +26,7 @@ test("a postcode is looked up once and then read from the cache", async () => {
   db.close();
 });
 
-test("the map page uses OpenStreetMap and a short map card", async () => {
+test("the map page uses a keyless street map and a short map card", async () => {
   const server = await startApp();
   const manager = client(server.base);
   try {
@@ -45,16 +45,18 @@ test("the map page uses OpenStreetMap and a short map card", async () => {
     const html = await page.text();
     assert.match(html, /leaflet@1\.9\.4/);
     assert.match(html, /live-map/);
-    assert.match(html, /OpenStreetMap/);
-    assert.match(html, /basemaps\.cartocdn\.com/);
+    assert.match(html, /Tiles © Esri/);
+    assert.match(html, /server\.arcgisonline\.com/);
+    assert.match(html, /fillOpacity: 0\.12/);
     assert.doesNotMatch(html, /tile\.openstreetmap\.org/);
+    assert.doesNotMatch(html, /basemaps\.cartocdn\.com/);
     assert.match(html, /getZoom\(\) >= 11/);
     const tiles = await fetch(server.base + "/api/map-tiles");
     const spec = await tiles.json();
-    assert.match(spec.url, /basemaps\.cartocdn\.com/);
-    assert.match(spec.attribution, /OpenStreetMap/);
-    assert.match(spec.attribution, /CARTO/);
-    assert.match(tiles.headers.get("content-security-policy"), /basemaps\.cartocdn\.com/);
+    assert.match(spec.url, /server\.arcgisonline\.com/);
+    assert.match(spec.attribution, /Tiles ©/);
+    assert.match(spec.attribution, /Esri/);
+    assert.match(tiles.headers.get("content-security-policy"), /arcgisonline\.com/);
     const custom = await startApp({ mapTileUrl: "https://example.test/tiles/{z}/{x}/{y}.png", mapTileAttribution: "Example tiles" });
     try {
       const swapped = await (await fetch(custom.base + "/api/map-tiles")).json();

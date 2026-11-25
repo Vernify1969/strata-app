@@ -70,7 +70,7 @@ test("a work order, an extra, an invoice file and a fee invoice are kept", async
     assert.equal((await other("GET", "/api/jobs/" + id + "/documents/work-order")).status, 404);
     const page = await (await fetch(server.base + "/")).text();
     assert.match(page, /View the TaskSpeck fee invoice/);
-    assert.match(page, /basemaps\.cartocdn\.com/);
+    assert.match(page, /server\.arcgisonline\.com/);
   } finally {
     await server.close();
   }
