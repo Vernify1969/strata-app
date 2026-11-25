@@ -10,7 +10,7 @@ import {
 } from "./ids.js";
 import { registerBuildingRoutes } from "./buildings.js";
 import { registerJobRoutes } from "./jobs.js";
-import { handleStripeWebhook, ensureMoneySettings, moneySettings, registerPaymentRoutes } from "./payments.js";
+import { handleStripeWebhook, ensureMoneySettings, moneySettings, cleanDesignTheme, registerPaymentRoutes } from "./payments.js";
 import { registerDocumentRoutes } from "./documents.js";
 import { registerQrRoutes } from "./qr.js";
 import { registerAssistantRoutes } from "./assistant.js";
@@ -202,7 +202,7 @@ export async function createApp(config) {
   }
 
   app.get("/api/health", (_req, res) => {
-    res.json({ ok: true, service: "strata-app", demo: !!config.demoMode });
+    res.json({ ok: true, service: "strata-app", demo: !!config.demoMode, designTheme: moneySettings(db, config).designTheme });
   });
 
   app.post("/api/register", requireJson, async (req, res) => {
@@ -352,7 +352,8 @@ export async function createApp(config) {
         ? `Viewing as ${req.user.name}. This view cannot change anything.`
         : bannerFor(req.user, config.demoMode),
       preferences: storedPreferences(req.user.preferences),
-      devices: deviceList(req, req.user)
+      devices: deviceList(req, req.user),
+      designTheme: moneySettings(db, config).designTheme
     });
   });
 
@@ -521,6 +522,7 @@ export async function createApp(config) {
       assistantName: settings.assistantName,
       assistantGreeting: settings.assistantGreeting,
       assistantTone: settings.assistantTone,
+      designTheme: settings.designTheme,
       minCoverCents: settings.minCoverCents,
       message: "These settings are stored for the platform owner only. The per-apartment fee is off, so nothing is charged. Managers and contractors cannot open this screen."
     });
@@ -541,6 +543,7 @@ export async function createApp(config) {
     const assistantName = req.body?.assistantName == null ? current.assistantName : cleanAssistantName(req.body.assistantName);
     const assistantGreeting = req.body?.assistantGreeting == null ? current.assistantGreeting : String(req.body.assistantGreeting).slice(0, 180);
     const assistantTone = req.body?.assistantTone == null ? current.assistantTone : (req.body.assistantTone === "short" ? "short" : "friendly");
+    const designTheme = cleanDesignTheme(req.body?.designTheme, current.designTheme);
     if (req.body?.assistantName != null && !assistantName) return sendError(res, 400, "The assistant name is 1 to 20 letters and spaces.");
     if (!Number.isInteger(commission) || commission < 0 || commission > 30) return sendError(res, 400, "Commission is a whole number from 0 to 30.");
     if (!Number.isInteger(urgent) || urgent < 0) return sendError(res, 400, "The urgent fee is a number of cents.");
@@ -550,8 +553,8 @@ export async function createApp(config) {
     if (!Number.isInteger(aiCapCents) || aiCapCents < 0 || aiCapCents > 100000) return sendError(res, 400, "The manager allowance is a whole number of cents.");
     if (!Number.isInteger(contractorAiCapCents) || contractorAiCapCents < 0 || contractorAiCapCents > 100000) return sendError(res, 400, "The contractor allowance is a whole number of cents.");
     if (!Number.isInteger(minCoverCents) || minCoverCents < 0) return sendError(res, 400, "The cover minimum is a whole number of cents.");
-    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, apartment_fee_cents = ?, apartment_fee_enabled = ?, deposit_hours = ?, urgent_deposit_hours = ?, ai_cap_cents = ?, contractor_ai_cap_cents = ?, min_cover_cents = ?, assistant_name = ?, assistant_greeting = ?, assistant_tone = ? WHERE id = 'main'`)
-      .run(commission, urgent, apartment, enabled ? 1 : 0, depositHours, urgentDepositHours, aiCapCents, contractorAiCapCents, minCoverCents, assistantName, assistantGreeting, assistantTone);
+    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, apartment_fee_cents = ?, apartment_fee_enabled = ?, deposit_hours = ?, urgent_deposit_hours = ?, ai_cap_cents = ?, contractor_ai_cap_cents = ?, min_cover_cents = ?, assistant_name = ?, assistant_greeting = ?, assistant_tone = ?, design_theme = ? WHERE id = 'main'`)
+      .run(commission, urgent, apartment, enabled ? 1 : 0, depositHours, urgentDepositHours, aiCapCents, contractorAiCapCents, minCoverCents, assistantName, assistantGreeting, assistantTone, designTheme);
     res.json({ ...moneySettings(db, config), apartmentFeeCharged: false });
   });
 

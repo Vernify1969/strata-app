@@ -238,10 +238,13 @@
         api.state.buildings = [];
         api.state.notes = [];
         api.state.devices = [];
+        const health = await call("GET", "/api/health");
+        if (health.ok && health.json.designTheme) api.state.look = health.json.designTheme;
         api.state.screen = location.pathname === "/reset" ? "reset" : (api.state.screen === "checkmail" ? "checkmail" : "welcome");
         api.render();
         return;
       }
+      if (res.json.designTheme) api.state.look = res.json.designTheme;
       api.state.account = res.json.user;
       api.state.account.banner = res.json.banner;
       api.state.devices = res.json.devices || [];
@@ -346,6 +349,7 @@
         return true;
       }
       if (act === "open-reports" && state.remote) { this.openReports(); return true; }
+      if (act === "save-look" && state.remote) { this.saveLook(t.dataset.look); return true; }
       if (act === "chloe-open" && state.remote) { this.openChloe(); return true; }
       if (act === "chloe-close" && state.remote) { state.chloeOpen = false; hooks().render(); return true; }
       if (act === "chloe-new" && state.remote) { state.chloeLog = []; hooks().render(); return true; }
@@ -441,6 +445,16 @@
     async loadAiUsage() {
       const res = await call("GET", "/api/ai/usage");
       if (res.ok) hooks().state.aiUsage = res.json;
+    },
+    async saveLook(look) {
+      const api = hooks();
+      const res = await call("PATCH", "/api/owner/settings", { designTheme: look });
+      if (!res.ok) { api.toast((res.json && res.json.error) || "Only the owner can save the look."); return; }
+      api.state.look = res.json.designTheme || look;
+      api.state.lookTry = "";
+      try { sessionStorage.removeItem("strata-look-try"); } catch (err) { /* storage unavailable */ }
+      api.toast("Saved this look for everyone.");
+      api.render();
     },
     async openChloe() {
       const api = hooks();

@@ -3,6 +3,10 @@ import { newId } from "./ids.js";
 import { feeOfCents } from "./rules.js";
 import { liveKeyProblem, securityGateOpen } from "./security-gate.js";
 
+export function cleanDesignTheme(value, fallback = "clear") {
+  return value === "warm" || value === "modern" || value === "clear" ? value : fallback;
+}
+
 export function moneySettings(db, config = {}) {
   const row = db.prepare("SELECT * FROM platform_settings WHERE id = 'main'").get();
   if (row) {
@@ -20,6 +24,7 @@ export function moneySettings(db, config = {}) {
       assistantTone: row.assistant_tone || "friendly",
       webSearchEnabled: row.web_search_enabled == null ? true : row.web_search_enabled === 1,
       reminderCheckHours: row.reminder_check_hours == null ? 3 : Number(row.reminder_check_hours),
+      designTheme: cleanDesignTheme(row.design_theme),
       minCoverCents: row.min_cover_cents == null ? 2000000000 : Number(row.min_cover_cents)
     };
   }
@@ -37,6 +42,7 @@ export function moneySettings(db, config = {}) {
     assistantTone: config.assistantTone || "friendly",
     webSearchEnabled: config.webSearchEnabled !== false,
     reminderCheckHours: Number(config.reminderCheckHours ?? 3),
+    designTheme: cleanDesignTheme(config.designTheme),
     minCoverCents: Number(config.minCoverCents ?? 2000000000)
   };
 }

@@ -1,7 +1,7 @@
 import { audit } from "./db.js";
 import { cleanAssistantName } from "./chloe.js";
 import { abnOk, mobileOk, newId } from "./ids.js";
-import { moneySettings } from "./payments.js";
+import { cleanDesignTheme, moneySettings } from "./payments.js";
 import { readObject } from "./storage.js";
 
 const USER_FIELDS = "id, organisation_id, email, role, name, mobile, business_name, abn, payment_method, consent, email_verified_at, created_at, suspended, suspended_reason, stripe_account_id";
@@ -618,14 +618,15 @@ export function registerAdminRoutes(app, { db, mail, config, sendError, requireJ
       reminderCheckHours: num(req.body.reminderCheckHours, current.reminderCheckHours),
       assistantName: req.body.assistantName == null ? current.assistantName : cleanAssistantName(req.body.assistantName),
       assistantGreeting: req.body.assistantGreeting == null ? current.assistantGreeting : String(req.body.assistantGreeting).slice(0, 180),
-      assistantTone: req.body.assistantTone == null ? current.assistantTone : (req.body.assistantTone === "short" ? "short" : "friendly")
+      assistantTone: req.body.assistantTone == null ? current.assistantTone : (req.body.assistantTone === "short" ? "short" : "friendly"),
+      designTheme: cleanDesignTheme(req.body.designTheme, current.designTheme)
     };
     if (req.body.assistantName != null && !next.assistantName) return sendError(res, 400, "The assistant name is 1 to 20 letters and spaces.");
     if (next.depositHours < 1 || next.depositHours > 168 || next.reminderCheckHours < 1 || next.reminderCheckHours > 168) {
       return sendError(res, 400, "Hours are a whole number from 1 to 168.");
     }
-    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, deposit_hours = ?, urgent_deposit_hours = ?, ai_cap_cents = ?, contractor_ai_cap_cents = ?, reminder_check_hours = ?, assistant_name = ?, assistant_greeting = ?, assistant_tone = ? WHERE id = 'main'`).run(
-      next.commission, next.urgent, next.depositHours, next.urgentDepositHours, next.aiCapCents, next.contractorAiCapCents, next.reminderCheckHours, next.assistantName, next.assistantGreeting, next.assistantTone
+    db.prepare(`UPDATE platform_settings SET commission_percent = ?, urgent_fee_cents = ?, deposit_hours = ?, urgent_deposit_hours = ?, ai_cap_cents = ?, contractor_ai_cap_cents = ?, reminder_check_hours = ?, assistant_name = ?, assistant_greeting = ?, assistant_tone = ?, design_theme = ? WHERE id = 'main'`).run(
+      next.commission, next.urgent, next.depositHours, next.urgentDepositHours, next.aiCapCents, next.contractorAiCapCents, next.reminderCheckHours, next.assistantName, next.assistantGreeting, next.assistantTone, next.designTheme
     );
     record(actor, "admin.settings_edited", "settings", "main", { aiCapCents: current.aiCapCents, reminderCheckHours: current.reminderCheckHours }, next, reason);
     res.json(moneySettings(db));

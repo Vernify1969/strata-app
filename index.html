@@ -1,14 +1,11 @@
 <!DOCTYPE html>
-<html lang="en-AU">
+<html lang="en-AU" data-look="clear">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="light">
 <title>Strata App</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230E2A66'/%3E%3Cpath d='M7 25V14.2L16 7l9 7.2V25' fill='none' stroke='%23F6E7C1' stroke-width='1.7' stroke-linejoin='round'/%3E%3Cpath d='M13 25v-6h6v6' fill='none' stroke='%23F6E7C1' stroke-width='1.7'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>
 :root {
@@ -39,6 +36,95 @@
   --map: #EEF3F9;
   --river: #93B4D4;
   --grid: #D9E3EE;
+  --chrome: var(--surface);
+  --chrome-ink: var(--ink);
+  --chrome-muted: var(--muted);
+  --page: #E4ECF6;
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/plus-jakarta-sans-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("/fonts/plus-jakarta-sans-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/fonts/plus-jakarta-sans-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/plus-jakarta-sans-700.woff2") format("woff2");
+}
+:root[data-look="clear"] {
+  --bg: #F4F6F8;
+  --surface: #FFFFFF;
+  --ink: #0B1F44;
+  --muted: #3E4C63;
+  --line: #D5DDE6;
+  --brand: #0F766E;
+  --brand-ink: #FFFFFF;
+  --accent: #0F766E;
+  --accent-bg: #F0FDFA;
+  --gold: #0F766E;
+  --gold-ink: #134E4A;
+  --field: #F8FAFC;
+  --chrome: #FFFFFF;
+  --chrome-ink: #0B1F44;
+  --chrome-muted: #3E4C63;
+  --page: #E7EDF2;
+}
+:root[data-look="warm"] {
+  --bg: #F6F1EA;
+  --surface: #FFFBF6;
+  --ink: #1C1917;
+  --muted: #44403C;
+  --line: #E7D8C9;
+  --brand: #9A3412;
+  --brand-ink: #FFFFFF;
+  --accent: #9A3412;
+  --accent-bg: #FFF7ED;
+  --gold: #9A3412;
+  --gold-ink: #7C2D12;
+  --field: #FFF7ED;
+  --chrome: #FFFBF6;
+  --chrome-ink: #1C1917;
+  --chrome-muted: #44403C;
+  --page: #EFE4D6;
+  --ok: #047857;
+  --warn: #9A3412;
+  --warn-bg: #FFF7ED;
+}
+:root[data-look="modern"] {
+  --bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --ink: #0F172A;
+  --muted: #334155;
+  --line: #E2E8F0;
+  --brand: #1D4ED8;
+  --brand-ink: #FFFFFF;
+  --accent: #1D4ED8;
+  --accent-bg: #EFF6FF;
+  --gold: #1D4ED8;
+  --gold-ink: #1E3A8A;
+  --field: #F8FAFC;
+  --chrome: #0F172A;
+  --chrome-ink: #F8FAFC;
+  --chrome-muted: #CBD5E1;
+  --page: #E2E8F0;
 }
 :root[data-theme="dark"] {
   --bg: #071422;
@@ -109,11 +195,12 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   display: flex; align-items: center; gap: 8px;
   min-height: 64px;
   padding: 10px 16px;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--line);
+  background: var(--chrome);
+  color: var(--chrome-ink);
+  border-bottom: 1px solid color-mix(in srgb, var(--chrome-ink) 16%, transparent);
 }
-.brand { display: flex; align-items: center; gap: 8px; font-size: 0.98rem; white-space: nowrap; color: var(--ink); }
+.brand { display: flex; align-items: center; gap: 8px; font-size: 0.98rem; white-space: nowrap; color: var(--chrome-ink); }
+.topbar .top-title { color: var(--chrome-ink); }
 .mark {
   width: 26px; height: 26px; border-radius: 7px; flex: none;
   display: grid; place-items: center;
@@ -124,7 +211,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 .spacer { flex: 1; }
 .section-label {
   display: none;
-  font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+  font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--chrome-muted);
 }
 .samplebar {
   background: var(--sample-bg); color: var(--sample-ink);
@@ -156,7 +243,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   border: 1px solid var(--line); border-radius: 10px; background: var(--field);
 }
 .roles button, .icon-btn, .back-btn {
-  min-height: 40px; border: 0; background: transparent; color: var(--muted);
+  min-height: 44px; border: 0; background: transparent; color: var(--muted);
   padding: 0 12px; white-space: nowrap; font-weight: 600; border-radius: 8px;
 }
 .roles button { flex-shrink: 0; }
@@ -203,7 +290,7 @@ button.notice {
 .btn[disabled], .btn[aria-disabled="true"] { opacity: 0.5; }
 .btn.auto { width: auto; }
 .chip {
-  min-height: 40px; border-radius: 999px; border: 1px solid var(--line);
+  min-height: 44px; border-radius: 999px; border: 1px solid var(--line);
   background: var(--surface); padding: 0 14px; font-weight: 500;
 }
 .chip[aria-pressed="true"] { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
@@ -301,7 +388,7 @@ textarea { min-height: 120px; resize: vertical; }
 .header-emergency {
   display: inline-flex; align-items: center; justify-content: center; gap: 0;
   flex: none; box-sizing: border-box;
-  width: 40px; min-width: 40px; height: 40px; min-height: 40px; padding: 0;
+  width: 44px; min-width: 44px; height: 44px; min-height: 44px; padding: 0;
   border-radius: 8px; font-weight: 600;
 }
 .header-emergency {
@@ -324,28 +411,35 @@ textarea { min-height: 120px; resize: vertical; }
 }
 .tabbar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-  display: flex; background: color-mix(in srgb, var(--surface) 94%, transparent);
-  backdrop-filter: blur(14px);
-  border-top: 1px solid var(--line);
+  display: flex; background: var(--chrome); color: var(--chrome-ink);
+  border-top: 1px solid color-mix(in srgb, var(--chrome-ink) 16%, transparent);
   padding-bottom: env(safe-area-inset-bottom);
 }
 .tabbar button, .rail button.tab {
-  position: relative; flex: 1; min-height: 62px; border: 0; background: transparent; color: var(--muted);
+  position: relative; flex: 1; min-height: 44px; border: 0; background: transparent; color: var(--chrome-muted);
   font-size: 10px; font-weight: 600; white-space: nowrap; letter-spacing: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 0 4px;
 }
 .tabbar button .ico { width: 18px; height: 18px; }
 .tabbar button[aria-current="page"] { color: var(--brand); }
-.chloe-fab { position: fixed; right: 18px; bottom: 78px; z-index: 40; width: 56px; height: 56px; border-radius: 50%; border: 0; background: var(--brand); color: #fff; font-weight: 700; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2); }
-.chloe-panel { position: fixed; right: 18px; bottom: 146px; z-index: 40; width: min(380px, calc(100vw - 24px)); max-height: min(560px, calc(100vh - 170px)); display: flex; flex-direction: column; background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18); }
-.chloe-head, .chloe-log, .chloe-form { padding: 12px; }
-.chloe-log { overflow: auto; display: flex; flex-direction: column; gap: 8px; }
+.ask-chloe { width: auto; min-height: 44px; padding: 0 14px; }
+.chloe-drawer { background: var(--surface); color: var(--ink); }
+.chloe-panel { display: flex; flex-direction: column; height: 100%; background: var(--surface); color: var(--ink); }
+.chloe-head, .chloe-form { padding: 12px; display: flex; gap: 8px; align-items: center; }
+.chloe-head .btn, .chloe-form .btn { width: auto; min-height: 44px; }
+.chloe-log { overflow: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px; flex: 1; }
+.chloe-form input { flex: 1; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: var(--field); }
 .chloe-bubble { background: var(--bg); border-radius: 12px; padding: 8px 10px; }
-.chloe-bubble.mine { align-self: flex-end; background: color-mix(in srgb, var(--brand) 12%, var(--surface)); }
+.chloe-bubble.mine { align-self: flex-end; background: var(--accent-bg); }
 .chloe-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-@media (max-width: 700px) {
-  .chloe-panel { left: 0; right: 0; top: 0; bottom: 0; width: auto; max-height: none; border-radius: 0; }
-  .chloe-fab { bottom: 76px; }
+.lga-label { background: transparent; border: 0; box-shadow: none; color: #0B1F44; font-weight: 700; font-size: 11px; }
+:root[data-look="modern"] .tabbar button[aria-current="page"] { color: #BFDBFE; }
+@media (max-width: 899px) {
+  .ask-chloe { display: none; }
+  .chloe-drawer { position: fixed; inset: 0; z-index: 45; }
+}
+@media (min-width: 900px) {
+  .ask-tab { display: none; }
 }
 .rail button.tab[aria-current="page"] { color: var(--brand); }
 .badge {
@@ -369,7 +463,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
   .quote-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (min-width: 900px) {
-  body { background: #E4ECF6; }
+  body { background: var(--page); }
   .shell {
     display: grid; grid-template-columns: 248px minmax(0, 1fr);
     width: min(1440px, 100%);
@@ -378,15 +472,21 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
     background: var(--bg);
     box-shadow: 0 0 0 1px var(--line), 0 24px 60px rgba(15, 23, 42, 0.06);
   }
+  .shell.chloe-open { grid-template-columns: 248px minmax(0, 1fr) 380px; }
+  .chloe-drawer { position: sticky; top: 0; height: 100vh; overflow: auto; border-left: 1px solid var(--line); }
+  .header-actions .theme-label { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; }
+  .header-actions .icon-btn { width: auto; min-width: 44px; padding: 0 12px; }
   .rail {
     display: flex; flex-direction: column; gap: 2px; position: sticky; top: 0; height: 100vh;
-    padding: 22px 14px; border-right: 1px solid var(--line); background: var(--surface);
+    padding: 22px 14px; border-right: 1px solid color-mix(in srgb, var(--chrome-ink) 16%, transparent); background: var(--chrome); color: var(--chrome-ink);
   }
   .rail .brand { padding: 4px 10px 18px; margin-bottom: 10px; border-bottom: 1px solid var(--line); font-size: 1.02rem; }
   .rail button.tab {
     flex-direction: row; justify-content: flex-start; gap: 10px;
-    font-size: 14.5px; min-height: 42px; border-radius: 10px; padding: 0 12px; white-space: nowrap;
+    font-size: 14.5px; min-height: 44px; border-radius: 10px; padding: 0 12px; white-space: nowrap;
   }
+  :root[data-look="modern"] .rail button.tab[aria-current="page"],
+  :root[data-look="modern"] .tabbar button[aria-current="page"] { color: #BFDBFE; }
   .rail button.tab .ico { width: 18px; height: 18px; }
   .rail button.tab[aria-current="page"] { background: var(--accent-bg); }
   .rail button.tab .badge { position: static; margin-left: auto; }
@@ -711,6 +811,8 @@ const PHOTOS = {
     history: [],
     step: 1,
     themeChoice: "auto",
+    look: "clear",
+    lookTry: "",
     toast: "",
     manager: {
       role: "",
@@ -1184,20 +1286,28 @@ const PHOTOS = {
     state.offerCal.month = now.getMonth();
   }
 
+  const LOOKS = [["clear", "Clear & Calm"], ["warm", "Warm Professional"], ["modern", "Modern Dark-Accent"]];
+  function lookId() {
+    return state.lookTry || state.look || "clear";
+  }
+  function lookLabel() {
+    const found = LOOKS.find(item => item[0] === lookId());
+    return found ? found[1] : "Clear & Calm";
+  }
   function loadTheme() {
     try {
-      const t = localStorage.getItem("strata-theme");
-      if (t === "light" || t === "dark" || t === "auto") state.themeChoice = t;
+      const t = sessionStorage.getItem("strata-look-try");
+      if (t === "clear" || t === "warm" || t === "modern") state.lookTry = t;
     } catch (e) { /* storage unavailable */ }
   }
-  function saveTheme() {
-    try { localStorage.setItem("strata-theme", state.themeChoice); } catch (e) { /* storage unavailable */ }
+  function rememberLook(id) {
+    state.lookTry = id;
+    try { sessionStorage.setItem("strata-look-try", id); } catch (e) { /* storage unavailable */ }
   }
-  function resolvedTheme() {
-    if (state.themeChoice === "auto") return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    return state.themeChoice;
+  function applyTheme() {
+    document.documentElement.dataset.look = lookId();
+    document.documentElement.dataset.theme = "light";
   }
-  function applyTheme() { document.documentElement.dataset.theme = resolvedTheme(); }
 
   let toastTimer = 0;
   function toast(msg) {
@@ -1241,11 +1351,28 @@ const PHOTOS = {
     if (el._leaflet_id && window.liveMap) {
       window.liveMap.remove();
     }
-    const map = L.map(el, { scrollWheelZoom: true }).setView([-37.8136, 144.9631], 13);
+    const map = L.map(el, { scrollWheelZoom: true }).setView([-37.8136, 144.9631], 11);
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
+    fetch("/maps/melbourne-lgas.geojson").then(res => res.json()).then(data => {
+      const layer = L.geoJSON(data, {
+        style: { color: "#0F766E", weight: 1, fillColor: "#99F6E4", fillOpacity: 0.35 },
+        onEachFeature: (feature, shape) => {
+          const name = feature.properties && feature.properties.name;
+          if (name) shape.bindTooltip(name, { permanent: true, direction: "center", className: "lga-label" });
+        }
+      }).addTo(map);
+      if (!bounds.length && layer.getBounds().isValid()) map.fitBounds(layer.getBounds(), { padding: [12, 12] });
+      setTimeout(() => map.invalidateSize(), 0);
+    }).catch(() => {});
+    if (el.dataset.coverage) {
+      try {
+        const cover = JSON.parse(decodeURIComponent(el.dataset.coverage));
+        if (cover.lat != null) L.circle([cover.lat, cover.lng], { radius: Number(cover.km || 8) * 1000, color: "#9A3412", weight: 2, fillColor: "#FDBA74", fillOpacity: 0.2 }).addTo(map);
+      } catch (e) { /* ignore a bad coverage value */ }
+    }
     const bounds = [];
     points.forEach(point => {
       if (point.lat == null || point.lng == null) return;
@@ -1282,7 +1409,7 @@ const PHOTOS = {
     render();
   }
   function isDetail() {
-    return ["home", "jobs", "find", "offers", "active", "calendar", "buildings", "contractors", "profile", "assistant"].indexOf(state.screen) === -1;
+    return ["home", "jobs", "find", "offers", "active", "calendar", "buildings", "contractors", "profile", "assistant", "area"].indexOf(state.screen) === -1;
   }
 
   function blankDraft(preset) {
@@ -1344,6 +1471,7 @@ const PHOTOS = {
       const n = needsManagerCount();
       return [
         ["home", "Home", 0],
+        ["area", "Map", 0],
         ["jobs", "Jobs", n],
         ["calendar", "Calendar", 0],
         ["buildings", "Buildings", 0],
@@ -1353,6 +1481,7 @@ const PHOTOS = {
     }
     return [
       ["home", "Home", 0],
+      ["area", "Map", 0],
       ["find", "Find jobs", 0],
       ["offers", "My offers", 0],
       ["active", "Active", needsContractorCount()],
@@ -1361,7 +1490,7 @@ const PHOTOS = {
     ];
   }
   function tabsHtml(kind) {
-    const navIcon = { home: "house", assistant: "spark", jobs: "clipboard", find: "search", offers: "file", active: "checks", calendar: "calendar", buildings: "building", contractors: "users", profile: "user" };
+    const navIcon = { home: "house", assistant: "spark", area: "search", jobs: "clipboard", find: "search", offers: "file", active: "checks", calendar: "calendar", buildings: "building", contractors: "users", profile: "user" };
     return tabDefs().map(t => {
       const badge = t[2] > 0 ? '<span class="badge">' + t[2] + "</span>" : (t[2] < 0 ? '<span class="badge dot"></span>' : "");
       const label = t[2] > 0 ? t[1] + ", " + t[2] + " need you" : (t[2] < 0 ? t[1] + ", setup not finished" : t[1]);
@@ -1392,27 +1521,23 @@ const PHOTOS = {
   }
 
   function chloeDock() {
-    if (!state.account) return "";
-    const auth = ["welcome", "signin", "register", "checkmail", "forgot", "reset", "terms"].indexOf(state.screen) !== -1;
-    if (auth) return "";
     const persona = state.chloePersona || { name: "Chloe", greeting: "Hi, I'm Chloe, your AI assistant. How can I help you today?", chips: [] };
-    const open = state.chloeOpen;
     const log = (state.chloeLog || []).map(item => '<div class="chloe-bubble' + (item.mine ? " mine" : "") + '"><p>' + esc(item.text) + "</p>" +
       (item.disclaimer ? '<p class="small">' + esc(item.disclaimer) + "</p>" : "") +
       (item.citations && item.citations.length ? item.citations.map(cite => '<p class="small"><a href="' + esc(cite.url) + '">' + esc(cite.title) + "</a> · " + esc(cite.section) + "</p>").join("") : "") +
       (item.mine ? "" : '<p><span class="pill pill-muted">Draft – check before using</span> <button type="button" class="btn btn-ghost" data-act="chloe-copy">Copy</button> <button type="button" class="btn btn-ghost" data-act="chloe-use">Use this</button> <button type="button" class="btn btn-ghost" data-act="chloe-vote" data-vote="up">Helpful</button> <button type="button" class="btn btn-ghost" data-act="chloe-vote" data-vote="down">Not helpful</button></p>') +
       "</div>").join("");
     const chips = (persona.chips || []).map(chip => '<button type="button" class="chip" data-act="chloe-chip">' + esc(chip) + "</button>").join("");
-    const panel = open ? '<section class="chloe-panel" aria-label="Chat with ' + esc(persona.name) + '"><div class="chloe-head"><strong>' + esc(persona.name) + '</strong> <button type="button" class="btn btn-ghost" data-act="chloe-new">New chat</button> <button type="button" class="btn btn-ghost" data-act="chloe-close">Close</button></div><div class="chloe-log">' +
+    return '<section class="chloe-panel" aria-label="Chat with ' + esc(persona.name) + '"><div class="chloe-head"><strong>' + esc(persona.name) + '</strong> <button type="button" class="btn btn-ghost" data-act="chloe-new">New chat</button> <button type="button" class="btn btn-ghost" data-act="chloe-close">Close</button></div><div class="chloe-log">' +
       (log || '<div class="chloe-bubble"><p>' + esc(persona.greeting) + '</p><div class="chloe-chips">' + chips + "</div></div>") +
-      '</div><form class="chloe-form"><input name="message" aria-label="Message" placeholder="Ask about your jobs or a Victorian rule"><button class="btn btn-primary" type="button" data-act="chloe-send">Send</button></form></section>' : "";
-    return panel + '<button class="chloe-fab" type="button" data-act="chloe-open" aria-label="Open chat with ' + esc(persona.name) + '">' + esc(persona.name.slice(0, 1)) + "</button>";
+      '</div><form class="chloe-form"><input name="message" aria-label="Message" placeholder="Ask about your jobs or a Victorian rule"><button class="btn btn-primary" type="button" data-act="chloe-send">Send</button></form></section>';
   }
 
   function shell() {
     const detail = isDetail();
-    const themeLabel = state.themeChoice === "auto" ? "Auto" : state.themeChoice === "light" ? "Light" : "Dark";
-    const themeIcon = resolvedTheme() === "dark" ? icon("moon") : icon("sun");
+    const themeLabel = lookLabel();
+    const themeIcon = icon("sun");
+    const askName = (state.chloePersona && state.chloePersona.name) || "Chloe";
     let bar;
     const section = (tabDefs().find(t => t[0] === state.screen) || ["", ""])[1];
     if (detail) {
@@ -1420,18 +1545,23 @@ const PHOTOS = {
     } else {
       bar = brandMark() + '<div class="section-label">' + esc(section || "Strata App") + '</div><div class="spacer"></div><div class="roles" role="group" aria-label="Choose who you are"><button type="button" data-act="role" data-role="manager" aria-pressed="' + (state.role === "manager" ? "true" : "false") + '">Manager</button><button type="button" data-act="role" data-role="contractor" aria-pressed="' + (state.role === "contractor" ? "true" : "false") + '">Contractor</button></div>';
     }
-    const themeBtn = '<button class="icon-btn" type="button" data-act="theme" aria-label="Theme ' + themeLabel + '. Activate to change.">' + themeIcon + '<span class="theme-label">' + themeLabel + "</span></button>";
+    const themeBtn = '<button class="icon-btn" type="button" data-act="theme" aria-label="Look ' + themeLabel + '. Activate to try the next look.">' + themeIcon + '<span class="theme-label">' + themeLabel + "</span></button>";
+    const askBtn = '<button class="btn btn-secondary ask-chloe" type="button" data-act="chloe-open">Ask ' + esc(askName) + "</button>";
     const emergencyBtn = state.screen === "emergency" ? "" : '<button class="header-emergency" type="button" data-act="emergency" aria-label="Emergency">' + icon("alert") + '<span class="em-label">Emergency</span></button>';
-    return '<div class="shell" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
+    const askTab = '<button class="tab ask-tab" type="button" data-act="chloe-open" aria-pressed="' + (state.chloeOpen ? "true" : "false") + '">' + icon("spark") + '<span class="tab-label">Ask ' + esc(askName) + "</span></button>";
+    const drawer = state.chloeOpen ? '<aside class="chloe-drawer">' + chloeDock() + "</aside>" : "";
+    return '<div class="shell' + (state.chloeOpen ? " chloe-open" : "") + '" data-role="' + state.role + '" data-screen="' + state.screen + '">' +
       '<aside class="rail">' + brandMark() + tabsHtml("rail") + "</aside>" +
-      '<div><header class="topbar">' + bar + (detail ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + themeBtn + emergencyBtn + "</div></header><p class=\"samplebar\">Sample data. The people, buildings and jobs are fictional.</p>" +
-      '<main class="main" id="main"><div class="stage"><div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>' + screenHtml() + "</div></main></div></div>" +
-      '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + "</nav>";
+      '<div class="workspace"><header class="topbar">' + bar + (detail ? '<div class="spacer"></div>' : "") + '<div class="header-actions">' + askBtn + themeBtn + emergencyBtn + "</div></header><p class=\"samplebar\">Sample data. The people, buildings and jobs are fictional.</p>" +
+      '<main class="main" id="main"><div class="stage"><div class="skel" aria-hidden="true"><span></span><span></span><span></span></div>' + screenHtml() + "</div></main></div>" +
+      drawer + "</div>" +
+      '<nav class="tabbar" aria-label="Sections">' + tabsHtml("bar") + askTab + "</nav>";
   }
 
   function screenHtml() {
     const map = {
       home: () => state.role === "manager" ? managerHome() : contractorHome(),
+      area: areaMap,
       jobs: managerJobs,
       find: findJobs,
       offers: myOffers,
@@ -1463,8 +1593,8 @@ const PHOTOS = {
     const i = POPULAR_IDS.indexOf(id);
     return blues[i === -1 ? 0 : i];
   }
-  function emptyState(message) {
-    return '<div class="empty"><span class="bubble">' + icon("clipboard") + "</span><p>" + message + "</p></div>";
+  function emptyState(message, next) {
+    return '<div class="empty"><span class="bubble">' + icon("clipboard") + "</span><p>" + message + "</p>" + (next ? '<p class="small">' + next + "</p>" : "") + "</div>";
   }
   function skyline(id) {
     const n = String(id).split("").reduce((a, c) => a + c.charCodeAt(0), 0);
@@ -1530,8 +1660,9 @@ const PHOTOS = {
       '<div class="stat">' + ring(heldRatio, "gold") + '<span><p class="stat-k">Money held</p><p class="stat-v">' + moneyShort(held) + '</p><p class="small">Held until the work is finished</p></span></div>' +
       "</div>";
     const primary = '<div class="home-primary stack"><section class="hero' + heroPhoto + '><p class="eyebrow">For managers</p><h1>What do you need?</h1><p>Describe the job. A licensed contractor can make an offer.</p></section>' +
-      '<p class="small">Ask Chloe with the chat button. Drafts only.</p>' +
+      '<p class="small">Ask Chloe from the top of the page, or the Ask tab on a phone. Drafts only.</p>' +
       '<button class="btn btn-primary request-bar" type="button" data-act="new-request">New request</button>' +
+      '<button class="btn btn-secondary" type="button" data-act="tab" data-screen="area">See the map</button>' +
       (state.account && state.account.role === "platform_owner" ? '<button class="btn btn-secondary" type="button" data-act="open-office">Back office</button><a class="btn btn-secondary" href="/admin">Admin console</a>' : "") +
       (state.manager.role === "property" ? "" : '<button class="btn btn-secondary" type="button" data-act="open-reports">Resident reports</button>') +
       stats +
@@ -1649,7 +1780,10 @@ const PHOTOS = {
       '<label class="check"><input type="checkbox" data-field="owner.gstOnFee"' + (o.gstOnFee ? " checked" : "") + "> <span>Add GST on the fee</span></label>" +
       '<p class="small">The fee stays at ' + esc(String(o.feePercent)) + "% until this is on. When it is on, the fee is that percentage plus 10% of the fee" + (o.gstOnFee ? " (now " + feePhrase() + ")" : " (15% would become 16.5%)") + ".</p>" +
       '<p class="small">On a ' + moneyShort(example) + " job the fee is " + money(fee) + ", the contractor receives " + money(receives(example)) + ", and the manager pays " + moneyShort(example) + ".</p>" +
-      "<p class=\"small muted\">Strata App holds the money until the job is finished, then releases 100%. There is no retention. Managers pay the approved quote and no service fee.</p></div></div>";
+      "<p class=\"small muted\">Strata App holds the money until the job is finished, then releases 100%. There is no retention. Managers pay the approved quote and no service fee.</p></div>" +
+      '<div class="card stack"><h2>Look</h2><p>Save one look for everyone. The welcome page can preview a look without saving it.</p><div class="row">' +
+      LOOKS.map(item => '<button class="chip" type="button" data-act="save-look" data-look="' + item[0] + '" aria-pressed="' + ((state.look || "clear") === item[0] ? "true" : "false") + '">' + esc(item[1]) + "</button>").join("") +
+      "</div></div></div>";
   }
 
   function assistantCard() {
@@ -1701,8 +1835,10 @@ const PHOTOS = {
       const dollars = (cents) => "A$" + (Number(cents || 0) / 100).toFixed(2);
       const line = (row) => "<p>" + esc(row.name || row.email) + " · " + dollars(row.spentCents) + " of " + dollars(row.capCents) + "</p>";
       body = "<div class=\"card stack\"><h2>AI Assistant</h2><p>Managers " + dollars(data.managerCapCents || data.capCents) + " · Contractors " + dollars(data.contractorCapCents || 200) + " · The platform owner has no monthly cap.</p><h3>Managers</h3>" + ((data.managers || []).map(line).join("") || "<p>No manager use yet.</p>") + "<h3>Contractors</h3>" + ((data.contractors || []).map(line).join("") || "<p>No contractor use yet.</p>") + "<p>Feedback, with no names: " + ((data.feedback && data.feedback.up) || 0) + " helpful, " + ((data.feedback && data.feedback.down) || 0) + " not helpful, " + ((data.feedback && data.feedback.corrections) || 0) + " corrections.</p><p class=\"small\">Web search is on unless you use the emergency stop. Chloe chooses when to search. Learning means saved notes, past jobs and feedback. The model is not retrained.</p><button class=\"btn btn-secondary\" type=\"button\" data-act=\"web-emergency\">Emergency: pause web search</button></div>";
-    } else if (section === "settings" && data.holidays) {
-      body = data.holidays.slice(0, 12).map(day => "<p>" + esc(day.day) + " " + esc(day.name) + (day.note ? " · " + esc(day.note) : "") + "</p>").join("");
+    } else if (section === "settings") {
+      const looks = LOOKS.map(item => '<button class="chip" type="button" data-act="save-look" data-look="' + item[0] + '" aria-pressed="' + ((state.look || "clear") === item[0] ? "true" : "false") + '">' + esc(item[1]) + "</button>").join("");
+      body = '<div class="card stack"><h2>Look</h2><p>One setting for the whole app. Clear &amp; Calm, Warm Professional, and Modern Dark-Accent each meet WCAG AA.</p><div class="row">' + looks + "</div></div>" +
+        ((data.holidays || []).slice(0, 12).map(day => "<p>" + esc(day.day) + " " + esc(day.name) + (day.note ? " · " + esc(day.note) : "") + "</p>").join(""));
     } else if (section === "audit" && data.events) {
       body = '<a class="btn btn-secondary" href="/api/owner/audit.csv">Export CSV</a>' + data.events.slice(0, 20).map(event => "<p>" + esc(event.action) + " · " + esc(event.at) + "</p>").join("");
     } else if (data && section !== "overview") {
@@ -1733,7 +1869,7 @@ const PHOTOS = {
         '<button class="btn btn-secondary" type="button" data-act="code-active" data-id="' + esc(code.id) + '" data-on="' + (code.active ? "0" : "1") + '">' + (code.active ? "Switch off" : "Switch on") + "</button>" +
         '<button class="btn btn-ghost" type="button" data-act="code-replace" data-id="' + esc(code.id) + '">Make a new code</button>' +
         '<p class="small muted">A new code switches this one off. Printing a label sheet stays off.</p></article>';
-    }).join("") || emptyState("No QR codes yet.");
+    }).join("") || emptyState("No QR codes yet.", "Add a place, then print its code.");
     const reports = (state.residentReports || []).map(item => {
       const open = state.reportOpenId === item.id && state.reportDetail && state.reportDetail.id === item.id;
       const detail = open
@@ -1744,7 +1880,7 @@ const PHOTOS = {
         : "";
       return '<article class="card stack"><div class="between"><h2>' + esc(item.reference) + '</h2><span class="pill pill-muted">' + esc(reportStatusLabel(item.status)) + "</span></div><p>" + esc(item.buildingName || "") + " · " + esc(item.placeName || "") + "</p><p>" + esc(item.description) + "</p>" +
         '<button class="btn btn-ghost" type="button" data-act="open-report" data-id="' + esc(item.id) + '">Details</button>' + detail + actions + "</article>";
-    }).join("") || emptyState("No resident reports yet.");
+    }).join("") || emptyState("No resident reports yet.", "Reports show up here after someone scans a code.");
     return '<div class="stack"><h1>Resident reports</h1><p class="small muted">A resident scans a code and sends a report with no account. The page shows the building name and the place, not the street address. You can show the code on screen or download it. Printing a label sheet stays off.</p>' +
       '<div class="card stack"><h2>New code</h2><label class="field">Building<select data-field="qr.buildingId">' + opts + "</select></label>" +
       field("Place, if this code is not for the whole building", "text", "qr.name", draft.name, "Lift 1") +
@@ -1847,7 +1983,7 @@ const PHOTOS = {
     groups.forEach(g => {
       const items = state.jobs.filter(j => managerBucket(j) === g[0]);
       body += "<h2>" + g[1] + "</h2>";
-      body += items.length ? items.map(jobCardManager).join("") : emptyState("Nothing in this group.");
+      body += items.length ? items.map(jobCardManager).join("") : emptyState("Nothing in this group.", "Post a job from Home when you are ready.");
     });
     return body + "</div>";
   }
@@ -1918,7 +2054,7 @@ const PHOTOS = {
         let when = whenText(job);
         if (q) when = rangeText(q.date, q.time, q.duration, p.open, p.close);
         return '<button class="btn btn-secondary" type="button" data-act="open-job" data-id="' + job.id + '">' + esc(job.title) + " · " + esc(when) + "</button>";
-      }).join("") || emptyState("Nothing on this day.");
+      }).join("") || emptyState("Nothing on this day.", "Pick another day, or add a notice.");
       let book = "";
       if (role === "manager") {
         const closed = dayClosedForAll(selected);
@@ -2278,7 +2414,7 @@ const PHOTOS = {
     const list = sortFound(opens).slice(0, 6).map(contractorCard).join("");
     const emergencies = opens.some(isEmergency);
     return '<div class="stack"><section class="hero"><p class="eyebrow">For contractors</p><h1>Find work</h1><p class="hero-stat"><strong>' + opens.length + "</strong> open " + (opens.length === 1 ? "job" : "jobs") + "</p></section>" +
-      '<p class="small">Ask Chloe with the chat button. Drafts only.</p>' +
+      '<p class="small">Ask Chloe from the top of the page, or the Ask tab on a phone. Drafts only.</p>' +
       (!c.guideDone ? '<button class="notice notice-warn" type="button" data-act="open-guide" style="text-align:left"><strong>Read the safety guide before you start work.</strong></button>' : "") +
       noticeNeeds(needsContractorCount(), "active") +
       (emergencies ? '<button class="notice notice-bad" type="button" data-act="tab" data-screen="find" style="text-align:left"><strong>An emergency job is open.</strong><span class="small">Contractors have been alerted. <span class="demo">Demo</span></span></button>' : "") +
@@ -2338,7 +2474,7 @@ const PHOTOS = {
     const tradeName = f.trade === "all" ? "All trades" : tradeById(f.trade).name;
     const summary = "Within " + f.distance + " km · " + tradeName;
     const list = sortFound(foundJobs());
-    const body = f.view === "map" ? mapHtml(list) : list.map(contractorCard).join("") || emptyState("No jobs match.");
+    const body = f.view === "map" ? mapHtml(list) : list.map(contractorCard).join("") || emptyState("No jobs match.", "Widen the distance or clear the search.");
     const filters = f.filtersOpen ? '<div class="card stack"><span class="field">Distance</span><div class="row">' + [3, 5, 8, 12].map(n => '<button class="chip" type="button" data-act="distance" data-v="' + n + '" aria-pressed="' + (f.distance === n ? "true" : "false") + '">' + n + " km</button>").join("") + "</div>" +
       '<span class="field">Trade</span><div class="row"><button class="chip" type="button" data-act="find-trade" data-trade="all" aria-pressed="' + (f.trade === "all" ? "true" : "false") + '">All</button>' + ALL_TRADES.map(t => '<button class="chip" type="button" data-act="find-trade" data-trade="' + t.id + '" aria-pressed="' + (f.trade === t.id ? "true" : "false") + '">' + esc(t.name) + "</button>").join("") + "</div></div>" : "";
     return '<div class="stack"><h1>Find jobs</h1><div class="row" role="group" aria-label="List or map"><button class="chip" type="button" data-act="find-view" data-v="list" aria-pressed="' + (f.view === "list" ? "true" : "false") + '">List</button><button class="chip" type="button" data-act="find-view" data-v="map" aria-pressed="' + (f.view === "map" ? "true" : "false") + '">Map</button></div>' +
@@ -2399,7 +2535,17 @@ const PHOTOS = {
       const job = jobById(state.find.previewId);
       if (job) preview = contractorCard(job);
     }
-    return '<div class="stack"><div class="map-card" id="live-map-card"><div id="live-map" class="live-map" role="region" aria-label="Map of Melbourne" data-points="' + encodeURIComponent(JSON.stringify(points)) + '"></div><div class="map-tools"><button class="chip" type="button" data-act="show-booked" aria-pressed="' + (state.find.showBooked ? "true" : "false") + '">Show my booked jobs</button><button class="chip" type="button" data-act="map-full">Full screen</button></div></div><p class="small">Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. Blue is a job, navy is a building, teal is a contractor.</p>' + preview + "</div>";
+    let coverage = "";
+    if (state.role === "contractor") {
+      const person = (state.contractors || []).find(item => item.id === state.meId);
+      if (person && person.lat != null && person.lng != null) coverage = encodeURIComponent(JSON.stringify({ lat: person.lat, lng: person.lng, km: state.owner.radiusKm || 8 }));
+    }
+    return '<div class="stack"><div class="map-card" id="live-map-card"><div id="live-map" class="live-map" role="region" aria-label="Map of Melbourne" data-points="' + encodeURIComponent(JSON.stringify(points)) + '" data-coverage="' + coverage + '"></div><div class="map-tools"><button class="chip" type="button" data-act="show-booked" aria-pressed="' + (state.find.showBooked ? "true" : "false") + '">Show my booked jobs</button><button class="chip" type="button" data-act="map-full">Full screen</button></div></div><p class="small">Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors. Council areas: Australian Bureau of Statistics, ASGS Edition 3, Local Government Areas 2023, simplified, <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Blue is a job, navy is a building, teal is a contractor. The amber circle is a contractor coverage area.</p>' + preview + "</div>";
+  }
+
+  function areaMap() {
+    const list = state.role === "contractor" ? foundJobs() : (state.jobs || []);
+    return '<div class="stack"><h1>Map</h1><p>Melbourne council areas, with the jobs and buildings on this account.</p>' + mapHtml(list) + "</div>";
   }
 
   function ensureOffer(job) {
@@ -2609,7 +2755,7 @@ const PHOTOS = {
       else if (job.awardedQuoteId && job.awardedQuoteId !== q.id) status = "Not chosen";
       return '<article class="card stack"><h2>' + esc(job.title) + "</h2><p>" + esc(streetPublic(job)) + "</p><p>" + money(q.price) + " · " + esc(status) + '</p><button class="btn btn-secondary" type="button" data-act="open-job" data-id="' + job.id + '">View details</button></article>';
     }).join("");
-    return '<div class="stack"><h1>My offers</h1>' + (cards || emptyState("You have not sent an offer yet.")) + "</div>";
+    return '<div class="stack"><h1>My offers</h1>' + (cards || emptyState("You have not sent an offer yet.", "Open Find jobs and send an offer.")) + "</div>";
   }
   function activeJobs() {
     const groups = [["needs", "Needs you"], ["waiting", "Waiting for the manager"], ["done", "Done"]];
@@ -2618,7 +2764,7 @@ const PHOTOS = {
     groups.forEach(g => {
       const items = state.jobs.filter(j => contractorBucket(j) === g[0]);
       html += "<h2>" + g[1] + "</h2>";
-      html += items.length ? items.map(j => '<article class="card job-card stack"><h3>' + esc(j.title) + "</h3><p>" + esc(statusLabel(j)) + '</p><button class="btn btn-secondary" type="button" data-act="open-job" data-id="' + j.id + '">Open</button></article>').join("") : emptyState("Nothing in this group.");
+      html += items.length ? items.map(j => '<article class="card job-card stack"><h3>' + esc(j.title) + "</h3><p>" + esc(statusLabel(j)) + '</p><button class="btn btn-secondary" type="button" data-act="open-job" data-id="' + j.id + '">Open</button></article>').join("") : emptyState("Nothing in this group.", "Open Find jobs to take work.");
     });
     return html + "</div>";
   }
@@ -2825,11 +2971,18 @@ const PHOTOS = {
       return;
     }
     if (act === "theme") {
-      state.themeChoice = state.themeChoice === "auto" ? "light" : state.themeChoice === "light" ? "dark" : "auto";
-      saveTheme();
+      const order = ["clear", "warm", "modern"];
+      rememberLook(order[(order.indexOf(lookId()) + 1) % order.length]);
       render({ keepScroll: true });
       return;
     }
+    if (act === "try-look") {
+      rememberLook(t.dataset.look || "clear");
+      render({ keepScroll: true });
+      return;
+    }
+    if (act === "chloe-open") { state.chloeOpen = true; render({ keepScroll: true }); return; }
+    if (act === "chloe-close") { state.chloeOpen = false; render({ keepScroll: true }); return; }
     if (act === "back") { back(); return; }
     if (act === "new-request") { startRequest({ tradeId: t.dataset.trade || "plumbing" }); return; }
     if (act === "owner") { push("owner", {}, "Owner settings"); return; }
@@ -2904,7 +3057,7 @@ const PHOTOS = {
     if (act === "cal-day") { state.cal.selected = t.dataset.date; render({ keepScroll: true }); return; }
     if (act === "book-day") { startRequest({ date: t.dataset.date }); return; }
     if (act === "search") { state.screen = "find"; state.role = "contractor"; state.history = []; state.title = ""; render(); return; }
-    if (act === "see-map") { state.find.view = "map"; goTab("find"); return; }
+    if (act === "see-map") { goTab("area"); return; }
     if (act === "find-trade") {
       const already = state.screen === "find";
       state.find.trade = t.dataset.trade;
